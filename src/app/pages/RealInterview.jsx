@@ -19,17 +19,17 @@ const RealInterview = () => {
         {
             title: 'CS 기초',
             description: '운영체제, 네트워크, 데이터베이스 등 핵심 전공 지식',
-            gradient: 'from-purple-600 to-indigo-600',
+            gradient: 'from-pink-500 to-rose-500',
         },
         {
             title: '시스템 디자인',
             description: '대규모 아키텍처 및 분산 시스템 설계 연습',
-            gradient: 'from-indigo-600 to-blue-600',
+            gradient: 'from-rose-500 to-pink-600',
         },
         {
             title: '개별 포트폴리오',
             description: '내 프로젝트 기반의 1:1 맞춤형 기술 면접',
-            gradient: 'from-blue-600 to-indigo-700',
+            gradient: 'from-pink-600 to-rose-600',
         },
     ];
 
@@ -44,7 +44,7 @@ const RealInterview = () => {
                     <button
                         key={index}
                         onClick={() => handleComingSoon(item.title)}
-                        className={`flex-1 relative overflow-hidden rounded-2xl p-5 flex flex-col justify-center text-left text-white transition-all active:scale-[0.98] bg-gradient-to-br ${item.gradient} shadow-lg shadow-indigo-200/50 min-h-[100px]`}
+                        className={`flex-1 relative overflow-hidden rounded-2xl p-5 flex flex-col justify-center text-left text-white transition-all active:scale-[0.98] bg-gradient-to-br ${item.gradient} shadow-lg shadow-pink-200/50 min-h-[100px]`}
                     >
                         <div className="relative z-10">
                             <h2 className="text-xl font-bold mb-1">{item.title}</h2>

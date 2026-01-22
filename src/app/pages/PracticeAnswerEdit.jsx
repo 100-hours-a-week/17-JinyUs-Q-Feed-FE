@@ -14,7 +14,8 @@ import {
     AlertDialogTitle,
 } from '@/app/components/ui/alert-dialog';
 import { QUESTIONS } from '@/data/questions';
-import { ArrowLeft, Edit3, Eye } from 'lucide-react';
+import { Edit3, Eye } from 'lucide-react';
+import { AppHeader } from '@/app/components/AppHeader';
 import { toast } from 'sonner';
 
 const PracticeAnswerEdit = () => {
@@ -50,20 +51,11 @@ const PracticeAnswerEdit = () => {
 
     return (
         <div className="min-h-screen bg-background">
-            <div className="bg-white border-b sticky top-0 z-10">
-                <div className="flex items-center justify-between p-4 max-w-lg mx-auto">
-                    <div className="flex items-center gap-3">
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => navigate(-1)}
-                            className="rounded-full"
-                        >
-                            <ArrowLeft className="w-5 h-5" />
-                        </Button>
-                        <h1 className="text-xl">답변 확인</h1>
-                    </div>
-
+            <AppHeader
+                title="답변 확인"
+                onBack={() => navigate(-1)}
+                showNotifications={false}
+                rightContent={
                     <Button
                         variant="outline"
                         size="sm"
@@ -82,8 +74,8 @@ const PracticeAnswerEdit = () => {
                             </>
                         )}
                     </Button>
-                </div>
-            </div>
+                }
+            />
 
             <div className="p-6 max-w-lg mx-auto space-y-4">
                 <Card className="p-4 bg-gray-50">

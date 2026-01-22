@@ -38,10 +38,10 @@ const Home = () => {
             {/* Header */}
             <AppHeader title="Q-Feed" showBack={false} />
 
-            <div className="bg-gradient-to-br from-indigo-500 to-purple-600 text-white">
+            <div className="bg-gradient-to-br from-rose-400 to-pink-500 text-white max-w-lg mx-auto w-full">
                 <div className="p-6 max-w-lg mx-auto">
                     <h1 className="text-2xl mb-1">안녕하세요, {nickname}님!</h1>
-                    <p className="text-indigo-100 text-sm">오늘도 면접 준비를 시작해볼까요?</p>
+                    <p className="text-rose-100 text-sm">오늘도 면접 준비를 시작해볼까요?</p>
                 </div>
             </div>
 
@@ -49,13 +49,13 @@ const Home = () => {
                 {/* 오늘의 추천 질문 */}
                 <section>
                     <div className="flex items-center gap-2 mb-4">
-                        <Sparkles className="w-5 h-5 text-purple-600" />
+                        <Sparkles className="w-5 h-5 text-pink-600" />
                         <h2 className="text-lg">오늘의 추천 질문</h2>
                     </div>
 
-                    <Card className="p-5 border-2 border-purple-200 bg-gradient-to-br from-purple-50 to-white">
+                    <Card className="p-5 border-2 border-rose-200 bg-gradient-to-br from-rose-50 to-white">
                         <div className="flex items-start justify-between mb-3">
-                            <Badge variant="secondary" className="bg-purple-100 text-purple-700">
+                            <Badge variant="secondary" className="bg-rose-100 text-rose-700">
                                 {todayQuestion.category}
                             </Badge>
                             <Badge variant="outline">{todayQuestion.difficulty}</Badge>
@@ -68,7 +68,7 @@ const Home = () => {
 
                         <Button
                             onClick={handleStartPractice}
-                            className="w-full rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700"
+                            className="w-full rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600"
                         >
                             지금 연습하기
                         </Button>
@@ -78,7 +78,7 @@ const Home = () => {
                 {/* 이번 주 학습 기록 */}
                 <section>
                     <div className="flex items-center gap-2 mb-4">
-                        <TrendingUp className="w-5 h-5 text-green-600" />
+                        <TrendingUp className="w-5 h-5 text-rose-500" />
                         <h2 className="text-lg">이번 주 학습 기록</h2>
                     </div>
 
@@ -88,12 +88,12 @@ const Home = () => {
                                 <div key={index} className="flex-1 flex flex-col items-center justify-end gap-2">
                                     <div
                                         className={`w-full rounded-t-lg transition-all ${data.isToday
-                                                ? 'bg-gradient-to-t from-purple-600 to-purple-400'
+                                                ? 'bg-gradient-to-t from-pink-500 to-rose-400'
                                                 : 'bg-gradient-to-t from-gray-300 to-gray-200'
                                             }`}
                                         style={{ height: `${Math.max(data.count * 20, 8)}%` }}
                                     />
-                                    <span className={`text-xs ${data.isToday ? 'text-purple-600 font-semibold' : 'text-muted-foreground'}`}>
+                                    <span className={`text-xs ${data.isToday ? 'text-pink-600 font-semibold' : 'text-muted-foreground'}`}>
                                         {data.day}
                                     </span>
                                 </div>
@@ -102,7 +102,7 @@ const Home = () => {
 
                         <div className="mt-4 pt-4 border-t flex justify-between text-sm">
                             <span className="text-muted-foreground">이번 주 총</span>
-                            <span className="font-semibold text-purple-600">
+                            <span className="font-semibold text-pink-600">
                                 {weeklyData.reduce((acc, d) => acc + d.count, 0)}번 연습
                             </span>
                         </div>
@@ -112,7 +112,7 @@ const Home = () => {
                 {/* 빠른 메뉴 */}
                 <section>
                     <div className="flex items-center gap-2 mb-4">
-                        <Calendar className="w-5 h-5 text-indigo-600" />
+                        <Calendar className="w-5 h-5 text-rose-500" />
                         <h2 className="text-lg">빠른 메뉴</h2>
                     </div>
 

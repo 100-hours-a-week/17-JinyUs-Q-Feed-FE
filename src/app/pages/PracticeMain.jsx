@@ -76,7 +76,7 @@ const PracticeMain = () => {
                             onClick={() => navigate(`/practice/answer/${question.id}`)}
                         >
                             <div className="flex items-start justify-between mb-2">
-                                <Badge variant="secondary" className="bg-indigo-100 text-indigo-700">
+                                <Badge variant="secondary" className="bg-rose-100 text-rose-700">
                                     {question.category}
                                 </Badge>
                                 <Badge variant="outline">{question.difficulty}</Badge>
@@ -91,7 +91,7 @@ const PracticeMain = () => {
                                 {question.keywords.slice(0, 3).map((keyword, idx) => (
                                     <span
                                         key={idx}
-                                        className="text-xs px-2 py-1 bg-gray-100 text-gray-700 rounded-full"
+                                        className="text-xs px-2 py-1 bg-rose-50 text-rose-700 rounded-full"
                                     >
                                         #{keyword}
                                     </span>

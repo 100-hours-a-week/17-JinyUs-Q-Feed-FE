@@ -1,0 +1,72 @@
+# 프론트엔드 CI 워크플로우
+# main 브랜치에 직접 push되거나 PR이 merge되는 경우에 실행되어 빌드, 테스트 후 artifacts를 생성합니다.
+name: Frontend CI
+
+on:
+  push:               # main 브랜치에 직접 push될 때 실행
+    branches:
+      - main      
+  pull_request:       # main 브랜치로의 PR이 생성되거나 업데이트될 때 실행
+    branches:
+      - main
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    
+    # main 브랜치에 직접 push되거나 PR이 merge되는 경우에만 실행
+    # feature 브랜치에서는 CI가 작동하지 않음
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+      # 1. 저장소 코드 체크아웃
+      - name: 코드 체크아웃
+        uses: actions/checkout@v4
+      
+      # 2. Node.js 환경 설정
+      - name: Node.js 환경 설정
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      # 3. 의존성 설치 (npm ci는 package-lock.json을 기반으로 정확한 버전 설치)
+      - name: 의존성 설치
+        run: npm ci
+      
+      # 4. 코드 린트 검사 (코드 스타일 및 잠재적 오류 확인)
+      - name: 린트 검사 실행
+        run: npm run lint
+      
+      # 5. 테스트 실행
+      - name: 테스트 실행
+        run: npm test
+        # 테스트 스크립트가 없을 경우에도 워크플로우가 중단되지 않도록 설정
+        continue-on-error: true
+      
+      # 6. 프로젝트 빌드 (dist 디렉토리 생성)
+      - name: 프로젝트 빌드
+        run: npm run build
+      
+      # 7. package.json에서 버전 정보 추출
+      - name: 패키지 버전 추출
+        id: package-version
+        run: echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
+      
+      # 8. 빌드된 dist 디렉토리를 tar.gz 형식으로 압축
+      # 파일명 형식: fe-{version}.tar.gz (예: fe-v0.0.0.tar.gz)
+      - name: 빌드 결과물 압축
+        run: tar -czf fe-v${{ steps.package-version.outputs.version }}.tar.gz dist/
+      
+      # 9. 압축된 파일을 GitHub Artifacts에 업로드
+      - name: 빌드 산출물 업로드
+        uses: actions/upload-artifact@v4
+        with:
+          # artifact 이름에 버전 포함 (예: fe-build-v0.0.0)
+          name: fe-v${{ steps.package-version.outputs.version }}
+          # 업로드할 파일 경로
+          path: fe-v${{ steps.package-version.outputs.version }}.tar.gz
+          # 90일 동안 보관 후 자동 삭제
+          retention-days: 90
+          # 이미 tar.gz로 압축되어 있으므로 추가 압축 불필요
+          compression-level: 0
