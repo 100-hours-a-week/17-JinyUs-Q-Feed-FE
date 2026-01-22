@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Button } from '@/app/components/ui/button';
 import { QUESTIONS } from '@/data/questions';
-import { motion } from 'motion/react';
+import { motion as Motion } from 'motion/react';
 import { AppHeader } from '@/app/components/AppHeader';
 
 const PracticeAnswerVoice = () => {
@@ -60,7 +60,7 @@ const PracticeAnswerVoice = () => {
 
                 {/* Audio Visualizer */}
                 <div className="relative mb-12">
-                    <motion.div
+                    <Motion.div
                         className="w-40 h-40 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center"
                         animate={{
                             scale: isRecording ? [1, 1 + audioLevel * 0.3, 1] : 1,
@@ -74,7 +74,7 @@ const PracticeAnswerVoice = () => {
                                 </svg>
                             </div>
                         </div>
-                    </motion.div>
+                    </Motion.div>
                 </div>
 
                 {/* Timer */}

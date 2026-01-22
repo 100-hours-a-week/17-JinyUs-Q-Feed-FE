@@ -1,4 +1,3 @@
-import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card } from '@/app/components/ui/card';
 import { Button } from '@/app/components/ui/button';
@@ -10,24 +9,22 @@ import { storage } from '@/utils/storage';
 
 import { AppHeader } from '@/app/components/AppHeader';
 
+const HOME_DATA = (() => {
+    const todayQuestion = QUESTIONS[Math.floor(Math.random() * QUESTIONS.length)];
+    const days = ['월', '화', '수', '목', '금', '토', '일'];
+    const weeklyData = days.map((day, index) => ({
+        day,
+        count: Math.floor(Math.random() * 5),
+        isToday: index === new Date().getDay() - 1,
+    }));
+
+    return { todayQuestion, weeklyData };
+})();
+
 const Home = () => {
     const navigate = useNavigate();
     const nickname = storage.getNickname();
-
-    // 랜덤 추천 질문
-    const todayQuestion = useMemo(() => {
-        return QUESTIONS[Math.floor(Math.random() * QUESTIONS.length)];
-    }, []);
-
-    // 이번 주 학습 기록 (더미 데이터)
-    const weeklyData = useMemo(() => {
-        const days = ['월', '화', '수', '목', '금', '토', '일'];
-        return days.map((day, index) => ({
-            day,
-            count: Math.floor(Math.random() * 5),
-            isToday: index === new Date().getDay() - 1,
-        }));
-    }, []);
+    const { todayQuestion, weeklyData } = HOME_DATA;
 
     const handleStartPractice = () => {
         navigate(`/practice/answer/${todayQuestion.id}`);

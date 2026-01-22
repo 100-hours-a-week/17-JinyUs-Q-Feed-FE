@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion } from 'motion/react';
+import { motion as Motion } from 'motion/react';
 import { Button } from '@/app/components/ui/button';
 import { Checkbox } from '@/app/components/ui/checkbox';
 import { storage } from '@/utils/storage';
@@ -30,7 +30,7 @@ const AuthLogin = () => {
             <AppHeader title="Q-Feed" showBack={false} showNotifications={false} />
 
             <div className="flex-1 flex items-center justify-center p-6">
-                <motion.div
+                <Motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     className="w-full max-w-md"
@@ -69,7 +69,7 @@ const AuthLogin = () => {
                             로그인하면 Q-Feed의 모든 기능을 이용할 수 있습니다
                         </p>
                     </div>
-                </motion.div>
+                </Motion.div>
             </div>
         </div>
     );
