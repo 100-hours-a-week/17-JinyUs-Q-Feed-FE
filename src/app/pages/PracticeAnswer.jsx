@@ -4,7 +4,8 @@ import { Button } from '@/app/components/ui/button';
 import { Card } from '@/app/components/ui/card';
 import { Checkbox } from '@/app/components/ui/checkbox';
 import { QUESTIONS } from '@/data/questions';
-import { ArrowLeft, Mic, Keyboard } from 'lucide-react';
+import { Mic, Keyboard } from 'lucide-react';
+import { AppHeader } from '@/app/components/AppHeader';
 
 const PracticeAnswer = () => {
     const navigate = useNavigate();
@@ -27,22 +28,14 @@ const PracticeAnswer = () => {
 
     return (
         <div className="min-h-screen bg-background">
-            <div className="bg-white border-b">
-                <div className="flex items-center gap-3 p-4 max-w-lg mx-auto">
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => navigate('/practice')}
-                        className="rounded-full"
-                    >
-                        <ArrowLeft className="w-5 h-5" />
-                    </Button>
-                    <h1 className="text-xl">답변 준비</h1>
-                </div>
-            </div>
+            <AppHeader
+                title="답변 준비"
+                onBack={() => navigate('/practice')}
+                showNotifications={false}
+            />
 
             <div className="p-6 max-w-lg mx-auto space-y-6">
-                <Card className="p-6 bg-gradient-to-br from-indigo-50 to-white">
+                <Card className="p-6 bg-gradient-to-br from-rose-50 to-white">
                     <h2 className="text-lg mb-4">{question.title}</h2>
                     <p className="text-sm text-muted-foreground mb-4">
                         {question.description}
@@ -51,7 +44,7 @@ const PracticeAnswer = () => {
                         {question.keywords.map((keyword, idx) => (
                             <span
                                 key={idx}
-                                className="text-xs px-3 py-1 bg-white text-indigo-700 rounded-full border border-indigo-200"
+                                className="text-xs px-3 py-1 bg-white text-rose-700 rounded-full border border-rose-200"
                             >
                                 {keyword}
                             </span>
@@ -63,10 +56,10 @@ const PracticeAnswer = () => {
                     <h3 className="mb-4">답변 방식 선택</h3>
 
                     <div className="space-y-3 mb-6">
-                        <div className={`p-4 rounded-xl border-2 transition-all ${!cannotSpeak ? 'border-purple-500 bg-purple-50' : 'border-gray-200'}`}>
+                        <div className={`p-4 rounded-xl border-2 transition-all ${!cannotSpeak ? 'border-pink-500 bg-rose-50' : 'border-gray-200'}`}>
                             <div className="flex items-center gap-3">
-                                <div className="w-12 h-12 rounded-full bg-purple-100 flex items-center justify-center">
-                                    <Mic className="w-6 h-6 text-purple-600" />
+                                <div className="w-12 h-12 rounded-full bg-rose-100 flex items-center justify-center">
+                                    <Mic className="w-6 h-6 text-pink-600" />
                                 </div>
                                 <div>
                                     <p className="font-medium">음성으로 답변하기</p>

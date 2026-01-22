@@ -14,7 +14,7 @@ import {
     AlertDialogTitle,
 } from '@/app/components/ui/alert-dialog';
 import { QUESTIONS } from '@/data/questions';
-import { ArrowLeft } from 'lucide-react';
+import { AppHeader } from '@/app/components/AppHeader';
 
 const PracticeAnswerText = () => {
     const navigate = useNavigate();
@@ -40,19 +40,11 @@ const PracticeAnswerText = () => {
 
     return (
         <div className="min-h-screen bg-background">
-            <div className="bg-white border-b sticky top-0 z-10">
-                <div className="flex items-center gap-3 p-4 max-w-lg mx-auto">
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => navigate(`/practice/answer/${questionId}`)}
-                        className="rounded-full"
-                    >
-                        <ArrowLeft className="w-5 h-5" />
-                    </Button>
-                    <h1 className="text-xl">텍스트로 답변하기</h1>
-                </div>
-            </div>
+            <AppHeader
+                title="텍스트로 답변하기"
+                onBack={() => navigate(`/practice/answer/${questionId}`)}
+                showNotifications={false}
+            />
 
             <div className="p-6 max-w-lg mx-auto space-y-4">
                 <Card className="p-4 bg-gray-50">

@@ -2,8 +2,8 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Button } from '@/app/components/ui/button';
 import { QUESTIONS } from '@/data/questions';
-import { ArrowLeft } from 'lucide-react';
 import { motion } from 'motion/react';
+import { AppHeader } from '@/app/components/AppHeader';
 
 const PracticeAnswerVoice = () => {
     const navigate = useNavigate();
@@ -44,19 +44,15 @@ const PracticeAnswerVoice = () => {
     if (!question) return <div>질문을 찾을 수 없습니다</div>;
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-purple-500 to-indigo-600 text-white">
-            <div className="p-4 max-w-lg mx-auto">
-                <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => navigate(`/practice/answer/${questionId}`)}
-                    className="rounded-full text-white hover:bg-white/20"
-                >
-                    <ArrowLeft className="w-5 h-5" />
-                </Button>
-            </div>
+        <div className="min-h-screen bg-gradient-to-br from-rose-400 to-pink-500 text-white flex flex-col">
+            <AppHeader
+                title="음성 답변"
+                onBack={() => navigate(`/practice/answer/${questionId}`)}
+                showNotifications={false}
+                tone="dark"
+            />
 
-            <div className="flex flex-col items-center justify-center px-6 py-12">
+            <div className="flex-1 flex flex-col items-center justify-center px-6 py-12">
                 <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 mb-8 w-full max-w-md">
                     <p className="text-center text-white/90 text-sm mb-2">질문</p>
                     <h2 className="text-center text-lg">{question.title}</h2>
@@ -94,7 +90,7 @@ const PracticeAnswerVoice = () => {
                     onClick={handleToggleRecording}
                     className={`w-48 h-14 rounded-full text-lg ${isRecording
                             ? 'bg-red-500 hover:bg-red-600'
-                            : 'bg-white text-purple-600 hover:bg-white/90'
+                            : 'bg-white text-pink-600 hover:bg-white/90'
                         }`}
                 >
                     {isRecording ? '답변 종료' : '답변 시작'}

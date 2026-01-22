@@ -5,7 +5,8 @@ import { Card } from '@/app/components/ui/card';
 import { Badge } from '@/app/components/ui/badge';
 import { Progress } from '@/app/components/ui/progress';
 import { QUESTIONS } from '@/data/questions';
-import { ArrowLeft, Sparkles } from 'lucide-react';
+import { Sparkles } from 'lucide-react';
+import { AppHeader } from '@/app/components/AppHeader';
 
 const PracticeResultKeyword = () => {
     const navigate = useNavigate();
@@ -36,19 +37,11 @@ const PracticeResultKeyword = () => {
 
     return (
         <div className="min-h-screen bg-background">
-            <div className="bg-white border-b sticky top-0 z-10">
-                <div className="flex items-center gap-3 p-4 max-w-lg mx-auto">
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => navigate('/practice')}
-                        className="rounded-full"
-                    >
-                        <ArrowLeft className="w-5 h-5" />
-                    </Button>
-                    <h1 className="text-xl">답변 분석</h1>
-                </div>
-            </div>
+            <AppHeader
+                title="답변 분석"
+                onBack={() => navigate('/practice')}
+                showNotifications={false}
+            />
 
             <div className="p-6 max-w-lg mx-auto space-y-4">
                 <Card className="p-4 bg-gray-50">
@@ -63,9 +56,9 @@ const PracticeResultKeyword = () => {
                     </div>
                 </Card>
 
-                <Card className="p-4 bg-gradient-to-br from-purple-50 to-white">
+                <Card className="p-4 bg-gradient-to-br from-rose-50 to-white">
                     <div className="flex items-center gap-2 mb-3">
-                        <Sparkles className="w-5 h-5 text-purple-600" />
+                        <Sparkles className="w-5 h-5 text-pink-600" />
                         <h3>핵심 키워드</h3>
                     </div>
 
@@ -74,7 +67,7 @@ const PracticeResultKeyword = () => {
                             <Badge
                                 key={idx}
                                 variant="secondary"
-                                className="bg-purple-100 text-purple-700 px-3 py-1"
+                                className="bg-rose-100 text-rose-700 px-3 py-1"
                             >
                                 #{keyword}
                             </Badge>
@@ -89,7 +82,7 @@ const PracticeResultKeyword = () => {
                 {isAnalyzing ? (
                     <Card className="p-6">
                         <div className="text-center">
-                            <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-br from-purple-400 to-indigo-500 flex items-center justify-center">
+                            <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-br from-pink-400 to-rose-400 flex items-center justify-center">
                                 <Sparkles className="w-8 h-8 text-white animate-pulse" />
                             </div>
                             <p className="mb-4">AI가 답변을 분석중이에요...</p>
@@ -100,7 +93,7 @@ const PracticeResultKeyword = () => {
                 ) : (
                     <Button
                         onClick={() => navigate(`/practice/result-ai/${questionId}`)}
-                        className="w-full rounded-xl h-12 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700"
+                        className="w-full rounded-xl h-12 bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600"
                     >
                         AI 분석결과 보기
                     </Button>
