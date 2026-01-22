@@ -1,5 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import { useEffect, useState } from 'react';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from '@/app/components/ui/sonner';
 import { storage } from '@/utils/storage';
 
@@ -20,58 +19,41 @@ import SettingMain from '@/app/pages/SettingMain';
 import RealInterview from '@/app/pages/RealInterview';
 
 function AppRoutes() {
-    const [isCheckingAuth, setIsCheckingAuth] = useState(true);
-    const [isLoggedIn, setIsLoggedIn] = useState(false);
-    const location = useLocation();
-
-    useEffect(() => {
-        // Check if user is logged in on every route change
-        const loggedIn = storage.isLoggedIn();
-        setIsLoggedIn(loggedIn);
-        setIsCheckingAuth(false);
-    }, [location]);
+    const isLoggedIn = storage.isLoggedIn();
 
     return (
         <>
             <Routes>
-                {isCheckingAuth ? (
-                    <Route path="*" element={<Splash />} />
-                ) : (
+                {/* Auth */}
+                <Route path="/splash" element={<Splash />} />
+                <Route path="/login" element={<AuthLogin />} />
+
+                {/* Protected Routes */}
+                {isLoggedIn ? (
                     <>
-                        {/* Auth */}
-                        <Route path="/splash" element={<Splash />} />
-                        <Route path="/login" element={<AuthLogin />} />
+                        <Route path="/" element={<Home />} />
 
-                        {/* Protected Routes */}
-                        {isLoggedIn ? (
-                            <>
-                                <Route path="/" element={<Home />} />
+                        {/* Practice Mode */}
+                        <Route path="/practice" element={<PracticeMain />} />
+                        <Route path="/practice/answer/:questionId" element={<PracticeAnswer />} />
+                        <Route path="/practice/answer-voice/:questionId" element={<PracticeAnswerVoice />} />
+                        <Route path="/practice/stt/:questionId" element={<PracticeSTT />} />
+                        <Route path="/practice/answer-edit/:questionId" element={<PracticeAnswerEdit />} />
+                        <Route path="/practice/answer-text/:questionId" element={<PracticeAnswerText />} />
+                        <Route path="/practice/result-keyword/:questionId" element={<PracticeResultKeyword />} />
+                        <Route path="/practice/result-ai/:questionId" element={<PracticeResultAI />} />
 
-                                {/* Practice Mode */}
-                                <Route path="/practice" element={<PracticeMain />} />
-                                <Route path="/practice/answer/:questionId" element={<PracticeAnswer />} />
-                                <Route path="/practice/answer-voice/:questionId" element={<PracticeAnswerVoice />} />
-                                <Route path="/practice/stt/:questionId" element={<PracticeSTT />} />
-                                <Route path="/practice/answer-edit/:questionId" element={<PracticeAnswerEdit />} />
-                                <Route path="/practice/answer-text/:questionId" element={<PracticeAnswerText />} />
-                                <Route path="/practice/result-keyword/:questionId" element={<PracticeResultKeyword />} />
-                                <Route path="/practice/result-ai/:questionId" element={<PracticeResultAI />} />
+                        {/* Real Interview */}
+                        <Route path="/real-interview" element={<RealInterview />} />
 
-                                {/* Real Interview */}
-                                <Route path="/real-interview" element={<RealInterview />} />
+                        {/* Profile */}
+                        <Route path="/profile" element={<ProfileMain />} />
+                        <Route path="/settings" element={<SettingMain />} />
 
-                                {/* Profile */}
-                                <Route path="/profile" element={<ProfileMain />} />
-                                <Route path="/settings" element={<SettingMain />} />
-
-                                <Route path="*" element={<Navigate to="/" replace />} />
-                            </>
-                        ) : (
-                            <>
-                                <Route path="*" element={<Navigate to="/login" replace />} />
-                            </>
-                        )}
+                        <Route path="*" element={<Navigate to="/" replace />} />
                     </>
+                ) : (
+                    <Route path="*" element={<Navigate to="/login" replace />} />
                 )}
             </Routes>
             <Toaster />
