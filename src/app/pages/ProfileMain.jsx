@@ -1,41 +1,55 @@
 import { useNavigate } from 'react-router-dom';
+import { useCallback } from 'react';
 import { Card } from '@/app/components/ui/card';
 import { Button } from '@/app/components/ui/button';
 import { Avatar, AvatarFallback } from '@/app/components/ui/avatar';
 import { Badge } from '@/app/components/ui/badge';
 import BottomNav from '@/app/components/BottomNav';
-import { Settings, ChevronRight, Calendar, Target, Award } from 'lucide-react';
+import { ChevronRight, Calendar, Target, Award, Loader2 } from 'lucide-react';
 import { storage } from '@/utils/storage';
-
 import { AppHeader } from '@/app/components/AppHeader';
+import { useInfiniteScroll } from '@/app/hooks/useInfiniteScroll';
+import { fetchAnswers } from '@/api/answerApi';
+
+const ANSWER_TYPE_LABELS = {
+    PRACTICE_INTERVIEW: '연습',
+    REAL_INTERVIEW: '실전',
+    PORTFOLIO_INTERVIEW: '포트폴리오',
+};
+
+const formatDate = (dateString) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('ko-KR', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+    }).replace(/\. /g, '-').replace('.', '');
+};
 
 const ProfileMain = () => {
     const navigate = useNavigate();
     const nickname = storage.getNickname();
 
-    const recentActivities = [
-        {
-            id: 1,
-            type: '연습',
-            title: '프로세스와 스레드의 차이점',
-            date: '2024-01-18',
-            score: 85,
-        },
-        {
-            id: 2,
-            type: '연습',
-            title: 'HTTP와 HTTPS의 차이',
-            date: '2024-01-17',
-            score: 92,
-        },
-        {
-            id: 3,
-            type: '연습',
-            title: 'RESTful API의 특징',
-            date: '2024-01-16',
-            score: 78,
-        },
-    ];
+    const fetchFn = useCallback(
+        ({ cursor, limit, signal }) =>
+            fetchAnswers({
+                type: 'PRACTICE_INTERVIEW',
+                expand: 'question,feedback',
+                cursor,
+                limit,
+                signal,
+            }),
+        []
+    );
+
+    const {
+        data: recentActivities,
+        loading,
+        error,
+        hasMore,
+        observerRef,
+    } = useInfiniteScroll(fetchFn, { limit: 10 });
 
     const stats = [
         { icon: Calendar, label: '총 학습일', value: '12일' },
@@ -101,31 +115,71 @@ const ProfileMain = () => {
                 <section>
                     <h2 className="text-lg mb-3">최근 학습 기록</h2>
 
+                    {error && (
+                        <Card className="p-4 text-center text-red-500">
+                            데이터를 불러오는데 실패했습니다.
+                        </Card>
+                    )}
+
                     <div className="space-y-3">
                         {recentActivities.map((activity) => (
-                            <Card key={activity.id} className="p-4">
+                            <Card key={activity.answerId} className="p-4">
                                 <div className="flex items-start justify-between mb-2">
                                     <Badge variant="secondary" className="bg-rose-100 text-rose-700">
-                                        {activity.type}
+                                        {ANSWER_TYPE_LABELS[activity.type] || activity.type}
                                     </Badge>
-                                    <span className="text-sm text-muted-foreground">{activity.date}</span>
-                                </div>
-
-                                <h4 className="mb-2 text-sm">{activity.title}</h4>
-
-                                <div className="flex items-center gap-2">
-                                    <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
-                                        <div
-                                            className="h-full bg-gradient-to-r from-pink-500 to-rose-500"
-                                            style={{ width: `${activity.score}%` }}
-                                        />
-                                    </div>
-                                    <span className="text-sm font-semibold text-pink-600">
-                                        {activity.score}점
+                                    <span className="text-sm text-muted-foreground">
+                                        {formatDate(activity.answeredAt)}
                                     </span>
                                 </div>
+
+                                <h4 className="mb-2 text-sm">
+                                    {activity.question?.content || '질문 정보 없음'}
+                                </h4>
+
+                                {activity.feedback?.feedbackAvailable && (
+                                    <div className="flex items-center gap-2">
+                                        <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
+                                            <div
+                                                className="h-full bg-gradient-to-r from-pink-500 to-rose-500"
+                                                style={{ width: `${activity.feedback?.score || 0}%` }}
+                                            />
+                                        </div>
+                                        {activity.feedback?.score !== undefined && (
+                                            <span className="text-sm font-semibold text-pink-600">
+                                                {activity.feedback.score}점
+                                            </span>
+                                        )}
+                                    </div>
+                                )}
+
+                                {!activity.feedback?.feedbackAvailable && (
+                                    <p className="text-xs text-muted-foreground">
+                                        피드백 대기 중
+                                    </p>
+                                )}
                             </Card>
                         ))}
+
+                        {loading && (
+                            <div className="flex justify-center py-4">
+                                <Loader2 className="w-6 h-6 animate-spin text-pink-500" />
+                            </div>
+                        )}
+
+                        {!loading && !error && recentActivities.length === 0 && (
+                            <Card className="p-8 text-center text-muted-foreground">
+                                아직 학습 기록이 없습니다.
+                            </Card>
+                        )}
+
+                        {!hasMore && recentActivities.length > 0 && (
+                            <p className="text-center text-sm text-muted-foreground py-2">
+                                모든 학습 기록을 불러왔습니다.
+                            </p>
+                        )}
+
+                        <div ref={observerRef} className="h-1" />
                     </div>
                 </section>
             </div>
