@@ -48,7 +48,7 @@ export function setAccessTokenGetter(getter) {
 }
 
 export async function authFetch(url, options = {}) {
-  const { parseResponse = false, ...fetchOptions } = options
+  const { parseResponse = false, signal, ...fetchOptions } = options
   const accessToken = accessTokenGetter?.()
 
   const headers = {
@@ -66,6 +66,7 @@ export async function authFetch(url, options = {}) {
     ...fetchOptions,
     headers,
     credentials: 'include',
+    ...(signal && { signal }),
   })
 
   if (parseResponse) {
