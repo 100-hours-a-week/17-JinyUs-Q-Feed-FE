@@ -1,18 +1,61 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Button } from '@/app/components/ui/button';
 import { Card } from '@/app/components/ui/card';
 import { Checkbox } from '@/app/components/ui/checkbox';
-import { QUESTIONS } from '@/data/questions';
 import { Mic, Keyboard } from 'lucide-react';
+import { fetchQuestionById } from '@/utils/questionApi';
 import { AppHeader } from '@/app/components/AppHeader';
 
 const PracticeAnswer = () => {
     const navigate = useNavigate();
     const { questionId } = useParams();
     const [cannotSpeak, setCannotSpeak] = useState(false);
+    const [question, setQuestion] = useState(null);
+    const [isLoading, setIsLoading] = useState(true);
+    const [errorMessage, setErrorMessage] = useState('');
 
-    const question = QUESTIONS.find((q) => q.id === questionId);
+    useEffect(() => {
+        let isActive = true;
+
+        const loadQuestion = async () => {
+            setIsLoading(true);
+            setErrorMessage('');
+
+            try {
+                const response = await fetchQuestionById(questionId);
+                const data = response?.data ?? response ?? {};
+                const mapped = {
+                    id: data.questionId ?? data.id ?? questionId,
+                    title: data.content ?? data.title ?? '',
+                    description: data.content ?? '',
+                    keywords: Array.isArray(data.keywords) ? data.keywords : [],
+                };
+
+                if (isActive) setQuestion(mapped);
+            } catch (error) {
+                if (isActive) setErrorMessage(error?.message || '질문을 불러오지 못했습니다.');
+            } finally {
+                if (isActive) setIsLoading(false);
+            }
+        };
+
+        if (questionId) {
+            loadQuestion();
+        }
+
+        return () => {
+            isActive = false;
+        };
+    }, [questionId]);
+
+    if (isLoading) {
+        return <div>질문을 불러오는 중...</div>;
+    }
+
+    if (errorMessage) {
+        return <div>{errorMessage}</div>;
+    }
 
     if (!question) {
         return <div>질문을 찾을 수 없습니다</div>;
