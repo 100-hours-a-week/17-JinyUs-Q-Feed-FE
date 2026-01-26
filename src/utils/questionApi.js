@@ -25,6 +25,11 @@ export async function fetchQuestionById(questionId) {
     return api.get(`/api/questions/${questionId}`, { parseResponse: true });
 }
 
+// 오늘의 추천 질문 조회
+export async function fetchRecommendedQuestion() {
+    return api.get('/api/questions/recommendation', { parseResponse: true });
+}
+
 // 질문 검색
 export async function searchQuestions({ q, category, type, cursor, size } = {}) {
     const query = buildQuery({ q, category, type, cursor, size });

@@ -1,16 +1,16 @@
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card } from '@/app/components/ui/card';
 import { Button } from '@/app/components/ui/button';
 import { Badge } from '@/app/components/ui/badge';
 import BottomNav from '@/app/components/BottomNav';
-import { QUESTIONS } from '@/data/questions';
 import { Sparkles, TrendingUp, Calendar } from 'lucide-react';
 import { storage } from '@/utils/storage';
+import { fetchRecommendedQuestion } from '@/utils/questionApi';
 
 import { AppHeader } from '@/app/components/AppHeader';
 
 const HOME_DATA = (() => {
-    const todayQuestion = QUESTIONS[Math.floor(Math.random() * QUESTIONS.length)];
     const days = ['월', '화', '수', '목', '금', '토', '일'];
     const weeklyData = days.map((day, index) => ({
         day,
@@ -18,15 +18,63 @@ const HOME_DATA = (() => {
         isToday: index === new Date().getDay() - 1,
     }));
 
-    return { todayQuestion, weeklyData };
+    return { weeklyData };
 })();
+
+const CATEGORY_LABEL_MAP = {
+    OS: '운영체제',
+    NETWORK: '네트워크',
+    DB: '데이터베이스',
+    COMPUTER_ARCHITECTURE: '컴퓨터 구조',
+    ALGORITHM: '알고리즘',
+};
+
+const TEXT_RECOMMENDATION_LOADING = '추천 질문을 불러오는 중...';
+const TEXT_RECOMMENDATION_ERROR = '추천 질문을 불러오지 못했습니다.';
+const TEXT_RECOMMENDATION_EMPTY = '오늘의 추천 질문이 없습니다';
 
 const Home = () => {
     const navigate = useNavigate();
     const nickname = storage.getNickname();
-    const { todayQuestion, weeklyData } = HOME_DATA;
+    const { weeklyData } = HOME_DATA;
+    const [todayQuestion, setTodayQuestion] = useState(null);
+    const [isLoadingQuestion, setIsLoadingQuestion] = useState(true);
+    const [questionError, setQuestionError] = useState('');
+
+    useEffect(() => {
+        let isActive = true;
+
+        const loadRecommendation = async () => {
+            setIsLoadingQuestion(true);
+            setQuestionError('');
+
+            try {
+                const response = await fetchRecommendedQuestion();
+                const data = response?.data ?? response ?? {};
+                const mapped = {
+                    id: data.questionId ?? data.id,
+                    title: data.content ?? data.title ?? '',
+                    description: data.content ?? '',
+                    category: data.category ?? '',
+                    keywords: Array.isArray(data.keywords) ? data.keywords : [],
+                };
+
+                if (isActive) setTodayQuestion(mapped?.id ? mapped : null);
+            } catch (error) {
+                if (isActive) setQuestionError(error?.message || TEXT_RECOMMENDATION_ERROR);
+            } finally {
+                if (isActive) setIsLoadingQuestion(false);
+            }
+        };
+
+        loadRecommendation();
+        return () => {
+            isActive = false;
+        };
+    }, []);
 
     const handleStartPractice = () => {
+        if (!todayQuestion?.id) return;
         navigate(`/practice/answer/${todayQuestion.id}`);
     };
 
@@ -51,24 +99,37 @@ const Home = () => {
                     </div>
 
                     <Card className="p-5 border-2 border-rose-200 bg-gradient-to-br from-rose-50 to-white">
-                        <div className="flex items-start justify-between mb-3">
-                            <Badge variant="secondary" className="bg-rose-100 text-rose-700">
-                                {todayQuestion.category}
-                            </Badge>
-                            <Badge variant="outline">{todayQuestion.difficulty}</Badge>
-                        </div>
+                        {isLoadingQuestion ? (
+                            <div className="text-sm text-muted-foreground py-6 text-center">
+                                {TEXT_RECOMMENDATION_LOADING}
+                            </div>
+                        ) : questionError ? (
+                            <div className="text-sm text-rose-500 py-6 text-center">{questionError}</div>
+                        ) : !todayQuestion ? (
+                            <div className="text-sm text-muted-foreground py-6 text-center">
+                                {TEXT_RECOMMENDATION_EMPTY}
+                            </div>
+                        ) : (
+                            <>
+                                <div className="flex items-start justify-between mb-3">
+                                    <Badge variant="secondary" className="bg-rose-100 text-rose-700">
+                                        {CATEGORY_LABEL_MAP[todayQuestion?.category] || todayQuestion?.category || '추천'}
+                                    </Badge>
+                                </div>
 
-                        <h3 className="mb-2">{todayQuestion.title}</h3>
-                        <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
-                            {todayQuestion.description}
-                        </p>
+                                <h3 className="mb-2">{todayQuestion?.title}</h3>
+                                <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
+                                    {todayQuestion?.description}
+                                </p>
 
-                        <Button
-                            onClick={handleStartPractice}
-                            className="w-full rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600"
-                        >
-                            지금 연습하기
-                        </Button>
+                                <Button
+                                    onClick={handleStartPractice}
+                                    className="w-full rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600"
+                                >
+                                    지금 연습하기
+                                </Button>
+                            </>
+                        )}
                     </Card>
                 </section>
 
