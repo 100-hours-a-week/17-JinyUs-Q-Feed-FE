@@ -6,7 +6,7 @@ import { Badge } from '@/app/components/ui/badge';
 import BottomNav from '@/app/components/BottomNav';
 import { Sparkles, TrendingUp, Calendar } from 'lucide-react';
 import { storage } from '@/utils/storage';
-import { fetchRecommendedQuestion } from '@/utils/questionApi';
+import { fetchRecommendedQuestion } from '@/api/questionApi';
 
 import { AppHeader } from '@/app/components/AppHeader';
 

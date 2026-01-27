@@ -1,56 +1,23 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Button } from '@/app/components/ui/button';
 import { Card } from '@/app/components/ui/card';
 import { Checkbox } from '@/app/components/ui/checkbox';
 import { Mic, Keyboard } from 'lucide-react';
-import { fetchQuestionById } from '@/utils/questionApi';
 import { AppHeader } from '@/app/components/AppHeader';
+import { usePracticeQuestionLoader } from '@/app/hooks/usePracticeQuestionLoader';
+
+const TEXT_LOADING = '질문을 불러오는 중...';
+const TEXT_NOT_FOUND = '질문을 찾을 수 없습니다';
 
 const PracticeAnswer = () => {
     const navigate = useNavigate();
     const { questionId } = useParams();
     const [cannotSpeak, setCannotSpeak] = useState(false);
-    const [question, setQuestion] = useState(null);
-    const [isLoading, setIsLoading] = useState(true);
-    const [errorMessage, setErrorMessage] = useState('');
-
-    useEffect(() => {
-        let isActive = true;
-
-        const loadQuestion = async () => {
-            setIsLoading(true);
-            setErrorMessage('');
-
-            try {
-                const response = await fetchQuestionById(questionId);
-                const data = response?.data ?? response ?? {};
-                const mapped = {
-                    id: data.questionId ?? data.id ?? questionId,
-                    title: data.content ?? data.title ?? '',
-                    description: data.content ?? '',
-                    keywords: Array.isArray(data.keywords) ? data.keywords : [],
-                };
-
-                if (isActive) setQuestion(mapped);
-            } catch (error) {
-                if (isActive) setErrorMessage(error?.message || '질문을 불러오지 못했습니다.');
-            } finally {
-                if (isActive) setIsLoading(false);
-            }
-        };
-
-        if (questionId) {
-            loadQuestion();
-        }
-
-        return () => {
-            isActive = false;
-        };
-    }, [questionId]);
+    const { question, isLoading, errorMessage } = usePracticeQuestionLoader(questionId);
 
     if (isLoading) {
-        return <div>질문을 불러오는 중...</div>;
+        return <div>{TEXT_LOADING}</div>;
     }
 
     if (errorMessage) {
@@ -58,7 +25,7 @@ const PracticeAnswer = () => {
     }
 
     if (!question) {
-        return <div>질문을 찾을 수 없습니다</div>;
+        return <div>{TEXT_NOT_FOUND}</div>;
     }
 
     const handleStart = () => {

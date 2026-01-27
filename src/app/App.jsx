@@ -17,6 +17,7 @@ import PracticeResultAI from '@/app/pages/PracticeResultAI';
 import ProfileMain from '@/app/pages/ProfileMain';
 import SettingMain from '@/app/pages/SettingMain';
 import RealInterview from '@/app/pages/RealInterview';
+import { PracticeQuestionProvider } from '@/app/contexts/practiceQuestionContext.jsx';
 
 function AppRoutes() {
     const isLoggedIn = storage.isLoggedIn();
@@ -64,7 +65,9 @@ function AppRoutes() {
 function App() {
     return (
         <BrowserRouter>
-            <AppRoutes />
+            <PracticeQuestionProvider>
+                <AppRoutes />
+            </PracticeQuestionProvider>
         </BrowserRouter>
     );
 }

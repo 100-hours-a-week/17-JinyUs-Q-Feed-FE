@@ -1,17 +1,18 @@
 import { useNavigate, useParams } from 'react-router-dom';
 import { Button } from '@/app/components/ui/button';
 import { Card } from '@/app/components/ui/card';
-import { Badge } from '@/app/components/ui/badge';
-import { QUESTIONS } from '@/data/questions';
 import { ThumbsUp, AlertCircle, Home } from 'lucide-react';
 import { AppHeader } from '@/app/components/AppHeader';
 import { RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, ResponsiveContainer } from 'recharts';
+import { usePracticeQuestionLoader } from '@/app/hooks/usePracticeQuestionLoader';
+
+const TEXT_LOADING = '질문을 불러오는 중...';
+const TEXT_NOT_FOUND = '질문을 찾을 수 없습니다';
 
 const PracticeResultAI = () => {
     const navigate = useNavigate();
     const { questionId } = useParams();
-
-    const question = QUESTIONS.find((q) => q.id === questionId);
+    const { question, isLoading, errorMessage } = usePracticeQuestionLoader(questionId);
 
     const radarData = [
         { subject: '논리성', value: 85 },
@@ -22,7 +23,9 @@ const PracticeResultAI = () => {
         { subject: '전달력', value: 88 },
     ];
 
-    if (!question) return <div>질문을 찾을 수 없습니다</div>;
+    if (isLoading) return <div>{TEXT_LOADING}</div>;
+    if (errorMessage) return <div>{errorMessage}</div>;
+    if (!question) return <div>{TEXT_NOT_FOUND}</div>;
 
     return (
         <div className="min-h-screen bg-background">

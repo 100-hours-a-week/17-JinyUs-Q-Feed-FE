@@ -13,16 +13,18 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from '@/app/components/ui/alert-dialog';
-import { QUESTIONS } from '@/data/questions';
 import { AppHeader } from '@/app/components/AppHeader';
+import { usePracticeQuestionLoader } from '@/app/hooks/usePracticeQuestionLoader';
+
+const TEXT_LOADING = '질문을 불러오는 중...';
+const TEXT_NOT_FOUND = '질문을 찾을 수 없습니다';
 
 const PracticeAnswerText = () => {
     const navigate = useNavigate();
     const { questionId } = useParams();
     const [answer, setAnswer] = useState('');
     const [showConfirm, setShowConfirm] = useState(false);
-
-    const question = QUESTIONS.find((q) => q.id === questionId);
+    const { question, isLoading, errorMessage } = usePracticeQuestionLoader(questionId);
 
     const handleSubmit = () => {
         if (!answer.trim()) {
@@ -36,7 +38,9 @@ const PracticeAnswerText = () => {
         navigate(`/practice/result-keyword/${questionId}`);
     };
 
-    if (!question) return <div>질문을 찾을 수 없습니다</div>;
+    if (isLoading) return <div>{TEXT_LOADING}</div>;
+    if (errorMessage) return <div>{errorMessage}</div>;
+    if (!question) return <div>{TEXT_NOT_FOUND}</div>;
 
     return (
         <div className="min-h-screen bg-background">
