@@ -47,7 +47,9 @@ jobs:
       # 7. package.json에서 버전 정보 추출
       - name: 패키지 버전 추출
         id: package-version
-        run: echo "version=$(node -p \"require('./package.json').version\")" >> $GITHUB_OUTPUT
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
       
       # 8. 빌드된 dist 디렉토리를 tar.gz 형식으로 압축
       # 파일명 형식: fe-{version}.tar.gz (예: fe-v0.0.0.tar.gz)
@@ -81,7 +83,9 @@ jobs:
 
       - name: 패키지 버전 추출
         id: package-version
-        run: echo "version=$(node -p \"require('./package.json').version\")" >> $GITHUB_OUTPUT
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
 
       - name: 빌드 산출물 다운로드
         uses: actions/download-artifact@v4
