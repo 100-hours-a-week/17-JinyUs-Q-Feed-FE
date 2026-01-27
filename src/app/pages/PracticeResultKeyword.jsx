@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Button } from '@/app/components/ui/button';
 import { Card } from '@/app/components/ui/card';
 import { Badge } from '@/app/components/ui/badge';
@@ -14,11 +14,12 @@ const TEXT_NOT_FOUND = '질문을 찾을 수 없습니다';
 const PracticeResultKeyword = () => {
     const navigate = useNavigate();
     const { questionId } = useParams();
+    const { state } = useLocation();
     const [isAnalyzing, setIsAnalyzing] = useState(true);
     const [progress, setProgress] = useState(0);
     const { question, isLoading, errorMessage } = usePracticeQuestionLoader(questionId);
 
-    const myAnswer = '프로세스는 실행 중인 프로그램의 인스턴스로, 독립적인 메모리 공간을 가지고 있습니다. 반면 스레드는 프로세스 내에서 실행되는 작업의 단위로, 같은 프로세스의 다른 스레드와 메모리를 공유합니다.';
+    const myAnswer = state?.answerText || '';
 
     useEffect(() => {
         // Simulate analysis

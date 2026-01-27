@@ -35,7 +35,9 @@ const PracticeAnswerText = () => {
 
     const confirmSubmit = () => {
         setShowConfirm(false);
-        navigate(`/practice/result-keyword/${questionId}`);
+        navigate(`/practice/result-keyword/${questionId}`, {
+            state: { answerText: answer.trim() },
+        });
     };
 
     if (isLoading) return <div>{TEXT_LOADING}</div>;
