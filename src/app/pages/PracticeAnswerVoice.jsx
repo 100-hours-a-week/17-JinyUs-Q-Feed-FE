@@ -1,13 +1,13 @@
-import { useState, useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Button } from '@/app/components/ui/button';
-import { QUESTIONS } from '@/data/questions';
 import { motion as Motion } from 'motion/react';
 import { AppHeader } from '@/app/components/AppHeader';
 import { useAudioRecorder } from '@/app/hooks/useAudioRecorder';
 import { getPresignedUrl, uploadToS3, confirmFileUpload } from '@/api/fileApi';
 import { toast } from 'sonner';
 import { Loader2 } from 'lucide-react';
+import { usePracticeQuestionLoader } from '@/app/hooks/usePracticeQuestionLoader';
 import {
     AlertDialog,
     AlertDialogContent,
@@ -20,6 +20,8 @@ import {
 } from '@/app/components/ui/alert-dialog';
 
 const MAX_RECORDING_SECONDS = 300; // 5분
+const TEXT_LOADING = '질문을 불러오는 중...';
+const TEXT_NOT_FOUND = '질문을 찾을 수 없습니다';
 
 const PracticeAnswerVoice = () => {
     const navigate = useNavigate();
@@ -30,6 +32,8 @@ const PracticeAnswerVoice = () => {
     const [showStopModal, setShowStopModal] = useState(false);
     const [showTimeoutModal, setShowTimeoutModal] = useState(false);
     const timerRef = useRef(null);
+    const { question, isLoading: isQuestionLoading, errorMessage: questionError } =
+        usePracticeQuestionLoader(questionId);
 
     const {
         recorderState,
@@ -44,8 +48,6 @@ const PracticeAnswerVoice = () => {
         error: recorderError,
         resetAudioBlob,
     } = useAudioRecorder();
-
-    const question = QUESTIONS.find((q) => q.id === questionId);
 
     // 녹음 타이머 (recording 상태일 때만 동작)
     useEffect(() => {
@@ -209,7 +211,9 @@ const PracticeAnswerVoice = () => {
 
     const visualizerState = getVisualizerState();
 
-    if (!question) return <div>질문을 찾을 수 없습니다</div>;
+    if (isQuestionLoading) return <div>{TEXT_LOADING}</div>;
+    if (questionError) return <div>{questionError}</div>;
+    if (!question) return <div>{TEXT_NOT_FOUND}</div>;
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-rose-400 to-pink-500 text-white flex flex-col">

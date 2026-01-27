@@ -1,0 +1,54 @@
+import { createContext, useCallback, useContext, useMemo, useState } from 'react';
+
+const STORAGE_KEY = 'qfeed_selected_practice_question';
+
+const PracticeQuestionContext = createContext(null);
+
+const loadInitialQuestion = () => {
+    try {
+        const raw = sessionStorage.getItem(STORAGE_KEY);
+        return raw ? JSON.parse(raw) : null;
+    } catch (error) {
+        return null;
+    }
+};
+
+export function PracticeQuestionProvider({ children }) {
+    const [selectedQuestion, setSelectedQuestionState] = useState(loadInitialQuestion);
+
+    const setSelectedQuestion = useCallback((question) => {
+        setSelectedQuestionState(question);
+        try {
+            if (question) {
+                sessionStorage.setItem(STORAGE_KEY, JSON.stringify(question));
+            } else {
+                sessionStorage.removeItem(STORAGE_KEY);
+            }
+        } catch (error) {
+            // sessionStorage 사용 불가 환경에서는 조용히 무시한다.
+        }
+    }, []);
+
+    const clearSelectedQuestion = useCallback(() => {
+        setSelectedQuestion(null);
+    }, [setSelectedQuestion]);
+
+    const value = useMemo(
+        () => ({
+            selectedQuestion,
+            setSelectedQuestion,
+            clearSelectedQuestion,
+        }),
+        [selectedQuestion, setSelectedQuestion, clearSelectedQuestion]
+    );
+
+    return <PracticeQuestionContext.Provider value={value}>{children}</PracticeQuestionContext.Provider>;
+}
+
+export function usePracticeQuestion() {
+    const context = useContext(PracticeQuestionContext);
+    if (!context) {
+        throw new Error('usePracticeQuestion must be used within PracticeQuestionProvider');
+    }
+    return context;
+}

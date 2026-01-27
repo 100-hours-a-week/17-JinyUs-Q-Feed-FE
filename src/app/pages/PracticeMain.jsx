@@ -6,9 +6,10 @@ import { Badge } from '@/app/components/ui/badge';
 import { Button } from '@/app/components/ui/button';
 import BottomNav from '@/app/components/BottomNav';
 import { Search, Filter } from 'lucide-react';
-import { fetchQuestions, searchQuestions } from '@/utils/questionApi';
+import { fetchQuestions, searchQuestions } from '@/api/questionApi';
 import debounce from 'lodash/debounce';
 import { useInfiniteScroll } from '@/app/hooks/useInfiniteScroll';
+import { usePracticeQuestion } from '@/app/contexts/practiceQuestionContext.jsx';
 
 import { AppHeader } from '@/app/components/AppHeader';
 
@@ -41,6 +42,7 @@ const TEXT_ERROR_FALLBACK = '질문 목록을 불러오지 못했습니다.';
 
 const PracticeMain = () => {
     const navigate = useNavigate();
+    const { setSelectedQuestion } = usePracticeQuestion();
     const [searchQuery, setSearchQuery] = useState(INITIAL_SEARCH_QUERY);
     const [selectedCategory, setSelectedCategory] = useState(INITIAL_CATEGORY);
     const [selectedSubCategory, setSelectedSubCategory] = useState(INITIAL_SUB_CATEGORY);
@@ -117,6 +119,11 @@ const PracticeMain = () => {
 
     const errorMessage = error?.message || TEXT_ERROR_FALLBACK;
 
+    const handleSelectQuestion = (question) => {
+        setSelectedQuestion(question);
+        navigate(`/practice/answer/${question.id}`);
+    };
+
     return (
         <div className="min-h-screen bg-background pb-20">
             {/* Header */}
@@ -192,7 +199,7 @@ const PracticeMain = () => {
                             <Card
                                 key={question.id}
                                 className="p-4 hover:shadow-md transition-shadow cursor-pointer"
-                                onClick={() => navigate(`/practice/answer/${question.id}`)}
+                                onClick={() => handleSelectQuestion(question)}
                             >
                                 <div className="flex items-start justify-between mb-2">
                                     <Badge variant="secondary" className="bg-rose-100 text-rose-700">

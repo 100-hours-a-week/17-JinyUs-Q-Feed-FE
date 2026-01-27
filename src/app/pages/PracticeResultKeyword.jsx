@@ -1,20 +1,23 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Button } from '@/app/components/ui/button';
 import { Card } from '@/app/components/ui/card';
 import { Badge } from '@/app/components/ui/badge';
 import { Progress } from '@/app/components/ui/progress';
-import { QUESTIONS } from '@/data/questions';
 import { Sparkles } from 'lucide-react';
 import { AppHeader } from '@/app/components/AppHeader';
+import { usePracticeQuestionLoader } from '@/app/hooks/usePracticeQuestionLoader';
+
+const TEXT_LOADING = '질문을 불러오는 중...';
+const TEXT_NOT_FOUND = '질문을 찾을 수 없습니다';
 
 const PracticeResultKeyword = () => {
     const navigate = useNavigate();
     const { questionId } = useParams();
     const [isAnalyzing, setIsAnalyzing] = useState(true);
     const [progress, setProgress] = useState(0);
+    const { question, isLoading, errorMessage } = usePracticeQuestionLoader(questionId);
 
-    const question = QUESTIONS.find((q) => q.id === questionId);
     const myAnswer = '프로세스는 실행 중인 프로그램의 인스턴스로, 독립적인 메모리 공간을 가지고 있습니다. 반면 스레드는 프로세스 내에서 실행되는 작업의 단위로, 같은 프로세스의 다른 스레드와 메모리를 공유합니다.';
 
     useEffect(() => {
@@ -33,7 +36,9 @@ const PracticeResultKeyword = () => {
         return () => clearInterval(interval);
     }, []);
 
-    if (!question) return <div>질문을 찾을 수 없습니다</div>;
+    if (isLoading) return <div>{TEXT_LOADING}</div>;
+    if (errorMessage) return <div>{errorMessage}</div>;
+    if (!question) return <div>{TEXT_NOT_FOUND}</div>;
 
     return (
         <div className="min-h-screen bg-background">
