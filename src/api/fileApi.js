@@ -4,15 +4,28 @@ import { api, handleResponse } from '@/utils/apiUtils'
  * S3 presigned URL 요청
  * @param {Object} params
  * @param {string} params.fileName - 파일명
- * @param {string} params.contentType - MIME 타입 (예: audio/webm)
+ * @param {number} params.fileSize - 파일 크기 (bytes)
+ * @param {string} params.mimeType - MIME 타입 (예: audio/webm)
+ * @param {string} params.category - 파일 카테고리 (예: AUDIO)
  * @returns {Promise<{data: {fileId: string, presignedUrl: string}}>}
  */
-export async function getPresignedUrl({ fileName, contentType }) {
+export async function getPresignedUrl({ fileName, fileSize, mimeType, category }) {
   const response = await api.post('/api/files/presigned-url', {
-    fileName,
-    contentType,
+    file_name: fileName,
+    file_size: fileSize,
+    mime_type: mimeType,
+    category,
   })
-  return handleResponse(response)
+  const result = await handleResponse(response)
+  const data = result?.data ?? result ?? {}
+  return {
+    ...result,
+    data: {
+      ...data,
+      fileId: data.fileId ?? data.file_id,
+      presignedUrl: data.presignedUrl ?? data.presigned_url,
+    },
+  }
 }
 
 /**
