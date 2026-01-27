@@ -93,21 +93,42 @@ jobs:
           name: fe-v${{ steps.package-version.outputs.version }}
 
       # 서버로 산출물을 전송한 뒤, 서버 내부 deploy.sh로 교체/백업 처리
-      - name: 서버로 업로드 (SCP)
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.QFEED_EC2_HOST }}
-          username: ${{ secrets.QFEED_EC2_USER }}
-          key: ${{ secrets.QFEED_EC2_SSH_KEY }}
-          source: fe-v${{ steps.package-version.outputs.version }}.tar.gz
-          target: /tmp
+      - name: SSH 키 설정
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.QFEED_EC2_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H ${{ secrets.QFEED_EC2_HOST }} >> ~/.ssh/known_hosts 2>/dev/null || true
+
+      - name: 서버 연결 테스트
+        run: |
+          ssh -i ~/.ssh/deploy_key \
+            -o StrictHostKeyChecking=no \
+            -o ConnectTimeout=30 \
+            -o ServerAliveInterval=10 \
+            ${{ secrets.QFEED_EC2_USER }}@${{ secrets.QFEED_EC2_HOST }} \
+            "echo 'Connection successful'"
+
+      - name: 서버로 파일 업로드 (SCP)
+        timeout-minutes: 5
+        run: |
+          scp -i ~/.ssh/deploy_key \
+            -o StrictHostKeyChecking=no \
+            -o ConnectTimeout=60 \
+            -o ServerAliveInterval=10 \
+            -o ServerAliveCountMax=3 \
+            fe-v${{ steps.package-version.outputs.version }}.tar.gz \
+            ${{ secrets.QFEED_EC2_USER }}@${{ secrets.QFEED_EC2_HOST }}:/tmp/
 
       - name: 서버에서 배포 실행 (deploy.sh)
+        timeout-minutes: 5
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.QFEED_EC2_HOST }}
           username: ${{ secrets.QFEED_EC2_USER }}
           key: ${{ secrets.QFEED_EC2_SSH_KEY }}
+          timeout: 60s
+          command_timeout: 5m
           script: |
             set -e
             sudo /srv/qfeed/deploy.sh /tmp/fe-v${{ steps.package-version.outputs.version }}.tar.gz
