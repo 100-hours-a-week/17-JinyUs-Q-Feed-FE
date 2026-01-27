@@ -83,18 +83,33 @@ const PracticeAnswerVoice = () => {
         const processAudio = async () => {
             setIsUploading(true);
             try {
-                // 파일 확장자 결정
-                const extension = audioBlob.type.includes('mp4') ? 'm4a' : 'webm';
+                // mp3를 기본값으로 두고, 명확한 타입이면 그 타입을 사용한다.
+                const rawType = audioBlob.type || '';
+                let extension = 'mp3';
+                let mimeType = 'audio/mpeg';
+                if (rawType.includes('wav')) {
+                    extension = 'wav';
+                    mimeType = 'audio/wav';
+                } else if (rawType.includes('mp4') || rawType.includes('m4a')) {
+                    extension = 'm4a';
+                    mimeType = 'audio/mp4';
+                } else if (rawType.includes('mpeg') || rawType.includes('mp3')) {
+                    extension = 'mp3';
+                    mimeType = 'audio/mpeg';
+                }
 
                 // 1. Presigned URL 획득
                 const presignedResult = await getPresignedUrl({
                     fileName: `voice_${questionId}_${Date.now()}.${extension}`,
-                    contentType: audioBlob.type || 'audio/webm',
+                    fileSize: audioBlob.size,
+                    mimeType,
+                    category: 'AUDIO',
                 });
+
                 const { fileId, presignedUrl } = presignedResult.data;
 
                 // 2. S3 업로드
-                await uploadToS3(presignedUrl, audioBlob, audioBlob.type || 'audio/webm');
+                await uploadToS3(presignedUrl, audioBlob, mimeType);
 
                 // 3. 업로드 확인 및 S3 URL 획득
                 const confirmResult = await confirmFileUpload(fileId);

@@ -6,6 +6,9 @@ import { AppHeader } from '@/app/components/AppHeader';
 import { requestSTT } from '@/api/sttApi';
 import { toast } from 'sonner';
 
+// TODO: 인증 연동 후 실제 사용자 ID로 교체
+const DEFAULT_USER_ID = 1;
+
 const PracticeSTT = () => {
     const navigate = useNavigate();
     const { questionId } = useParams();
@@ -25,7 +28,14 @@ const PracticeSTT = () => {
             try {
                 setStatusMessage('답변을 텍스트로 변환 중입니다...');
 
-                const result = await requestSTT({ audioUrl, questionId });
+                const sessionId = Number(questionId);
+                console.log(audioUrl);
+                // 백엔드 스키마(user_id, session_id, audio_url)에 맞춰 전달
+                const result = await requestSTT({
+                    userId: DEFAULT_USER_ID,
+                    sessionId: Number.isNaN(sessionId) ? questionId : sessionId,
+                    audioUrl,
+                });
                 const { text } = result.data;
 
                 navigate(`/practice/answer-edit/${questionId}`, {
