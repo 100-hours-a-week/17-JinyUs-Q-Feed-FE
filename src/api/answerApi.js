@@ -40,3 +40,33 @@ export async function fetchAnswers({
 
   return handleResponse(response)
 }
+
+/**
+ * AI 피드백 조회
+ * @param {number|string} answerId
+ * @returns {Promise<Object>} 피드백 조회 결과
+ */
+export async function fetchAnswerFeedback(answerId) {
+  const response = await api.get(`/api/interviews/answers/${answerId}/feedback`, {
+    parseResponse: true,
+  })
+  return response
+}
+
+/**
+ * 답변 제출 (연습/단일)
+ * @param {Object} params
+ * @param {number|string} params.questionId - 질문 ID
+ * @param {string} params.answerText - 답변 내용 (max 1500)
+ * @param {string} [params.answerType] - PRACTICE_INTERVIEW | REAL_INTERVIEW | PORTFOLIO_INTERVIEW
+ * @returns {Promise<Object>} 답변 제출 결과
+ */
+export async function submitPracticeAnswer({ questionId, answerText, answerType }) {
+  const formData = new FormData()
+  formData.append('questionId', String(questionId))
+  formData.append('answerText', answerText)
+  if (answerType) formData.append('answerType', answerType)
+
+  const response = await api.post('/api/interview/answers', formData, { parseResponse: true })
+  return response
+}
