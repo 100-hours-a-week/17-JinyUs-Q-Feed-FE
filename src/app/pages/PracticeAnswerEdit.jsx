@@ -58,7 +58,7 @@ const PracticeAnswerEdit = () => {
         <div className="min-h-screen bg-background">
             <AppHeader
                 title="답변 확인"
-                onBack={() => navigate(-1)}
+                onBack={() => navigate(`/practice/answer/${questionId}`)}
                 showNotifications={false}
                 rightContent={
                     <Button
