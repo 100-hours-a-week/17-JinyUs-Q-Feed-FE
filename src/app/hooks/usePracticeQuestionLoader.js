@@ -11,10 +11,12 @@ export function usePracticeQuestionLoader(questionId) {
     const [isLoading, setIsLoading] = useState(true);
     const [errorMessage, setErrorMessage] = useState('');
 
+    // Context에 동일 질문이 있는지 먼저 확인한다.
     const hasMatchedContextQuestion = useMemo(() => {
         return selectedQuestion && String(selectedQuestion.id) === String(questionId);
     }, [selectedQuestion, questionId]);
 
+    // API 실패 대비 더미 데이터 fallback을 준비한다.
     const fallbackQuestion = useMemo(() => {
         const matched = QUESTIONS.find((q) => String(q.id) === String(questionId));
         if (matched) return matched;
@@ -46,6 +48,7 @@ export function usePracticeQuestionLoader(questionId) {
                     id: data.questionId ?? data.id ?? questionId,
                     title: data.content ?? data.title ?? '',
                     description: data.content ?? '',
+                    type: data.type ?? '',
                     category: data.category ?? '',
                     keywords: Array.isArray(data.keywords) ? data.keywords : [],
                 };

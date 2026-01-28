@@ -7,9 +7,21 @@ import { Progress } from '@/app/components/ui/progress';
 import { Sparkles } from 'lucide-react';
 import { AppHeader } from '@/app/components/AppHeader';
 import { usePracticeQuestionLoader } from '@/app/hooks/usePracticeQuestionLoader';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/app/components/ui/alert-dialog';
 
 const TEXT_LOADING = '질문을 불러오는 중...';
 const TEXT_NOT_FOUND = '질문을 찾을 수 없습니다';
+const FEEDBACK_STORAGE_PREFIX = 'qfeed_ai_feedback_';
+const FEEDBACK_POLL_INTERVAL_MS = 800;
 
 const PracticeResultKeyword = () => {
     const navigate = useNavigate();
@@ -17,35 +29,84 @@ const PracticeResultKeyword = () => {
     const { state } = useLocation();
     const [isAnalyzing, setIsAnalyzing] = useState(true);
     const [progress, setProgress] = useState(0);
+    const [showBackModal, setShowBackModal] = useState(false);
+    const [feedbackResponse, setFeedbackResponse] = useState(null);
     const { question, isLoading, errorMessage } = usePracticeQuestionLoader(questionId);
+    const [feedbackError, setFeedbackError] = useState('');
 
     const myAnswer = state?.answerText || '';
 
+    // 0~95%까지 천천히 올라가며 대기 상태를 표현한다.
     useEffect(() => {
-        // Simulate analysis
         const interval = setInterval(() => {
             setProgress((prev) => {
-                if (prev >= 100) {
-                    setIsAnalyzing(false);
-                    clearInterval(interval);
-                    return 100;
-                }
-                return prev + 10;
+                if (prev >= 95) return 95;
+                return Math.min(95, prev + 4);
             });
-        }, 300);
+        }, 450);
 
         return () => clearInterval(interval);
     }, []);
+
+    // 세션에 저장된 피드백 상태를 폴링하여 완료 시 결과 화면으로 넘긴다.
+    useEffect(() => {
+        if (progress !== 100 || !feedbackResponse) return;
+
+        let current = 95;
+        const interval = setInterval(() => {
+            current += 1;
+            setProgress(current);
+            if (current >= 100) {
+                clearInterval(interval);
+            }
+        }, 25);
+
+        return () => clearInterval(interval);
+    }, [feedbackResponse, progress]);
+
+    useEffect(() => {
+        const storageKey = `${FEEDBACK_STORAGE_PREFIX}${questionId}`;
+        const poll = () => {
+            const raw = sessionStorage.getItem(storageKey);
+            if (!raw) return;
+            try {
+                const data = JSON.parse(raw);
+                if (data.status === 'done') {
+                    setIsAnalyzing(false);
+                    setProgress(100);
+                    setFeedbackResponse(data.response);
+                } else if (data.status === 'error') {
+                    setIsAnalyzing(false);
+                    setFeedbackError(data.message || '피드백 요청에 실패했습니다.');
+                }
+            } catch (e) {
+                setIsAnalyzing(false);
+                setFeedbackError('피드백 결과를 불러오는 중 오류가 발생했습니다.');
+            }
+        };
+
+        const timer = setInterval(poll, FEEDBACK_POLL_INTERVAL_MS);
+        poll();
+        return () => clearInterval(timer);
+    }, [questionId, navigate, myAnswer]);
 
     if (isLoading) return <div>{TEXT_LOADING}</div>;
     if (errorMessage) return <div>{errorMessage}</div>;
     if (!question) return <div>{TEXT_NOT_FOUND}</div>;
 
+    const handleBackClick = () => {
+        if (isAnalyzing) {
+            setShowBackModal(true);
+        } else {
+            navigate('/practice');
+        }
+    };
+
     return (
         <div className="min-h-screen bg-background">
             <AppHeader
                 title="답변 분석"
-                onBack={() => navigate('/practice')}
+                onBack={handleBackClick}
                 showNotifications={false}
             />
 
@@ -96,15 +157,39 @@ const PracticeResultKeyword = () => {
                             <p className="text-xs text-muted-foreground mt-2">{progress}%</p>
                         </div>
                     </Card>
+                ) : feedbackError ? (
+                    <div className="text-center text-rose-500 text-sm py-4">
+                        {feedbackError}
+                    </div>
                 ) : (
                     <Button
-                        onClick={() => navigate(`/practice/result-ai/${questionId}`)}
+                        onClick={() => navigate(`/practice/result-ai/${questionId}`, {
+                            state: { feedbackResponse, answerText: myAnswer },
+                        })}
                         className="w-full rounded-xl h-12 bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600"
+                        disabled={!feedbackResponse}
                     >
                         AI 분석결과 보기
                     </Button>
                 )}
             </div>
+
+            <AlertDialog open={showBackModal} onOpenChange={setShowBackModal}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>AI가 답변 분석 중입니다.</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            연습모드로 돌아가시겠습니까?
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>닫기</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => navigate('/practice')}>
+                            연습모드로 돌아가기
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     );
 };
