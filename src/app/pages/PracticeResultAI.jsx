@@ -9,7 +9,22 @@ import { usePracticeQuestionLoader } from '@/app/hooks/usePracticeQuestionLoader
 
 const TEXT_LOADING = '질문을 불러오는 중...';
 const TEXT_NOT_FOUND = '질문을 찾을 수 없습니다';
-const TEXT_BAD_CASE_TITLE = '답변에 문제가 있어요';
+const TEXT_BAD_CASE_FALLBACK = '답변을 다시 확인해주세요.';
+const TEXT_STRENGTHS_TITLE = '잘한 점';
+const TEXT_IMPROVEMENTS_TITLE = '개선하면 좋은 점';
+const TEXT_COMPLETE_TITLE = '분석 완료!';
+const TEXT_COMPLETE_DESC = '답변을 꼼꼼히 분석했어요';
+const TEXT_NEXT_GOAL_PREFIX = '💡 다음 목표:';
+const TEXT_NEXT_GOAL = '실제 프로젝트 경험과 연결하여 답변하면 더욱 인상적입니다!';
+const TEXT_HOME_BUTTON = '홈으로 이동';
+const TEXT_AI_FEEDBACK_TITLE = 'AI 피드백';
+const TEXT_BAD_CASE_STRENGTHS = '더 잘 할 수 있어요. 지금의 시도가 충분히 의미 있습니다.';
+const TEXT_BAD_CASE_IMPROVEMENTS = '조금만 더 자세히 설명해도 충분히 좋아질 수 있어요.';
+const TEXT_HEADER_EMOJI = '🎯';
+const TEXT_RADAR_LABEL = '평가';
+const FEEDBACK_SECTION_DELIMITER = '\n\n';
+const FEEDBACK_BULLET = '•';
+const FEEDBACK_DASH = '-';
 
 const PracticeResultAI = () => {
     const navigate = useNavigate();
@@ -20,37 +35,38 @@ const PracticeResultAI = () => {
     const feedbackResponse = state?.feedbackResponse;
     const feedbackData = feedbackResponse?.data;
     const badCaseFeedback = feedbackData?.bad_case_feedback;
-    // score(1~5)을 0~100 범위로 변환해 레이더 차트에 사용한다.
-    const radarData = Array.isArray(feedbackData?.metrics)
-        ? feedbackData.metrics.map((metric) => ({
-            subject: metric.name,
-            value: Math.min(100, Math.max(0, Math.round((metric.score / 5) * 100))),
+    const isBadCase = Boolean(badCaseFeedback) || !feedbackData?.radarChart;
+    // score를 maxScore 기준 0~100으로 변환해 레이더 차트에 사용한다.
+    const radarData = Array.isArray(feedbackData?.radarChart)
+        ? feedbackData.radarChart.map((metric) => ({
+            subject: metric.metricName,
+            value: Math.min(100, Math.max(0, Math.round((metric.score / metric.maxScore) * 100))),
         }))
         : [];
     // bad case일 때는 100%로 채워 긍정적 UI를 유지한다.
     const filledRadarData = radarData.length
         ? radarData.map((metric) => ({ ...metric, value: 100 }))
         : [];
-    const strengthsText = badCaseFeedback
-        ? '더 잘 할 수 있어요. 지금의 시도가 충분히 의미 있습니다.'
-        : (feedbackData?.feedback?.strengths || '');
-    const improvementsText = badCaseFeedback
-        ? '조금만 더 자세히 설명해도 충분히 좋아질 수 있어요.'
-        : (feedbackData?.feedback?.improvements || '');
+    const feedbackText = feedbackData?.feedback || '';
+    const [strengthsText, improvementsText] = isBadCase
+        ? [TEXT_BAD_CASE_STRENGTHS, TEXT_BAD_CASE_IMPROVEMENTS]
+        : [
+            feedbackText.split(FEEDBACK_SECTION_DELIMITER)[0] || '',
+            feedbackText.split(FEEDBACK_SECTION_DELIMITER)[1] || '',
+        ];
 
     const renderFeedbackText = (text, className) => {
-        const lines = text.split('\n').map((line) => line.trim()).filter(Boolean);
+        const normalized = text.replace(/\n+/g, '\n').trim();
+        const lines = normalized
+            ? normalized.split(FEEDBACK_BULLET).map((line) => line.trim()).filter(Boolean)
+            : [];
         return (
             <div className={`space-y-2 ${className}`}>
                 {lines.map((line, idx) => {
-                    const isBullet = line.startsWith('-');
-                    const content = isBullet ? line.slice(1).trim() : line;
+                    const content = line.startsWith(FEEDBACK_DASH) ? line.slice(1).trim() : line;
                     return (
-                        <p
-                            key={idx}
-                            className={`leading-relaxed ${isBullet ? 'pl-4 relative' : ''}`}
-                        >
-                            {isBullet && <span className="absolute left-0">•</span>}
+                        <p key={idx} className="leading-relaxed pl-4 relative">
+                            <span className="absolute left-0">{FEEDBACK_BULLET}</span>
                             {content}
                         </p>
                     );
@@ -71,44 +87,51 @@ const PracticeResultAI = () => {
         <div className="min-h-screen bg-background">
             <div className="bg-gradient-to-r from-pink-500 to-rose-500 text-white">
                 <AppHeader
-                    title="AI 피드백"
+                    title={TEXT_AI_FEEDBACK_TITLE}
                     onBack={() => navigate('/practice')}
                     showNotifications={false}
                     tone="dark"
                 />
 
                 <div className="text-center pb-6 px-6">
-                    <div className="text-5xl mb-2">🎯</div>
-                    <h2 className="text-2xl mb-1">분석 완료!</h2>
-                    <p className="text-white/80 text-sm">답변을 꼼꼼히 분석했어요</p>
+                    <div className="text-5xl mb-2">{TEXT_HEADER_EMOJI}</div>
+                    <h2 className="text-2xl mb-1">{TEXT_COMPLETE_TITLE}</h2>
+                    <p className="text-white/80 text-sm">{TEXT_COMPLETE_DESC}</p>
                 </div>
             </div>
 
             <div className="p-6 max-w-lg mx-auto space-y-4 -mt-4">
                 <>
                     <Card className="p-6 bg-white shadow-lg">
-                        {!badCaseFeedback && (
-                            <h3 className="mb-4 text-center">5각형 평가 지표</h3>
-                        )}
-                        {badCaseFeedback && (
+                        {isBadCase && (
                             <div className="text-center mb-4 space-y-2">
                                 <p className="text-sm text-rose-900 font-medium">
-                                    {badCaseFeedback.message}
+                                    {badCaseFeedback?.message || feedbackText.split(FEEDBACK_SECTION_DELIMITER)[0] || TEXT_BAD_CASE_FALLBACK}
                                 </p>
-                                <p className="text-xs text-rose-700">
-                                    {badCaseFeedback.guidance}
-                                </p>
+                                {(badCaseFeedback?.guidance || feedbackText.split(FEEDBACK_SECTION_DELIMITER)[1]) && (
+                                    <p className="text-xs text-rose-700">
+                                        {badCaseFeedback?.guidance || feedbackText.split(FEEDBACK_SECTION_DELIMITER)[1]}
+                                    </p>
+                                )}
                             </div>
                         )}
 
-                        <ResponsiveContainer width="100%" height={250}>
-                            <RadarChart data={badCaseFeedback ? filledRadarData : radarData}>
-                                <PolarGrid />
-                                <PolarAngleAxis dataKey="subject" />
-                                <PolarRadiusAxis angle={90} domain={[0, 100]} tick={false} axisLine={false} />
-                                <Radar name="평가" dataKey="value" stroke="#ec4899" fill="#ec4899" fillOpacity={0.6} />
-                            </RadarChart>
-                        </ResponsiveContainer>
+                        {isBadCase ? null : (
+                            <ResponsiveContainer width="100%" height={250}>
+                                <RadarChart data={radarData}>
+                                    <PolarGrid />
+                                    <PolarAngleAxis dataKey="subject" />
+                                    <PolarRadiusAxis angle={90} domain={[0, 100]} tick={false} axisLine={false} />
+                                    <Radar
+                                        name={TEXT_RADAR_LABEL}
+                                        dataKey="value"
+                                        stroke="#ec4899"
+                                        fill="#ec4899"
+                                        fillOpacity={0.6}
+                                    />
+                                </RadarChart>
+                            </ResponsiveContainer>
+                        )}
                     </Card>
 
                     <Card className="p-5 border-2 border-rose-200 bg-rose-50">
@@ -117,7 +140,7 @@ const PracticeResultAI = () => {
                                 <ThumbsUp className="w-5 h-5 text-pink-600" />
                             </div>
                             <div className="flex-1">
-                                <h3 className="mb-2 text-rose-900">잘한 점</h3>
+                                <h3 className="mb-2 text-rose-900">{TEXT_STRENGTHS_TITLE}</h3>
                                 {renderFeedbackText(strengthsText, 'text-sm text-rose-800')}
                             </div>
                         </div>
@@ -129,7 +152,7 @@ const PracticeResultAI = () => {
                                 <AlertCircle className="w-5 h-5 text-pink-600" />
                             </div>
                             <div className="flex-1">
-                                <h3 className="mb-2 text-pink-900">개선하면 좋은 점</h3>
+                                <h3 className="mb-2 text-pink-900">{TEXT_IMPROVEMENTS_TITLE}</h3>
                                 {renderFeedbackText(improvementsText, 'text-sm text-pink-800')}
                             </div>
                         </div>
@@ -138,7 +161,7 @@ const PracticeResultAI = () => {
 
                 <div className="bg-gradient-to-r from-rose-100 to-pink-100 rounded-xl p-4">
                     <p className="text-sm text-rose-900 text-center">
-                        <span className="font-semibold">💡 다음 목표:</span> 실제 프로젝트 경험과 연결하여 답변하면 더욱 인상적입니다!
+                        <span className="font-semibold">{TEXT_NEXT_GOAL_PREFIX}</span> {TEXT_NEXT_GOAL}
                     </p>
                 </div>
 
@@ -148,7 +171,7 @@ const PracticeResultAI = () => {
                     variant="default"
                 >
                     <Home className="w-5 h-5" />
-                    홈으로 이동
+                    {TEXT_HOME_BUTTON}
                 </Button>
             </div>
         </div>

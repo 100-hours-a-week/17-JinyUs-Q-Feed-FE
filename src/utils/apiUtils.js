@@ -51,8 +51,9 @@ export async function authFetch(url, options = {}) {
   const { parseResponse = false, signal, ...fetchOptions } = options
   const accessToken = accessTokenGetter?.()
 
+  const isFormData = fetchOptions.body instanceof FormData
   const headers = {
-    'Content-Type': 'application/json',
+    ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
     ...fetchOptions.headers,
   }
 
@@ -79,11 +80,23 @@ export async function authFetch(url, options = {}) {
 export const api = {
   get: (url, options = {}) => authFetch(url, { ...options, method: 'GET' }),
   post: (url, body, options = {}) =>
-    authFetch(url, { ...options, method: 'POST', body: JSON.stringify(body) }),
+    authFetch(url, {
+      ...options,
+      method: 'POST',
+      body: body instanceof FormData ? body : JSON.stringify(body),
+    }),
   put: (url, body, options = {}) =>
-    authFetch(url, { ...options, method: 'PUT', body: JSON.stringify(body) }),
+    authFetch(url, {
+      ...options,
+      method: 'PUT',
+      body: body instanceof FormData ? body : JSON.stringify(body),
+    }),
   patch: (url, body, options = {}) =>
-    authFetch(url, { ...options, method: 'PATCH', body: JSON.stringify(body) }),
+    authFetch(url, {
+      ...options,
+      method: 'PATCH',
+      body: body instanceof FormData ? body : JSON.stringify(body),
+    }),
   delete: (url, options = {}) => authFetch(url, { ...options, method: 'DELETE' }),
 }
 
