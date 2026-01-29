@@ -26,7 +26,7 @@ const CATEGORY_LABEL_MAP = {
     NETWORK: '네트워크',
     DB: '데이터베이스',
     COMPUTER_ARCHITECTURE: '컴퓨터 구조',
-    ALGORITHM: '알고리즘',
+    DATA_STRUCTURE_ALGORITHM: '자료구조&알고리즘',
 };
 
 const TEXT_RECOMMENDATION_LOADING = '추천 질문을 불러오는 중...';
