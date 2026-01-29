@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { fetchQuestionById } from '@/api/questionApi';
-import { usePracticeQuestion } from '@/app/contexts/practiceQuestionContext.jsx';
+import { usePracticeQuestion } from '@/context/practiceQuestionContext.jsx';
 import { QUESTIONS } from '@/data/questions';
 
 const TEXT_ERROR = '질문을 불러오지 못했습니다.';

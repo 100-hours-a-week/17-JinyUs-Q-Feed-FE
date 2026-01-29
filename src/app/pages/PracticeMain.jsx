@@ -9,7 +9,7 @@ import { Search, Filter } from 'lucide-react';
 import { fetchQuestions, searchQuestions } from '@/api/questionApi';
 import debounce from 'lodash/debounce';
 import { useInfiniteScroll } from '@/app/hooks/useInfiniteScroll';
-import { usePracticeQuestion } from '@/app/contexts/practiceQuestionContext.jsx';
+import { usePracticeQuestion } from '@/context/practiceQuestionContext.jsx';
 
 import { AppHeader } from '@/app/components/AppHeader';
 
