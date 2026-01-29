@@ -1,6 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from '@/app/components/ui/sonner';
-import { storage } from '@/utils/storage';
+import { AuthProvider, useAuth } from '@/context/AuthContext';
 
 // Pages
 import Splash from '@/app/pages/Splash';
@@ -17,9 +17,12 @@ import PracticeResultAI from '@/app/pages/PracticeResultAI';
 import ProfileMain from '@/app/pages/ProfileMain';
 import SettingMain from '@/app/pages/SettingMain';
 import RealInterview from '@/app/pages/RealInterview';
+import OAuthCallback from '@/app/pages/OAuthCallback';
 
 function AppRoutes() {
-    const isLoggedIn = storage.isLoggedIn();
+    const { isAuthenticated, isLoading } = useAuth()
+
+    if (isLoading) return null
 
     return (
         <>
@@ -27,9 +30,10 @@ function AppRoutes() {
                 {/* Auth */}
                 <Route path="/splash" element={<Splash />} />
                 <Route path="/login" element={<AuthLogin />} />
+                <Route path="/oauth/redirect" element={<OAuthCallback />} />
 
                 {/* Protected Routes */}
-                {isLoggedIn ? (
+                {isAuthenticated ? (
                     <>
                         <Route path="/" element={<Home />} />
 
@@ -64,7 +68,9 @@ function AppRoutes() {
 function App() {
     return (
         <BrowserRouter>
-            <AppRoutes />
+            <AuthProvider>
+                <AppRoutes />
+            </AuthProvider>
         </BrowserRouter>
     );
 }

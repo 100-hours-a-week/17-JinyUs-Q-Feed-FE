@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { Button } from '@/app/components/ui/button';
 import { Textarea } from '@/app/components/ui/textarea';
 import { Card } from '@/app/components/ui/card';
@@ -13,21 +13,24 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from '@/app/components/ui/alert-dialog';
-import { QUESTIONS } from '@/data/questions';
 import { Edit3, Eye } from 'lucide-react';
 import { AppHeader } from '@/app/components/AppHeader';
 import { toast } from 'sonner';
+import { usePracticeQuestionLoader } from '@/app/hooks/usePracticeQuestionLoader';
+
+const DEFAULT_ANSWER = '프로세스는 실행 중인 프로그램의 인스턴스로, 독립적인 메모리 공간을 가지고 있습니다. 반면 스레드는 프로세스 내에서 실행되는 작업의 단위로, 같은 프로세스의 다른 스레드와 메모리를 공유합니다. 멀티프로세싱은 여러 프로세스를 동시에 실행하는 것이고, 멀티스레딩은 하나의 프로세스 내에서 여러 스레드를 실행하는 것입니다. 스레드는 메모리를 공유하기 때문에 컨스트 스위칭 비용이 적고 통신이 빠르지만, 동기화 문제에 주의해야 합니다.';
+const TEXT_LOADING = '질문을 불러오는 중...';
+const TEXT_NOT_FOUND = '질문을 찾을 수 없습니다';
 
 const PracticeAnswerEdit = () => {
     const navigate = useNavigate();
     const { questionId } = useParams();
+    const { state } = useLocation();
+
     const [isEditing, setIsEditing] = useState(false);
     const [showConfirm, setShowConfirm] = useState(false);
-    const [answer, setAnswer] = useState(
-        '프로세스는 실행 중인 프로그램의 인스턴스로, 독립적인 메모리 공간을 가지고 있습니다. 반면 스레드는 프로세스 내에서 실행되는 작업의 단위로, 같은 프로세스의 다른 스레드와 메모리를 공유합니다. 멀티프로세싱은 여러 프로세스를 동시에 실행하는 것이고, 멀티스레딩은 하나의 프로세스 내에서 여러 스레드를 실행하는 것입니다. 스레드는 메모리를 공유하기 때문에 컨스트 스위칭 비용이 적고 통신이 빠르지만, 동기화 문제에 주의해야 합니다.'
-    );
-
-    const question = QUESTIONS.find((q) => q.id === questionId);
+    const [answer, setAnswer] = useState(state?.transcribedText || DEFAULT_ANSWER);
+    const { question, isLoading, errorMessage } = usePracticeQuestionLoader(questionId);
 
     const handleToggleEdit = () => {
         if (isEditing) {
@@ -47,13 +50,15 @@ const PracticeAnswerEdit = () => {
         navigate(`/practice/result-keyword/${questionId}`);
     };
 
-    if (!question) return <div>질문을 찾을 수 없습니다</div>;
+    if (isLoading) return <div>{TEXT_LOADING}</div>;
+    if (errorMessage) return <div>{errorMessage}</div>;
+    if (!question) return <div>{TEXT_NOT_FOUND}</div>;
 
     return (
         <div className="min-h-screen bg-background">
             <AppHeader
                 title="답변 확인"
-                onBack={() => navigate(-1)}
+                onBack={() => navigate(`/practice/answer/${questionId}`)}
                 showNotifications={false}
                 rightContent={
                     <Button

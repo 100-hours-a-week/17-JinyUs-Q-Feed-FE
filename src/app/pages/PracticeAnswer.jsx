@@ -3,19 +3,29 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { Button } from '@/app/components/ui/button';
 import { Card } from '@/app/components/ui/card';
 import { Checkbox } from '@/app/components/ui/checkbox';
-import { QUESTIONS } from '@/data/questions';
 import { Mic, Keyboard } from 'lucide-react';
 import { AppHeader } from '@/app/components/AppHeader';
+import { usePracticeQuestionLoader } from '@/app/hooks/usePracticeQuestionLoader';
+
+const TEXT_LOADING = '질문을 불러오는 중...';
+const TEXT_NOT_FOUND = '질문을 찾을 수 없습니다';
 
 const PracticeAnswer = () => {
     const navigate = useNavigate();
     const { questionId } = useParams();
     const [cannotSpeak, setCannotSpeak] = useState(false);
+    const { question, isLoading, errorMessage } = usePracticeQuestionLoader(questionId);
 
-    const question = QUESTIONS.find((q) => q.id === questionId);
+    if (isLoading) {
+        return <div>{TEXT_LOADING}</div>;
+    }
+
+    if (errorMessage) {
+        return <div>{errorMessage}</div>;
+    }
 
     if (!question) {
-        return <div>질문을 찾을 수 없습니다</div>;
+        return <div>{TEXT_NOT_FOUND}</div>;
     }
 
     const handleStart = () => {

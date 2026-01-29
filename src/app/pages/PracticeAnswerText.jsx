@@ -13,16 +13,38 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from '@/app/components/ui/alert-dialog';
-import { QUESTIONS } from '@/data/questions';
 import { AppHeader } from '@/app/components/AppHeader';
+import { usePracticeQuestionLoader } from '@/app/hooks/usePracticeQuestionLoader';
+import { submitPracticeAnswer } from '@/api/answerApi';
+import { toast } from 'sonner';
+
+const TEXT_LOADING = '질문을 불러오는 중...';
+const TEXT_NOT_FOUND = '질문을 찾을 수 없습니다';
+const TEXT_SUBMIT_ERROR = '피드백 요청에 실패했습니다';
+const TEXT_SUBMIT_BUTTON = '답변 제출';
+const TEXT_SUBMITTING = '제출 중...';
+const TEXT_CONFIRM_TITLE = '답변을 제출하시겠습니까?';
+const TEXT_CONFIRM_DESC = '제출된 답변은 AI가 분석하여 피드백을 제공합니다.';
+const TEXT_PAGE_TITLE = '텍스트로 답변하기';
+const TEXT_QUESTION_LABEL = '질문';
+const TEXT_ANSWER_LABEL = '답변 작성';
+const TEXT_ANSWER_PLACEHOLDER = '여기에 답변을 작성해주세요...';
+const TEXT_CHARACTER_SUFFIX = '자';
+const TEXT_CANCEL = '취소';
+const TEXT_SUBMIT = '제출';
+const TEXT_FEEDBACK_REQUEST_FAILED = '피드백 요청 실패';
+const INTERVIEW_TYPE = 'PRACTICE_INTERVIEW';
+const FEEDBACK_STORAGE_PREFIX = 'qfeed_ai_feedback_';
+const STORAGE_STATUS_PENDING = 'pending';
+const STORAGE_STATUS_ERROR = 'error';
 
 const PracticeAnswerText = () => {
     const navigate = useNavigate();
     const { questionId } = useParams();
     const [answer, setAnswer] = useState('');
     const [showConfirm, setShowConfirm] = useState(false);
-
-    const question = QUESTIONS.find((q) => q.id === questionId);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const { question, isLoading, errorMessage } = usePracticeQuestionLoader(questionId);
 
     const handleSubmit = () => {
         if (!answer.trim()) {
@@ -31,60 +53,98 @@ const PracticeAnswerText = () => {
         setShowConfirm(true);
     };
 
-    const confirmSubmit = () => {
+    const confirmSubmit = async () => {
         setShowConfirm(false);
-        navigate(`/practice/result-keyword/${questionId}`);
+        setIsSubmitting(true);
+
+        const numericQuestionId = Number(question?.id ?? questionId);
+        const storageKey = `${FEEDBACK_STORAGE_PREFIX}${questionId}`;
+
+        // 분석 화면에서 폴링할 수 있도록 상태를 세션에 저장한다.
+        sessionStorage.setItem(storageKey, JSON.stringify({ status: STORAGE_STATUS_PENDING }));
+
+        submitPracticeAnswer({
+            questionId: Number.isNaN(numericQuestionId) ? questionId : numericQuestionId,
+            answerText: answer.trim(),
+            answerType: INTERVIEW_TYPE,
+        })
+            .then((response) => {
+                const answerId = response?.data?.answerId;
+                sessionStorage.setItem(
+                    storageKey,
+                    JSON.stringify({ status: STORAGE_STATUS_PENDING, answerId })
+                );
+            })
+            .catch((err) => {
+                sessionStorage.setItem(
+                    storageKey,
+                    JSON.stringify({
+                        status: STORAGE_STATUS_ERROR,
+                        message: err?.message || TEXT_FEEDBACK_REQUEST_FAILED,
+                    })
+                );
+                toast.error(err?.message || TEXT_SUBMIT_ERROR);
+            })
+            .finally(() => {
+                setIsSubmitting(false);
+            });
+
+        navigate(`/practice/result-keyword/${questionId}`, {
+            state: { answerText: answer.trim() },
+        });
     };
 
-    if (!question) return <div>질문을 찾을 수 없습니다</div>;
+    if (isLoading) return <div>{TEXT_LOADING}</div>;
+    if (errorMessage) return <div>{errorMessage}</div>;
+    if (!question) return <div>{TEXT_NOT_FOUND}</div>;
 
     return (
         <div className="min-h-screen bg-background">
             <AppHeader
-                title="텍스트로 답변하기"
+                title={TEXT_PAGE_TITLE}
                 onBack={() => navigate(`/practice/answer/${questionId}`)}
                 showNotifications={false}
             />
 
             <div className="p-6 max-w-lg mx-auto space-y-4">
                 <Card className="p-4 bg-gray-50">
-                    <p className="text-sm text-muted-foreground mb-1">질문</p>
+                    <p className="text-sm text-muted-foreground mb-1">{TEXT_QUESTION_LABEL}</p>
                     <p>{question.title}</p>
                 </Card>
 
                 <Card className="p-4">
-                    <p className="text-sm text-muted-foreground mb-3">답변 작성</p>
+                    <p className="text-sm text-muted-foreground mb-3">{TEXT_ANSWER_LABEL}</p>
                     <Textarea
                         value={answer}
                         onChange={(e) => setAnswer(e.target.value)}
                         className="min-h-[300px] text-base leading-relaxed"
-                        placeholder="여기에 답변을 작성해주세요..."
+                        placeholder={TEXT_ANSWER_PLACEHOLDER}
                     />
                     <p className="text-xs text-muted-foreground mt-2">
-                        {answer.length}자
+                        {answer.length}{TEXT_CHARACTER_SUFFIX}
                     </p>
                 </Card>
 
                 <Button
                     onClick={handleSubmit}
-                    disabled={!answer.trim()}
+                    disabled={!answer.trim() || isSubmitting}
                     className="w-full rounded-xl h-12"
                 >
-                    답변 제출
+                    {isSubmitting ? TEXT_SUBMITTING : TEXT_SUBMIT_BUTTON}
                 </Button>
             </div>
 
             <AlertDialog open={showConfirm} onOpenChange={setShowConfirm}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
-                        <AlertDialogTitle>답변을 제출하시겠습니까?</AlertDialogTitle>
+                        <AlertDialogTitle>{TEXT_CONFIRM_TITLE}</AlertDialogTitle>
                         <AlertDialogDescription>
-                            제출된 답변은 AI가 분석하여 피드백을 제공합니다.
+                            {TEXT_CONFIRM_DESC}
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                        <AlertDialogCancel>취소</AlertDialogCancel>
-                        <AlertDialogAction onClick={confirmSubmit}>제출</AlertDialogAction>
+                        <AlertDialogCancel>{TEXT_CANCEL}</AlertDialogCancel>
+                        <AlertDialogAction onClick={confirmSubmit}>{TEXT_SUBMIT}</AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
