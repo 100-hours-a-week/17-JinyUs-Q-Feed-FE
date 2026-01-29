@@ -43,6 +43,8 @@ jobs:
       
       # 6. 프로젝트 빌드 (dist 디렉토리 생성)
       - name: 프로젝트 빌드
+        env:
+          VITE_API_BASE_URL: https://q-feed.com
         run: npm run build
       
       # 7. package.json에서 버전 정보 추출
