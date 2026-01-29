@@ -70,6 +70,27 @@ jobs:
           # 이미 tar.gz로 압축되어 있으므로 추가 압축 불필요
           compression-level: 0
 
+      # 서버 업로드까지 완료 시 CI 통과 알림 (Discord)
+      - name: Discord 알림 (CI 통과)
+        if: success()
+        continue-on-error: true
+        run: |
+          curl -sS -X POST "${{ secrets.DISCORD_WEBHOOK_URL }}" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "embeds": [{
+                "title": "✅ FE CI 통과",
+                "description": "빌드·테스트·아티팩트 업로드 및 **서버 파일 업로드**까지 완료되었습니다.",
+                "color": 3066993,
+                "fields": [
+                  {"name": "브랜치", "value": "'"${{ github.ref_name }}"'", "inline": true},
+                  {"name": "커밋", "value": "`'"${{ github.sha }}"'`", "inline": true},
+                  {"name": "트리거", "value": "'"${{ github.event_name }}"'", "inline": true}
+                ],
+                "timestamp": "'"$(date -u +%Y-%m-%dT%H:%M:%SZ)"'"
+              }]
+            }'
+            
   deploy:
     name: Deploy to EC2
     runs-on: ubuntu-latest
@@ -120,27 +141,6 @@ jobs:
             -o ServerAliveCountMax=3 \
             fe-v${{ steps.package-version.outputs.version }}.tar.gz \
             ${{ secrets.QFEED_EC2_USER }}@${{ secrets.QFEED_EC2_HOST }}:/tmp/
-
-      # 서버 업로드까지 완료 시 CI 통과 알림 (Discord)
-      - name: Discord 알림 (CI 통과)
-        if: success()
-        continue-on-error: true
-        run: |
-          curl -sS -X POST "${{ secrets.DISCORD_WEBHOOK_URL }}" \
-            -H "Content-Type: application/json" \
-            -d '{
-              "embeds": [{
-                "title": "✅ FE CI 통과",
-                "description": "빌드·테스트·아티팩트 업로드 및 **서버 파일 업로드**까지 완료되었습니다.",
-                "color": 3066993,
-                "fields": [
-                  {"name": "브랜치", "value": "'"${{ github.ref_name }}"'", "inline": true},
-                  {"name": "커밋", "value": "`'"${{ github.sha }}"'`", "inline": true},
-                  {"name": "트리거", "value": "'"${{ github.event_name }}"'", "inline": true}
-                ],
-                "timestamp": "'"$(date -u +%Y-%m-%dT%H:%M:%SZ)"'"
-              }]
-            }'
 
       - name: 서버에서 배포 실행 (deploy-fe.sh)
         timeout-minutes: 5
