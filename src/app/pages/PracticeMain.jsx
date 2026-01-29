@@ -17,22 +17,20 @@ const INITIAL_SEARCH_QUERY = '';
 const INITIAL_CATEGORY = '전체';
 const INITIAL_SUB_CATEGORY = '전체';
 const CATEGORY_OPTIONS = ['전체', 'CS기초', '시스템디자인'];
-const CS_SUB_CATEGORY_OPTIONS = ['전체', '운영체제', '네트워크', '데이터베이스', '컴퓨터 구조', '자료구조', '알고리즘'];
+const CS_SUB_CATEGORY_OPTIONS = ['전체', '운영체제', '네트워크', '데이터베이스', '컴퓨터 구조', '자료구조&알고리즘'];
 const CS_CATEGORY_MAP = {
     운영체제: 'OS',
     네트워크: 'NETWORK',
     데이터베이스: 'DB',
     '컴퓨터 구조': 'COMPUTER_ARCHITECTURE',
-    자료구조: 'DATA_STRUCTURE',
-    알고리즘: 'ALGORITHM',
+    '자료구조&알고리즘': 'DATA_STRUCTURE_ALGORITHM',
 };
 const CATEGORY_LABEL_MAP = {
     OS: '운영체제',
     NETWORK: '네트워크',
     DB: '데이터베이스',
     COMPUTER_ARCHITECTURE: '컴퓨터 구조',
-    DATA_STRUCTURE: '자료구조',
-    ALGORITHM: '알고리즘',
+    DATA_STRUCTURE_ALGORITHM: '자료구조&알고리즘',
 };
 const SEARCH_DEBOUNCE_MS = 300;
 const SEARCH_MIN_LENGTH = 2;
