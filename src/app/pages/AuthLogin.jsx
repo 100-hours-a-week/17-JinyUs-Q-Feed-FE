@@ -1,28 +1,28 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Navigate } from 'react-router-dom';
 import { motion as Motion } from 'motion/react';
 import { Button } from '@/app/components/ui/button';
 import { Checkbox } from '@/app/components/ui/checkbox';
-import { storage } from '@/utils/storage';
+import { getOAuthAuthorizationUrl } from '@/api/authApi';
 import { toast } from 'sonner';
 import { AppHeader } from '@/app/components/AppHeader';
+import { useAuth } from '@/context/AuthContext';
 
 const AuthLogin = () => {
-    const navigate = useNavigate();
+    const { isAuthenticated } = useAuth();
     const [agreedToTerms, setAgreedToTerms] = useState(false);
 
+    if (isAuthenticated) {
+        return <Navigate to="/" replace />;
+    }
+
     const handleKakaoLogin = () => {
-        // Auto-agree to terms and log in
-        setAgreedToTerms(true);
+        if (!agreedToTerms) {
+            toast.error('서비스 이용약관에 동의해주세요.');
+            return;
+        }
 
-        // Mock Kakao login
-        storage.setLoggedIn(true);
-        storage.setNickname('면접 준비생');
-        toast.success('로그인 성공!');
-
-        setTimeout(() => {
-            navigate('/', { replace: true });
-        }, 500);
+        window.location.href = getOAuthAuthorizationUrl('kakao');
     };
 
     return (
@@ -61,7 +61,11 @@ const AuthLogin = () => {
                             onClick={handleKakaoLogin}
                             className="w-full bg-[#FEE500] hover:bg-[#FDD835] text-black rounded-xl h-12"
                         >
-                            <span className="mr-2">💬</span>
+                            <span className="mr-2">
+                                <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path fillRule="evenodd" clipRule="evenodd" d="M9 0.5C4.02944 0.5 0 3.69 0 7.62C0 10.06 1.558 12.22 3.931 13.48L2.933 17.04C2.845 17.36 3.213 17.61 3.491 17.42L7.873 14.55C8.243 14.59 8.619 14.61 9 14.61C13.9706 14.61 18 11.42 18 7.49C18 3.56 13.9706 0.5 9 0.5Z" fill="black"/>
+                                </svg>
+                            </span>
                             카카오로 시작하기
                         </Button>
 
