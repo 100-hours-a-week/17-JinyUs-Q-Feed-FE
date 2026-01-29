@@ -8,7 +8,7 @@ const loadInitialQuestion = () => {
     try {
         const raw = sessionStorage.getItem(STORAGE_KEY);
         return raw ? JSON.parse(raw) : null;
-    } catch (error) {
+    } catch {
         return null;
     }
 };
@@ -24,7 +24,7 @@ export function PracticeQuestionProvider({ children }) {
             } else {
                 sessionStorage.removeItem(STORAGE_KEY);
             }
-        } catch (error) {
+        } catch {
             // sessionStorage 사용 불가 환경에서는 조용히 무시한다.
         }
     }, []);
@@ -45,6 +45,7 @@ export function PracticeQuestionProvider({ children }) {
     return <PracticeQuestionContext.Provider value={value}>{children}</PracticeQuestionContext.Provider>;
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function usePracticeQuestion() {
     const context = useContext(PracticeQuestionContext);
     if (!context) {

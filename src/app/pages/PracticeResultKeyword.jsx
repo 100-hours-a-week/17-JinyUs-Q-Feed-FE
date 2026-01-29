@@ -127,7 +127,7 @@ const PracticeResultKeyword = () => {
                     .finally(() => {
                         isFetching = false;
                     });
-            } catch (e) {
+            } catch {
                 setIsAnalyzing(false);
                 setFeedbackError(TEXT_ERROR_PARSE);
                 if (timer) clearInterval(timer);

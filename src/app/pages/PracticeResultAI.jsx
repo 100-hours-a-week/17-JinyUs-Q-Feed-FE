@@ -44,9 +44,9 @@ const PracticeResultAI = () => {
         }))
         : [];
     // bad case일 때는 100%로 채워 긍정적 UI를 유지한다.
-    const filledRadarData = radarData.length
-        ? radarData.map((metric) => ({ ...metric, value: 100 }))
-        : [];
+    // const filledRadarData = radarData.length
+    //     ? radarData.map((metric) => ({ ...metric, value: 100 }))
+    //     : [];
     const feedbackText = feedbackData?.feedback || '';
     const [strengthsText, improvementsText] = isBadCase
         ? [TEXT_BAD_CASE_STRENGTHS, TEXT_BAD_CASE_IMPROVEMENTS]

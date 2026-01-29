@@ -19,7 +19,7 @@ export async function extractErrorMessage(response, defaultMessage = DEFAULT_ERR
     if (data.error) return data.error
     if (data.errorMessage) return data.errorMessage
     return defaultMessage
-  } catch (e) {
+  } catch {
     return defaultMessage
   }
 }

@@ -48,9 +48,15 @@ const PracticeMain = () => {
     const [selectedSubCategory, setSelectedSubCategory] = useState(INITIAL_SUB_CATEGORY);
     const filtersRef = useRef({ query: '', type: undefined, category: undefined });
     const isFirstFilterLoad = useRef(true);
+    const prevCategoryRef = useRef(selectedCategory);
 
     useEffect(() => {
-        setSelectedSubCategory(INITIAL_SUB_CATEGORY);
+        if (prevCategoryRef.current !== selectedCategory) {
+            prevCategoryRef.current = selectedCategory;
+            // 카테고리 변경 시 서브카테고리 초기화 (초기화 로직이므로 허용)
+            // eslint-disable-next-line react-hooks/set-state-in-effect
+            setSelectedSubCategory(INITIAL_SUB_CATEGORY);
+        }
     }, [selectedCategory]);
 
     const fetchQuestionPage = useCallback(async ({ cursor = null, limit = PAGE_SIZE } = {}) => {
@@ -115,7 +121,7 @@ const PracticeMain = () => {
 
         debouncedReload();
         return () => debouncedReload.cancel();
-    }, [searchQuery, selectedCategory, selectedSubCategory]);
+    }, [searchQuery, selectedCategory, selectedSubCategory, debouncedReload]);
 
     const errorMessage = error?.message || TEXT_ERROR_FALLBACK;
 

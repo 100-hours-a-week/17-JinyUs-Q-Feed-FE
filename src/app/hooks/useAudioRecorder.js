@@ -25,6 +25,8 @@ export function useAudioRecorder() {
   // isRecording은 recorderState 기반으로 계산
   const isRecording = recorderState === 'recording' || recorderState === 'paused'
 
+  const updateAudioLevelRef = useRef(null)
+
   const updateAudioLevel = useCallback(() => {
     if (!analyserRef.current) return
 
@@ -34,8 +36,14 @@ export function useAudioRecorder() {
     const average = dataArray.reduce((a, b) => a + b, 0) / dataArray.length
     setAudioLevel(average / 255)
 
-    animationFrameRef.current = requestAnimationFrame(updateAudioLevel)
+    if (updateAudioLevelRef.current) {
+      animationFrameRef.current = requestAnimationFrame(updateAudioLevelRef.current)
+    }
   }, [])
+
+  useEffect(() => {
+    updateAudioLevelRef.current = updateAudioLevel
+  }, [updateAudioLevel])
 
   const cleanupAudioContext = useCallback(() => {
     if (animationFrameRef.current) {
