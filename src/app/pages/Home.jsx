@@ -1,12 +1,11 @@
-import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card } from '@/app/components/ui/card';
 import { Button } from '@/app/components/ui/button';
 import { Badge } from '@/app/components/ui/badge';
 import BottomNav from '@/app/components/BottomNav';
 import { Sparkles, TrendingUp, Calendar } from 'lucide-react';
-import { storage } from '@/utils/storage';
-import { fetchRecommendedQuestion } from '@/api/questionApi';
+import { useAuth } from '@/context/AuthContext';
+import { useRecommendedQuestion } from '@/app/hooks/useRecommendedQuestion';
 
 import { AppHeader } from '@/app/components/AppHeader';
 
@@ -35,43 +34,14 @@ const TEXT_RECOMMENDATION_EMPTY = '오늘의 추천 질문이 없습니다';
 
 const Home = () => {
     const navigate = useNavigate();
-    const nickname = storage.getNickname();
+    const { nickname } = useAuth();
     const { weeklyData } = HOME_DATA;
-    const [todayQuestion, setTodayQuestion] = useState(null);
-    const [isLoadingQuestion, setIsLoadingQuestion] = useState(true);
-    const [questionError, setQuestionError] = useState('');
 
-    useEffect(() => {
-        let isActive = true;
-
-        const loadRecommendation = async () => {
-            setIsLoadingQuestion(true);
-            setQuestionError('');
-
-            try {
-                const response = await fetchRecommendedQuestion();
-                const data = response?.data ?? response ?? {};
-                const mapped = {
-                    id: data.questionId ?? data.id,
-                    title: data.content ?? data.title ?? '',
-                    description: data.content ?? '',
-                    category: data.category ?? '',
-                    keywords: Array.isArray(data.keywords) ? data.keywords : [],
-                };
-
-                if (isActive) setTodayQuestion(mapped?.id ? mapped : null);
-            } catch (error) {
-                if (isActive) setQuestionError(error?.message || TEXT_RECOMMENDATION_ERROR);
-            } finally {
-                if (isActive) setIsLoadingQuestion(false);
-            }
-        };
-
-        loadRecommendation();
-        return () => {
-            isActive = false;
-        };
-    }, []);
+    const {
+        data: todayQuestion,
+        isLoading: isLoadingQuestion,
+        error: questionError,
+    } = useRecommendedQuestion();
 
     const handleStartPractice = () => {
         if (!todayQuestion?.id) return;
@@ -104,7 +74,9 @@ const Home = () => {
                                 {TEXT_RECOMMENDATION_LOADING}
                             </div>
                         ) : questionError ? (
-                            <div className="text-sm text-rose-500 py-6 text-center">{questionError}</div>
+                            <div className="text-sm text-rose-500 py-6 text-center">
+                                {questionError?.message || TEXT_RECOMMENDATION_ERROR}
+                            </div>
                         ) : !todayQuestion ? (
                             <div className="text-sm text-muted-foreground py-6 text-center">
                                 {TEXT_RECOMMENDATION_EMPTY}
