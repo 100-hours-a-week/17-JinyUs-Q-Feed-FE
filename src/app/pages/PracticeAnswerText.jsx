@@ -15,12 +15,10 @@ import {
 } from '@/app/components/ui/alert-dialog';
 import { AppHeader } from '@/app/components/AppHeader';
 import { usePracticeQuestionLoader } from '@/app/hooks/usePracticeQuestionLoader';
-import { submitPracticeAnswer } from '@/api/answerApi';
-import { toast } from 'sonner';
+import { usePracticeAnswerSubmit } from '@/app/hooks/usePracticeAnswerSubmit';
 
 const TEXT_LOADING = '질문을 불러오는 중...';
 const TEXT_NOT_FOUND = '질문을 찾을 수 없습니다';
-const TEXT_SUBMIT_ERROR = '피드백 요청에 실패했습니다';
 const TEXT_SUBMIT_BUTTON = '답변 제출';
 const TEXT_SUBMITTING = '제출 중...';
 const TEXT_CONFIRM_TITLE = '답변을 제출하시겠습니까?';
@@ -32,18 +30,12 @@ const TEXT_ANSWER_PLACEHOLDER = '여기에 답변을 작성해주세요...';
 const TEXT_CHARACTER_SUFFIX = '자';
 const TEXT_CANCEL = '취소';
 const TEXT_SUBMIT = '제출';
-const TEXT_FEEDBACK_REQUEST_FAILED = '피드백 요청 실패';
-const INTERVIEW_TYPE = 'PRACTICE_INTERVIEW';
-const FEEDBACK_STORAGE_PREFIX = 'qfeed_ai_feedback_';
-const STORAGE_STATUS_PENDING = 'pending';
-const STORAGE_STATUS_ERROR = 'error';
-
 const PracticeAnswerText = () => {
     const navigate = useNavigate();
     const { questionId } = useParams();
     const [answer, setAnswer] = useState('');
     const [showConfirm, setShowConfirm] = useState(false);
-    const [isSubmitting, setIsSubmitting] = useState(false);
+    const { submitAnswer, isSubmitting } = usePracticeAnswerSubmit();
     const { question, isLoading, errorMessage } = usePracticeQuestionLoader(questionId);
 
     const handleSubmit = () => {
@@ -55,42 +47,15 @@ const PracticeAnswerText = () => {
 
     const confirmSubmit = async () => {
         setShowConfirm(false);
-        setIsSubmitting(true);
-
-        const numericQuestionId = Number(question?.id ?? questionId);
-        const storageKey = `${FEEDBACK_STORAGE_PREFIX}${questionId}`;
-
-        // 분석 화면에서 폴링할 수 있도록 상태를 세션에 저장한다.
-        sessionStorage.setItem(storageKey, JSON.stringify({ status: STORAGE_STATUS_PENDING }));
-
-        submitPracticeAnswer({
-            questionId: Number.isNaN(numericQuestionId) ? questionId : numericQuestionId,
-            answerText: answer.trim(),
-            answerType: INTERVIEW_TYPE,
-        })
-            .then((response) => {
-                const answerId = response?.data?.answerId;
-                sessionStorage.setItem(
-                    storageKey,
-                    JSON.stringify({ status: STORAGE_STATUS_PENDING, answerId })
-                );
-            })
-            .catch((err) => {
-                sessionStorage.setItem(
-                    storageKey,
-                    JSON.stringify({
-                        status: STORAGE_STATUS_ERROR,
-                        message: err?.message || TEXT_FEEDBACK_REQUEST_FAILED,
-                    })
-                );
-                toast.error(err?.message || TEXT_SUBMIT_ERROR);
-            })
-            .finally(() => {
-                setIsSubmitting(false);
-            });
-
-        navigate(`/practice/result-keyword/${questionId}`, {
-            state: { answerText: answer.trim() },
+        submitAnswer({
+            questionId,
+            question,
+            answerText: answer,
+            onAfterSubmit: (trimmedAnswer) => {
+                navigate(`/practice/result-keyword/${questionId}`, {
+                    state: { answerText: trimmedAnswer },
+                });
+            },
         });
     };
 
