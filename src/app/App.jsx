@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from '@/app/components/ui/sonner';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
+import { PracticeQuestionProvider } from '@/context/practiceQuestionContext.jsx';
 import { queryClient } from '@/lib/queryClient';
 
 // Pages
@@ -72,7 +73,9 @@ function App() {
         <QueryClientProvider client={queryClient}>
             <BrowserRouter>
                 <AuthProvider>
-                    <AppRoutes />
+                    <PracticeQuestionProvider>
+                        <AppRoutes />
+                    </PracticeQuestionProvider>
                 </AuthProvider>
             </BrowserRouter>
         </QueryClientProvider>
