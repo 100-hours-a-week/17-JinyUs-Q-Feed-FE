@@ -10,6 +10,8 @@ import { useAuth } from '@/context/AuthContext';
 import { AppHeader } from '@/app/components/AppHeader';
 import { useAnswersInfinite } from '@/app/hooks/useAnswersInfinite';
 
+const SHOW_PORTFOLIO_INTERVIEW = import.meta.env.VITE_SHOW_PORTFOLIO_INTERVIEW === 'true';
+
 const ANSWER_TYPE_LABELS = {
     PRACTICE_INTERVIEW: '연습',
     REAL_INTERVIEW: '실전',
@@ -120,17 +122,19 @@ const ProfileMain = () => {
                 </section>
 
                 {/* Portfolio Management */}
-                <Card className="p-5">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <h3 className="mb-1">포트폴리오 관리</h3>
-                            <p className="text-sm text-muted-foreground">개인화된 질문을 받아보세요</p>
+                {SHOW_PORTFOLIO_INTERVIEW && (
+                    <Card className="p-5">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <h3 className="mb-1">포트폴리오 관리</h3>
+                                <p className="text-sm text-muted-foreground">개인화된 질문을 받아보세요</p>
+                            </div>
+                            <Button variant="ghost" size="icon" className="rounded-full">
+                                <ChevronRight className="w-5 h-5" />
+                            </Button>
                         </div>
-                        <Button variant="ghost" size="icon" className="rounded-full">
-                            <ChevronRight className="w-5 h-5" />
-                        </Button>
-                    </div>
-                </Card>
+                    </Card>
+                )}
 
                 {/* Recent Activities */}
                 <section>

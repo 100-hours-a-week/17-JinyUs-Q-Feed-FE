@@ -6,6 +6,8 @@ import { toast } from 'sonner';
 
 import { AppHeader } from '@/app/components/AppHeader';
 
+const SHOW_PORTFOLIO_INTERVIEW = import.meta.env.VITE_SHOW_PORTFOLIO_INTERVIEW === 'true';
+
 const RealInterview = () => {
     const navigate = useNavigate();
 
@@ -26,11 +28,13 @@ const RealInterview = () => {
             description: '대규모 아키텍처 및 분산 시스템 설계 연습',
             gradient: 'from-rose-500 to-pink-600',
         },
-        {
-            title: '개별 포트폴리오',
-            description: '내 프로젝트 기반의 1:1 맞춤형 기술 면접',
-            gradient: 'from-pink-600 to-rose-600',
-        },
+        ...(SHOW_PORTFOLIO_INTERVIEW
+            ? [{
+                title: '개별 포트폴리오',
+                description: '내 프로젝트 기반의 1:1 맞춤형 기술 면접',
+                gradient: 'from-pink-600 to-rose-600',
+            }]
+            : []),
     ];
 
     return (
