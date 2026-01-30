@@ -6,6 +6,7 @@ import { ThumbsUp, AlertCircle, Home } from 'lucide-react';
 import { AppHeader } from '@/app/components/AppHeader';
 import { RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, ResponsiveContainer } from 'recharts';
 import { usePracticeQuestionLoader } from '@/app/hooks/usePracticeQuestionLoader';
+import { usePracticeQuestion } from '@/context/practiceQuestionContext.jsx';
 
 const TEXT_LOADING = '질문을 불러오는 중...';
 const TEXT_NOT_FOUND = '질문을 찾을 수 없습니다';
@@ -31,6 +32,7 @@ const PracticeResultAI = () => {
     const { questionId } = useParams();
     const { state } = useLocation();
     const { question, isLoading, errorMessage } = usePracticeQuestionLoader(questionId);
+    const { clearSelectedQuestion } = usePracticeQuestion();
 
     const feedbackResponse = state?.feedbackResponse;
     const feedbackData = feedbackResponse?.data;
@@ -78,6 +80,12 @@ const PracticeResultAI = () => {
     useEffect(() => {
         if (!badCaseFeedback) return;
     }, [badCaseFeedback]);
+
+    useEffect(() => {
+        return () => {
+            clearSelectedQuestion();
+        };
+    }, [clearSelectedQuestion]);
 
     if (isLoading) return <div>{TEXT_LOADING}</div>;
     if (errorMessage) return <div>{errorMessage}</div>;
@@ -166,7 +174,10 @@ const PracticeResultAI = () => {
                 </div>
 
                 <Button
-                    onClick={() => navigate('/')}
+                    onClick={() => {
+                        clearSelectedQuestion();
+                        navigate('/');
+                    }}
                     className="w-full rounded-xl h-12 gap-2"
                     variant="default"
                 >

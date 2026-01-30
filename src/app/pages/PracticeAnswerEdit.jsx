@@ -17,10 +17,11 @@ import { Edit3, Eye } from 'lucide-react';
 import { AppHeader } from '@/app/components/AppHeader';
 import { toast } from 'sonner';
 import { usePracticeQuestionLoader } from '@/app/hooks/usePracticeQuestionLoader';
+import { usePracticeAnswerSubmit } from '@/app/hooks/usePracticeAnswerSubmit';
 
-const DEFAULT_ANSWER = '프로세스는 실행 중인 프로그램의 인스턴스로, 독립적인 메모리 공간을 가지고 있습니다. 반면 스레드는 프로세스 내에서 실행되는 작업의 단위로, 같은 프로세스의 다른 스레드와 메모리를 공유합니다. 멀티프로세싱은 여러 프로세스를 동시에 실행하는 것이고, 멀티스레딩은 하나의 프로세스 내에서 여러 스레드를 실행하는 것입니다. 스레드는 메모리를 공유하기 때문에 컨스트 스위칭 비용이 적고 통신이 빠르지만, 동기화 문제에 주의해야 합니다.';
 const TEXT_LOADING = '질문을 불러오는 중...';
 const TEXT_NOT_FOUND = '질문을 찾을 수 없습니다';
+const TEXT_SUBMITTING = '제출 중...';
 
 const PracticeAnswerEdit = () => {
     const navigate = useNavigate();
@@ -29,7 +30,8 @@ const PracticeAnswerEdit = () => {
 
     const [isEditing, setIsEditing] = useState(false);
     const [showConfirm, setShowConfirm] = useState(false);
-    const [answer, setAnswer] = useState(state?.transcribedText || DEFAULT_ANSWER);
+    const { submitAnswer, isSubmitting } = usePracticeAnswerSubmit();
+    const [answer, setAnswer] = useState(state?.transcribedText);
     const { question, isLoading, errorMessage } = usePracticeQuestionLoader(questionId);
 
     const handleToggleEdit = () => {
@@ -42,12 +44,22 @@ const PracticeAnswerEdit = () => {
     };
 
     const handleSubmit = () => {
+        if (!answer.trim()) return;
         setShowConfirm(true);
     };
 
     const confirmSubmit = () => {
         setShowConfirm(false);
-        navigate(`/practice/result-keyword/${questionId}`);
+        submitAnswer({
+            questionId,
+            question,
+            answerText: answer,
+            onAfterSubmit: (trimmedAnswer) => {
+                navigate(`/practice/result-keyword/${questionId}`, {
+                    state: { answerText: trimmedAnswer },
+                });
+            },
+        });
     };
 
     if (isLoading) return <div>{TEXT_LOADING}</div>;
@@ -105,8 +117,12 @@ const PracticeAnswerEdit = () => {
                     )}
                 </Card>
 
-                <Button onClick={handleSubmit} className="w-full rounded-xl h-12">
-                    답변 제출
+                <Button
+                    onClick={handleSubmit}
+                    disabled={!answer.trim() || isSubmitting}
+                    className="w-full rounded-xl h-12"
+                >
+                    {isSubmitting ? TEXT_SUBMITTING : '답변 제출'}
                 </Button>
             </div>
 
