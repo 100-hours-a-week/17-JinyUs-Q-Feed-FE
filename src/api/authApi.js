@@ -5,7 +5,7 @@ export function getOAuthAuthorizationUrl(provider = 'kakao') {
 }
 
 export async function exchangeOAuthCode(exchangeCode) {
-  const response = await fetch(`${API_BASE_URL}/api/auth/oauth/exchange`, {
+  const response = await authFetch('/api/auth/oauth/exchange', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     credentials: 'include',
@@ -28,7 +28,7 @@ export async function exchangeOAuthCode(exchangeCode) {
 }
 
 export async function refreshTokens() {
-  const response = await fetch(`${API_BASE_URL}/api/auth/tokens`, {
+  const response = await authFetch('/api/auth/tokens', {
     method: 'POST',
     credentials: 'include',
   })
