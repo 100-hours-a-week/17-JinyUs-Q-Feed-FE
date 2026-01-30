@@ -1,5 +1,8 @@
 import { api, handleResponse } from '@/utils/apiUtils'
 
+// NOTE: 앱 서버로 가는 요청은 api(authFetch)를 사용한다.
+// presigned URL 업로드는 외부(S3)로 직접 요청해야 하므로 fetch를 유지한다.
+
 /**
  * S3 presigned URL 요청
  * @param {Object} params
@@ -35,6 +38,7 @@ export async function getPresignedUrl({ fileName, fileSize, mimeType, category }
  * @param {string} contentType - MIME 타입
  */
 export async function uploadToS3(presignedUrl, file, contentType) {
+  // presigned URL은 서명된 요청이므로 Authorization 헤더를 추가하면 실패한다.
   const response = await fetch(presignedUrl, {
     method: 'PUT',
     body: file,
