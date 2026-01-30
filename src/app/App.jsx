@@ -27,6 +27,8 @@ function AppRoutes() {
 
     if (isLoading) return null
 
+    const SHOW_REAL_INTERVIEW = import.meta.env.VITE_SHOW_REAL_INTERVIEW === 'true';
+
     return (
         <>
             <Routes>
@@ -51,7 +53,9 @@ function AppRoutes() {
                         <Route path="/practice/result-ai/:questionId" element={<PracticeResultAI />} />
 
                         {/* Real Interview */}
-                        <Route path="/real-interview" element={<RealInterview />} />
+                        {(SHOW_REAL_INTERVIEW &&
+                            <Route path="/real-interview" element={<RealInterview />} />
+                        )}
 
                         {/* Profile */}
                         <Route path="/profile" element={<ProfileMain />} />
