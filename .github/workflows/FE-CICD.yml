@@ -45,6 +45,9 @@ jobs:
       - name: 프로젝트 빌드
         env:
           VITE_API_BASE_URL: https://q-feed.com
+          VITE_SHOW_REAL_INTERVIEW: false
+          VITE_SHOW_PORTFOLIO_INTERVIEW: false
+          VITE_SHOW_NOTIFICATIONS: false
         run: npm run build
       
       # 7. package.json에서 버전 정보 추출
