@@ -12,8 +12,8 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from '@/app/components/ui/alert-dialog';
-import { ArrowLeft, Bell, HelpCircle, LogOut, Trash2, ChevronRight } from 'lucide-react';
-import { storage } from '@/utils/storage';
+import { Bell, HelpCircle, LogOut, Trash2, ChevronRight } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
 import { toast } from 'sonner';
 import { useState } from 'react';
 
@@ -21,18 +21,19 @@ import { AppHeader } from '@/app/components/AppHeader';
 
 const SettingMain = () => {
     const navigate = useNavigate();
+    const { logout } = useAuth();
     const [showLogoutDialog, setShowLogoutDialog] = useState(false);
     const [showDeleteDialog, setShowDeleteDialog] = useState(false);
     const [notifications, setNotifications] = useState(true);
 
-    const handleLogout = () => {
-        storage.clear();
+    const handleLogout = async () => {
+        await logout();
         toast.success('로그아웃되었습니다');
         navigate('/login', { replace: true });
     };
 
-    const handleDeleteAccount = () => {
-        storage.clear();
+    const handleDeleteAccount = async () => {
+        await logout();
         toast.success('계정이 삭제되었습니다');
         navigate('/login', { replace: true });
     };
