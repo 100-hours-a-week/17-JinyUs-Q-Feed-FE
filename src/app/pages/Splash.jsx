@@ -1,20 +1,22 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion as Motion } from 'motion/react';
-import { storage } from '@/utils/storage';
+import { useAuth } from '@/context/AuthContext';
 import { AppHeader } from '@/app/components/AppHeader';
 
 const Splash = () => {
     const navigate = useNavigate();
+    const { isAuthenticated, isLoading } = useAuth();
 
     useEffect(() => {
+        if (isLoading) return;
+
         const timer = setTimeout(() => {
-            const isLoggedIn = storage.isLoggedIn();
-            navigate(isLoggedIn ? '/' : '/login', { replace: true });
+            navigate(isAuthenticated ? '/' : '/login', { replace: true });
         }, 1200);
 
         return () => clearTimeout(timer);
-    }, [navigate]);
+    }, [navigate, isAuthenticated, isLoading]);
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-rose-50 via-white to-pink-50 flex flex-col">
