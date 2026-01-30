@@ -31,6 +31,7 @@ const CATEGORY_LABEL_MAP = {
 const TEXT_RECOMMENDATION_LOADING = '추천 질문을 불러오는 중...';
 const TEXT_RECOMMENDATION_ERROR = '추천 질문을 불러오지 못했습니다.';
 const TEXT_RECOMMENDATION_EMPTY = '오늘의 추천 질문이 없습니다';
+const SHOW_REAL_INTERVIEW = import.meta.env.VITE_SHOW_REAL_INTERVIEW === 'true';
 
 const Home = () => {
     const navigate = useNavigate();
@@ -156,6 +157,7 @@ const Home = () => {
                             <span className="text-sm">연습 모드</span>
                         </Button>
 
+                        {SHOW_REAL_INTERVIEW && (
                         <Button
                             variant="outline"
                             className="h-20 flex-col gap-2 rounded-xl"
@@ -164,6 +166,7 @@ const Home = () => {
                             <span className="text-2xl">🎯</span>
                             <span className="text-sm">실전 모드</span>
                         </Button>
+                        )}
                     </div>
                 </section>
             </div>
