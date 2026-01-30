@@ -1,15 +1,14 @@
 import { useNavigate } from 'react-router-dom';
-import { useCallback } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { Card } from '@/app/components/ui/card';
 import { Button } from '@/app/components/ui/button';
 import { Avatar, AvatarFallback } from '@/app/components/ui/avatar';
 import { Badge } from '@/app/components/ui/badge';
 import BottomNav from '@/app/components/BottomNav';
 import { ChevronRight, Calendar, Target, Award, Loader2 } from 'lucide-react';
-import { storage } from '@/utils/storage';
+import { useAuth } from '@/context/AuthContext';
 import { AppHeader } from '@/app/components/AppHeader';
-import { useInfiniteScroll } from '@/app/hooks/useInfiniteScroll';
-import { fetchAnswers } from '@/api/answerApi';
+import { useAnswersInfinite } from '@/app/hooks/useAnswersInfinite';
 
 const ANSWER_TYPE_LABELS = {
     PRACTICE_INTERVIEW: '연습',
@@ -29,27 +28,49 @@ const formatDate = (dateString) => {
 
 const ProfileMain = () => {
     const navigate = useNavigate();
-    const nickname = storage.getNickname();
-
-    const fetchFn = useCallback(
-        ({ cursor, limit, signal }) =>
-            fetchAnswers({
-                type: 'PRACTICE_INTERVIEW',
-                expand: 'question,feedback',
-                cursor,
-                limit,
-                signal,
-            }),
-        []
-    );
+    const { nickname } = useAuth();
+    const observerRef = useRef(null);
 
     const {
-        data: recentActivities,
-        loading,
+        data,
+        isLoading,
+        isFetchingNextPage,
         error,
-        hasMore,
-        observerRef,
-    } = useInfiniteScroll(fetchFn, { limit: 10 });
+        hasNextPage,
+        fetchNextPage,
+    } = useAnswersInfinite({ type: 'PRACTICE_INTERVIEW', expand: 'question,feedback' });
+
+    const recentActivities = useMemo(
+        () => data?.pages?.flatMap((p) => p.records) ?? [],
+        [data]
+    );
+
+    const loading = isLoading || isFetchingNextPage;
+
+    // IntersectionObserver for infinite scroll
+    const observerCallback = useCallback(
+        (entries) => {
+            const [entry] = entries;
+            if (entry.isIntersecting && hasNextPage && !isFetchingNextPage) {
+                fetchNextPage();
+            }
+        },
+        [hasNextPage, isFetchingNextPage, fetchNextPage]
+    );
+
+    useEffect(() => {
+        const node = observerRef.current;
+        if (!node) return;
+
+        const observer = new IntersectionObserver(observerCallback, {
+            root: null,
+            rootMargin: '100px',
+            threshold: 0.1,
+        });
+
+        observer.observe(node);
+        return () => observer.disconnect();
+    }, [observerCallback]);
 
     const stats = [
         { icon: Calendar, label: '총 학습일', value: '12일' },
@@ -173,7 +194,7 @@ const ProfileMain = () => {
                             </Card>
                         )}
 
-                        {!hasMore && recentActivities.length > 0 && (
+                        {!hasNextPage && recentActivities.length > 0 && (
                             <p className="text-center text-sm text-muted-foreground py-2">
                                 모든 학습 기록을 불러왔습니다.
                             </p>

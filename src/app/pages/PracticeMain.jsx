@@ -6,10 +6,9 @@ import { Badge } from '@/app/components/ui/badge';
 import { Button } from '@/app/components/ui/button';
 import BottomNav from '@/app/components/BottomNav';
 import { Search, Filter } from 'lucide-react';
-import { fetchQuestions, searchQuestions } from '@/api/questionApi';
 import debounce from 'lodash/debounce';
-import { useInfiniteScroll } from '@/app/hooks/useInfiniteScroll';
 import { usePracticeQuestion } from '@/context/practiceQuestionContext.jsx';
+import { useQuestionsInfinite } from '@/app/hooks/useQuestionsInfinite';
 
 import { AppHeader } from '@/app/components/AppHeader';
 
@@ -33,8 +32,6 @@ const CATEGORY_LABEL_MAP = {
     DATA_STRUCTURE_ALGORITHM: '자료구조&알고리즘',
 };
 const SEARCH_DEBOUNCE_MS = 300;
-const SEARCH_MIN_LENGTH = 2;
-const PAGE_SIZE = 10;
 const TEXT_LOADING = '질문을 불러오는 중...';
 const TEXT_LOADING_MORE = '더 불러오는 중...';
 const TEXT_EMPTY = '검색 결과가 없습니다';
@@ -44,84 +41,81 @@ const PracticeMain = () => {
     const navigate = useNavigate();
     const { setSelectedQuestion } = usePracticeQuestion();
     const [searchQuery, setSearchQuery] = useState(INITIAL_SEARCH_QUERY);
+    const [debouncedQuery, setDebouncedQuery] = useState(INITIAL_SEARCH_QUERY);
     const [selectedCategory, setSelectedCategory] = useState(INITIAL_CATEGORY);
     const [selectedSubCategory, setSelectedSubCategory] = useState(INITIAL_SUB_CATEGORY);
-    const filtersRef = useRef({ query: '', type: undefined, category: undefined });
-    const isFirstFilterLoad = useRef(true);
     const prevCategoryRef = useRef(selectedCategory);
+    const observerRef = useRef(null);
 
     useEffect(() => {
         if (prevCategoryRef.current !== selectedCategory) {
             prevCategoryRef.current = selectedCategory;
-            // 카테고리 변경 시 서브카테고리 초기화 (초기화 로직이므로 허용)
             // eslint-disable-next-line react-hooks/set-state-in-effect
             setSelectedSubCategory(INITIAL_SUB_CATEGORY);
         }
     }, [selectedCategory]);
 
-    const fetchQuestionPage = useCallback(async ({ cursor = null, limit = PAGE_SIZE } = {}) => {
-        const { query, type, category } = filtersRef.current;
-        const response =
-            query.length >= SEARCH_MIN_LENGTH
-                ? await searchQuestions({ q: query, type, category, cursor, size: limit })
-                : await fetchQuestions({ type, category, cursor, size: limit });
-
-        const items = response?.data?.questions ?? [];
-        const pagination = response?.data?.pagination ?? {};
-        const records = items.map((question) => ({
-            id: question.questionId ?? question.id,
-            title: question.content ?? question.title ?? '',
-            description: question.content ?? '',
-            category: question.category ?? '',
-            keywords: Array.isArray(question.keywords) ? question.keywords : [],
-        }));
-
-        return { data: { records, pagination } };
-    }, []);
-
-    const {
-        data: questions,
-        loading: isLoading,
-        error,
-        hasMore,
-        observerRef,
-        reset,
-        refetch,
-    } = useInfiniteScroll(fetchQuestionPage, { limit: PAGE_SIZE, enabled: true });
-    const isLoadingMore = isLoading && questions.length > 0;
-
-    useEffect(() => {
-        const type =
-            selectedCategory === 'CS기초'
-                ? 'CS'
-                : selectedCategory === '시스템디자인'
-                    ? 'SYSTEM_DESIGN'
-                    : undefined;
-        const category =
-            selectedCategory === 'CS기초' && selectedSubCategory !== INITIAL_SUB_CATEGORY
-                ? CS_CATEGORY_MAP[selectedSubCategory]
-                : undefined;
-        filtersRef.current = { query: searchQuery.trim(), type, category };
-    }, [searchQuery, selectedCategory, selectedSubCategory]);
-
-    const debouncedReload = useMemo(
-        () =>
-            debounce(() => {
-                reset();
-                refetch();
-            }, SEARCH_DEBOUNCE_MS),
-        [reset, refetch]
+    const debouncedSetQuery = useMemo(
+        () => debounce((value) => setDebouncedQuery(value.trim()), SEARCH_DEBOUNCE_MS),
+        []
     );
 
     useEffect(() => {
-        if (isFirstFilterLoad.current) {
-            isFirstFilterLoad.current = false;
-            return () => debouncedReload.cancel();
-        }
+        debouncedSetQuery(searchQuery);
+        return () => debouncedSetQuery.cancel();
+    }, [searchQuery, debouncedSetQuery]);
 
-        debouncedReload();
-        return () => debouncedReload.cancel();
-    }, [searchQuery, selectedCategory, selectedSubCategory, debouncedReload]);
+    const type = useMemo(() => {
+        if (selectedCategory === 'CS기초') return 'CS';
+        if (selectedCategory === '시스템디자인') return 'SYSTEM_DESIGN';
+        return undefined;
+    }, [selectedCategory]);
+
+    const category = useMemo(() => {
+        if (selectedCategory === 'CS기초' && selectedSubCategory !== INITIAL_SUB_CATEGORY) {
+            return CS_CATEGORY_MAP[selectedSubCategory];
+        }
+        return undefined;
+    }, [selectedCategory, selectedSubCategory]);
+
+    const {
+        data,
+        isLoading,
+        isFetchingNextPage,
+        error,
+        hasNextPage,
+        fetchNextPage,
+    } = useQuestionsInfinite({ query: debouncedQuery, type, category });
+
+    const questions = useMemo(
+        () => data?.pages?.flatMap((p) => p.records) ?? [],
+        [data]
+    );
+
+    // IntersectionObserver for infinite scroll
+    const observerCallback = useCallback(
+        (entries) => {
+            const [entry] = entries;
+            if (entry.isIntersecting && hasNextPage && !isFetchingNextPage) {
+                fetchNextPage();
+            }
+        },
+        [hasNextPage, isFetchingNextPage, fetchNextPage]
+    );
+
+    useEffect(() => {
+        const node = observerRef.current;
+        if (!node) return;
+
+        const observer = new IntersectionObserver(observerCallback, {
+            root: null,
+            rootMargin: '100px',
+            threshold: 0.1,
+        });
+
+        observer.observe(node);
+        return () => observer.disconnect();
+    }, [observerCallback]);
 
     const errorMessage = error?.message || TEXT_ERROR_FALLBACK;
 
@@ -153,15 +147,15 @@ const PracticeMain = () => {
                 <div className="px-4 pb-3 max-w-lg mx-auto">
                     <div className="flex items-center gap-2 overflow-x-auto pb-2">
                         <Filter className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                        {CATEGORY_OPTIONS.map((category) => (
+                        {CATEGORY_OPTIONS.map((cat) => (
                             <Button
-                                key={category}
-                                variant={selectedCategory === category ? 'default' : 'outline'}
+                                key={cat}
+                                variant={selectedCategory === cat ? 'default' : 'outline'}
                                 size="sm"
-                                onClick={() => setSelectedCategory(category)}
+                                onClick={() => setSelectedCategory(cat)}
                                 className="rounded-full whitespace-nowrap"
                             >
-                                {category}
+                                {cat}
                             </Button>
                         ))}
                     </div>
@@ -169,15 +163,15 @@ const PracticeMain = () => {
                 {selectedCategory === 'CS기초' && (
                     <div className="px-4 pb-4 max-w-lg mx-auto">
                         <div className="flex items-center gap-2 overflow-x-auto pb-2">
-                            {CS_SUB_CATEGORY_OPTIONS.map((category) => (
+                            {CS_SUB_CATEGORY_OPTIONS.map((cat) => (
                                 <Button
-                                    key={category}
-                                    variant={selectedSubCategory === category ? 'default' : 'outline'}
+                                    key={cat}
+                                    variant={selectedSubCategory === cat ? 'default' : 'outline'}
                                     size="sm"
-                                    onClick={() => setSelectedSubCategory(category)}
+                                    onClick={() => setSelectedSubCategory(cat)}
                                     className="rounded-full whitespace-nowrap"
                                 >
-                                    {category}
+                                    {cat}
                                 </Button>
                             ))}
                         </div>
@@ -235,12 +229,12 @@ const PracticeMain = () => {
                                 </div>
                             </Card>
                         ))}
-                        {isLoadingMore && (
+                        {isFetchingNextPage && (
                             <div className="text-center py-6 text-muted-foreground">
                                 <p>{TEXT_LOADING_MORE}</p>
                             </div>
                         )}
-                        {hasMore && <div ref={observerRef} />}
+                        {hasNextPage && <div ref={observerRef} />}
                     </>
                 )}
             </div>
