@@ -18,8 +18,12 @@ import { toast } from 'sonner';
 import { useState } from 'react';
 
 import { AppHeader } from '@/app/components/AppHeader';
+import { deleteAccount } from '@/api/userApi';
 
 const SettingMain = () => {
+
+    const SHOW_NOTIFICATIONS = import.meta.env.VITE_SHOW_NOTIFICATIONS === 'true';
+
     const navigate = useNavigate();
     const { logout } = useAuth();
     const [showLogoutDialog, setShowLogoutDialog] = useState(false);
@@ -33,13 +37,19 @@ const SettingMain = () => {
     };
 
     const handleDeleteAccount = async () => {
-        await logout();
-        toast.success('계정이 삭제되었습니다');
-        navigate('/login', { replace: true });
+        try {
+            await deleteAccount();
+            await logout();
+            toast.success('계정이 삭제되었습니다');
+            navigate('/login', { replace: true });
+        } catch (error) {
+            toast.error(error.message || '계정 삭제에 실패했습니다');
+            setShowDeleteDialog(false);
+        }
     };
 
     const settingGroups = [
-        {
+        ...(SHOW_NOTIFICATIONS ? [{
             title: '알림',
             items: [
                 {
@@ -53,7 +63,7 @@ const SettingMain = () => {
                     ),
                 },
             ],
-        },
+        }] : [] ),
         {
             title: '고객센터',
             items: [
@@ -92,7 +102,7 @@ const SettingMain = () => {
 
     return (
         <div className="min-h-screen bg-background pb-12">
-            <AppHeader title="설정" onBack={() => navigate('/profile')} />
+            <AppHeader title="설정" onBack={() => navigate('/profile')} showNotifications={false} />
 
             <div className="p-6 max-w-lg mx-auto space-y-6">
                 {settingGroups.map((group, groupIndex) => (
@@ -122,7 +132,7 @@ const SettingMain = () => {
 
                 <div className="text-center text-sm text-muted-foreground pt-4">
                     <p>Q-Feed v1.0.0</p>
-                    <p className="mt-1">© 2024 Q-Feed. All rights reserved.</p>
+                    <p className="mt-1">© 2026 Q-Feed. All rights reserved.</p>
                 </div>
             </div>
 

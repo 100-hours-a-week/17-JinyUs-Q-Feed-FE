@@ -213,7 +213,13 @@ const ProfileMain = () => {
     return (
         <div className="min-h-screen bg-background pb-20">
             {/* Header */}
-            <AppHeader title="프로필" showBack={false} onNotification={() => navigate('/settings')} />
+            <AppHeader
+                title="프로필"
+                showBack={false}
+                showSettings
+                onSetting={() => navigate('/settings')}
+                showNotifications={false}
+            />
 
             <div className="bg-gradient-to-br from-rose-400 to-pink-500 text-white max-w-lg mx-auto w-full">
                 <div className="p-6 max-w-lg mx-auto">
