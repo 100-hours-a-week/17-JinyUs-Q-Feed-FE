@@ -12,10 +12,15 @@ import { useQuestionsInfinite } from '@/app/hooks/useQuestionsInfinite';
 
 import { AppHeader } from '@/app/components/AppHeader';
 
+const SHOW_REAL_INTERVIEW = import.meta.env.VITE_SHOW_REAL_INTERVIEW === 'true';
 const INITIAL_SEARCH_QUERY = '';
 const INITIAL_CATEGORY = '전체';
 const INITIAL_SUB_CATEGORY = '전체';
-const CATEGORY_OPTIONS = ['전체', 'CS기초', '시스템디자인'];
+const CATEGORY_OPTIONS = [
+    '전체',
+    'CS기초',
+    ...(SHOW_REAL_INTERVIEW ? ['시스템디자인'] : []),
+];
 const CS_SUB_CATEGORY_OPTIONS = ['전체', '운영체제', '네트워크', '데이터베이스', '컴퓨터 구조', '자료구조&알고리즘'];
 const CS_CATEGORY_MAP = {
     운영체제: 'OS',

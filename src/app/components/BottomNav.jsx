@@ -1,6 +1,8 @@
 import { Home, BookOpen, Target, User } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 
+const SHOW_REAL_INTERVIEW = import.meta.env.VITE_SHOW_REAL_INTERVIEW === 'true';
+
 const BottomNav = () => {
     const navigate = useNavigate();
     const location = useLocation();
@@ -8,7 +10,7 @@ const BottomNav = () => {
     const navItems = [
         { path: '/', icon: Home, label: '홈' },
         { path: '/practice', icon: BookOpen, label: '연습' },
-        { path: '/real-interview', icon: Target, label: '실전' },
+        ...(SHOW_REAL_INTERVIEW ? [{ path: '/real-interview', icon: Target, label: '실전' }] : []),
         { path: '/profile', icon: User, label: '프로필' },
     ];
 
