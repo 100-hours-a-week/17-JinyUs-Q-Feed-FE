@@ -50,37 +50,14 @@ export function AuthProvider({ children }) {
 
   const nickname = user?.nickname || user?.name || DEFAULT_NICKNAME
 
-  // Keep ref in sync with state
   useEffect(() => {
     accessTokenRef.current = accessToken
   }, [accessToken])
 
-  // Provide access token getter to apiUtils
   useEffect(() => {
     setAccessTokenGetter(() => accessTokenRef.current)
   }, [])
 
-  // Try to refresh token on initial load
-  useEffect(() => {
-    const initAuth = async () => {
-      try {
-        const newToken = await refreshTokens()
-        setAccessToken(newToken)
-        setUser(getUserFromToken(newToken))
-        scheduleRefresh(newToken)
-      } catch {
-        if (!accessTokenRef.current) {
-          setAccessToken(null)
-        }
-      } finally {
-        setIsLoading(false)
-      }
-    }
-
-    initAuth()
-  }, [scheduleRefresh])
-
-  // Schedule token refresh based on JWT exp claim
   const refreshTimerRef = useRef(null)
 
   const scheduleRefresh = useCallback((token) => {
@@ -105,6 +82,26 @@ export function AuthProvider({ children }) {
         setUser(null)
       }
     }, delay)
+  }, [])
+
+  useEffect(() => {
+    const initAuth = async () => {
+      try {
+        const newToken = await refreshTokens()
+        setAccessToken(newToken)
+        setUser(getUserFromToken(newToken))
+        scheduleRefresh(newToken)
+      } catch {
+        if (!accessTokenRef.current) {
+          setAccessToken(null)
+        }
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    initAuth()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   useEffect(() => {
