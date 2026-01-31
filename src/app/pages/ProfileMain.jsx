@@ -1,11 +1,12 @@
 import { useNavigate } from 'react-router-dom';
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Card } from '@/app/components/ui/card';
 import { Button } from '@/app/components/ui/button';
 import { Avatar, AvatarFallback } from '@/app/components/ui/avatar';
 import { Badge } from '@/app/components/ui/badge';
+import { Input } from '@/app/components/ui/input';
 import BottomNav from '@/app/components/BottomNav';
-import { ChevronRight, Calendar, Target, Award, Loader2 } from 'lucide-react';
+import { ChevronDown, ChevronRight, Calendar, Target, Award, Loader2 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { AppHeader } from '@/app/components/AppHeader';
 import { useAnswersInfinite } from '@/app/hooks/useAnswersInfinite';
@@ -18,9 +19,50 @@ const ANSWER_TYPE_LABELS = {
     PORTFOLIO_INTERVIEW: '포트폴리오',
 };
 
+const MODE_OPTIONS = [
+    { value: 'PRACTICE_INTERVIEW', label: '연습' },
+];
+
+const CATEGORY_OPTIONS = [
+    { value: 'ALL', label: '전체' },
+    { value: 'OS', label: 'OS' },
+    { value: 'NETWORK', label: '네트워크' },
+    { value: 'DB', label: 'DB' },
+    { value: 'COMPUTER_ARCHITECTURE', label: '컴퓨터 구조' },
+    { value: 'DATA_STRUCTURE_ALGORITHM', label: '자료구조/알고리즘' },
+];
+
+const CATEGORY_LABELS = {
+    OS: 'OS',
+    NETWORK: '네트워크',
+    DB: 'DB',
+    COMPUTER_ARCHITECTURE: '컴퓨터 구조',
+    DATA_STRUCTURE_ALGORITHM: '자료구조/알고리즘',
+};
+
+const toDateInputValue = (date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+};
+
+const getDefaultDateRange = () => {
+    const today = new Date();
+    const from = new Date(today);
+    from.setMonth(from.getMonth() - 1);
+    return {
+        dateFrom: toDateInputValue(from),
+        dateTo: toDateInputValue(today),
+    };
+};
+
 const formatDate = (dateString) => {
     if (!dateString) return '';
+    const match = dateString.match(/^\d{4}-\d{2}-\d{2}/);
+    if (match) return match[0];
     const date = new Date(dateString);
+    if (Number.isNaN(date.getTime())) return '';
     return date.toLocaleDateString('ko-KR', {
         year: 'numeric',
         month: '2-digit',
@@ -28,10 +70,78 @@ const formatDate = (dateString) => {
     }).replace(/\. /g, '-').replace('.', '');
 };
 
+const formatDateDisplay = (dateString) => {
+    if (!dateString) return '';
+    const match = dateString.match(/^\d{4}-\d{2}-\d{2}/);
+    if (match) return match[0].replace(/-/g, '.');
+    return dateString;
+};
+
 const ProfileMain = () => {
     const navigate = useNavigate();
     const { nickname } = useAuth();
     const observerRef = useRef(null);
+    const [{ dateFrom, dateTo }] = useState(() => getDefaultDateRange());
+    const [dateFromFilter, setDateFromFilter] = useState(dateFrom);
+    const [dateToFilter, setDateToFilter] = useState(dateTo);
+    const [debouncedDateRange, setDebouncedDateRange] = useState({
+        dateFrom,
+        dateTo,
+    });
+    const modeFilter = MODE_OPTIONS[0].value;
+    const [categoryFilter, setCategoryFilter] = useState('ALL');
+    const [isCategoryOpen, setIsCategoryOpen] = useState(false);
+    const categoryDropdownRef = useRef(null);
+    const scrollPositionRef = useRef(0);
+    const [shouldRestoreScroll, setShouldRestoreScroll] = useState(false);
+
+    const categoryValue = categoryFilter === 'ALL' ? undefined : categoryFilter;
+
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (!categoryDropdownRef.current) return;
+            if (!categoryDropdownRef.current.contains(event.target)) {
+                setIsCategoryOpen(false);
+            }
+        };
+
+        document.addEventListener('mousedown', handleClickOutside);
+        document.addEventListener('touchstart', handleClickOutside);
+
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+            document.removeEventListener('touchstart', handleClickOutside);
+        };
+    }, []);
+
+    const handleDateFromChange = (value) => {
+        scrollPositionRef.current = window.scrollY;
+        setShouldRestoreScroll(true);
+        setDateFromFilter(value);
+        if (dateToFilter && value && value > dateToFilter) {
+            setDateToFilter(value);
+        }
+    };
+
+    const handleDateToChange = (value) => {
+        scrollPositionRef.current = window.scrollY;
+        setShouldRestoreScroll(true);
+        setDateToFilter(value);
+        if (dateFromFilter && value && value < dateFromFilter) {
+            setDateFromFilter(value);
+        }
+    };
+
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setDebouncedDateRange({
+                dateFrom: dateFromFilter,
+                dateTo: dateToFilter,
+            });
+        }, 700);
+
+        return () => clearTimeout(timer);
+    }, [dateFromFilter, dateToFilter]);
 
     const {
         data,
@@ -40,7 +150,12 @@ const ProfileMain = () => {
         error,
         hasNextPage,
         fetchNextPage,
-    } = useAnswersInfinite({ type: 'PRACTICE_INTERVIEW', expand: 'question,feedback' });
+    } = useAnswersInfinite({
+        type: modeFilter,
+        category: categoryValue,
+        dateFrom: debouncedDateRange.dateFrom,
+        dateTo: debouncedDateRange.dateTo,
+    });
 
     const recentActivities = useMemo(
         () => data?.pages?.flatMap((p) => p.records) ?? [],
@@ -48,6 +163,13 @@ const ProfileMain = () => {
     );
 
     const loading = isLoading || isFetchingNextPage;
+
+    useEffect(() => {
+        if (!shouldRestoreScroll) return;
+        if (isLoading || isFetchingNextPage) return;
+        window.scrollTo({ top: scrollPositionRef.current, behavior: 'auto' });
+        setShouldRestoreScroll(false);
+    }, [shouldRestoreScroll, isLoading, isFetchingNextPage, data]);
 
     // IntersectionObserver for infinite scroll
     const observerCallback = useCallback(
@@ -146,6 +268,111 @@ const ProfileMain = () => {
                 <section>
                     <h2 className="text-lg mb-3">최근 학습 기록</h2>
 
+                    <div className="space-y-3 mb-4">
+                        <div className="grid grid-cols-[0.8fr_1.2fr] gap-3">
+                            <div className="space-y-2">
+                                <p className="text-xs text-muted-foreground">모드</p>
+                                <div className="relative">
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        className="w-full justify-between bg-input-background text-foreground"
+                                        disabled
+                                    >
+                                        {MODE_OPTIONS.find((option) => option.value === modeFilter)?.label ??
+                                            '연습'}
+                                        <ChevronDown className="opacity-60" />
+                                    </Button>
+                                </div>
+                            </div>
+
+                            <div className="space-y-2">
+                                <p className="text-xs text-muted-foreground">질문 카테고리</p>
+                                <div className="relative" ref={categoryDropdownRef}>
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        className="w-full justify-between bg-input-background text-foreground"
+                                        onClick={() => setIsCategoryOpen((prev) => !prev)}
+                                        aria-haspopup="listbox"
+                                        aria-expanded={isCategoryOpen}
+                                    >
+                                        {CATEGORY_OPTIONS.find((option) => option.value === categoryFilter)
+                                            ?.label ?? '전체'}
+                                        <ChevronDown
+                                            className={`transition-transform ${isCategoryOpen ? 'rotate-180' : ''}`}
+                                        />
+                                    </Button>
+
+                                    {isCategoryOpen && (
+                                        <Card className="absolute z-30 mt-2 w-full gap-0 p-1 shadow-lg">
+                                            {CATEGORY_OPTIONS.map((option) => (
+                                                <button
+                                                    key={option.value}
+                                                    type="button"
+                                                    className="w-full rounded-md px-3 py-2 text-left text-sm text-foreground hover:bg-rose-50"
+                                                    onClick={() => {
+                                                        scrollPositionRef.current = window.scrollY;
+                                                        setShouldRestoreScroll(true);
+                                                        setCategoryFilter(option.value);
+                                                        setIsCategoryOpen(false);
+                                                    }}
+                                                    role="option"
+                                                    aria-selected={option.value === categoryFilter}
+                                                >
+                                                    {option.label}
+                                                </button>
+                                            ))}
+                                        </Card>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="space-y-2">
+                            <p className="text-xs text-muted-foreground">기간</p>
+                            <div className="grid grid-cols-2 gap-2">
+                                <div className="relative">
+                                    <Input
+                                        type="text"
+                                        value={formatDateDisplay(dateFromFilter)}
+                                        readOnly
+                                        className="text-[13px] pr-9 pointer-events-none"
+                                    />
+                                    <Calendar className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                                    <input
+                                        type="date"
+                                        value={dateFromFilter}
+                                        onChange={(event) => handleDateFromChange(event.target.value)}
+                                        onClick={(event) => event.currentTarget.showPicker?.()}
+                                        min=""
+                                        max={dateToFilter}
+                                        className="absolute inset-0 z-0 h-full w-full cursor-pointer opacity-0"
+                                        aria-label="시작일"
+                                    />
+                                </div>
+                                <div className="relative">
+                                    <Input
+                                        type="text"
+                                        value={formatDateDisplay(dateToFilter)}
+                                        readOnly
+                                        className="text-[13px] pr-9 pointer-events-none"
+                                    />
+                                    <Calendar className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                                    <input
+                                        type="date"
+                                        value={dateToFilter}
+                                        onChange={(event) => handleDateToChange(event.target.value)}
+                                        onClick={(event) => event.currentTarget.showPicker?.()}
+                                        min={dateFromFilter}
+                                        className="absolute inset-0 z-0 h-full w-full cursor-pointer opacity-0"
+                                        aria-label="종료일"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     {error && (
                         <Card className="p-4 text-center text-red-500">
                             데이터를 불러오는데 실패했습니다.
@@ -154,35 +381,36 @@ const ProfileMain = () => {
 
                     <div className="space-y-3">
                         {recentActivities.map((activity) => (
-                            <Card key={activity.answerId} className="p-4">
-                                <div className="flex items-start justify-between mb-2">
-                                    <Badge variant="secondary" className="bg-rose-100 text-rose-700">
+                            <Card key={activity.answerId} className="p-2.5 overflow-x-hidden flex flex-col min-h-[88px]">
+                                <div className="flex items-start justify-between gap-2 mb-0 shrink-0">
+                                    <Badge variant="secondary" className="bg-rose-100 text-rose-700 w-fit">
                                         {ANSWER_TYPE_LABELS[activity.type] || activity.type}
                                     </Badge>
-                                    <span className="text-sm text-muted-foreground">
-                                        {formatDate(activity.answeredAt)}
-                                    </span>
+                                    <div className="flex items-center gap-2">
+                                        {activity.question?.category && (
+                                            <Badge
+                                                variant="secondary"
+                                                className="bg-rose-50 text-rose-600 w-fit text-[11px]"
+                                            >
+                                                {CATEGORY_LABELS[activity.question.category] ||
+                                                    activity.question.category}
+                                            </Badge>
+                                        )}
+                                        <span className="text-sm text-muted-foreground">
+                                            {formatDate(activity.createdAt)}
+                                        </span>
+                                    </div>
                                 </div>
 
-                                <h4 className="mb-2 text-sm">
-                                    {activity.question?.content || '질문 정보 없음'}
-                                </h4>
+                                <div className="flex flex-1 items-center">
+                                    <h4
+                                        className="text-[15px] truncate pr-6"
+                                        title={activity.question?.content || ''}
+                                    >
+                                        {activity.question?.content || '질문 정보 없음'}
+                                    </h4>
+                                </div>
 
-                                {activity.feedback?.feedbackAvailable && (
-                                    <div className="flex items-center gap-2">
-                                        <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
-                                            <div
-                                                className="h-full bg-gradient-to-r from-pink-500 to-rose-500"
-                                                style={{ width: `${activity.feedback?.score || 0}%` }}
-                                            />
-                                        </div>
-                                        {activity.feedback?.score !== undefined && (
-                                            <span className="text-sm font-semibold text-pink-600">
-                                                {activity.feedback.score}점
-                                            </span>
-                                        )}
-                                    </div>
-                                )}
 
                                 {!activity.feedback?.feedbackAvailable && (
                                     <p className="text-xs text-muted-foreground">
