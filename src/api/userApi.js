@@ -1,13 +1,12 @@
-import { authFetch, extractErrorMessage } from '@/utils/apiUtils.js'
+import {api, handleResponse} from '@/utils/apiUtils.js'
 
 export async function deleteAccount() {
-  const response = await authFetch('/api/users/me', {
-    method: 'DELETE',
-  })
+  const response = await api.delete('/api/users/me')
 
-  if (!response.ok) {
-    throw new Error(await extractErrorMessage(response, '계정 삭제에 실패했습니다.'))
-  }
+  return handleResponse(response, '/profile', '계정 삭제에 실패했습니다.')
+}
 
-  return true
+export async function fetchUserStats() {
+    const response = await api.get('/api/users/me/stats')
+    return handleResponse(response, '/profile')
 }
