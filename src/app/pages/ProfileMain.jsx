@@ -10,6 +10,7 @@ import { ChevronDown, ChevronRight, Calendar, Target, Award, Loader2 } from 'luc
 import { useAuth } from '@/context/AuthContext';
 import { AppHeader } from '@/app/components/AppHeader';
 import { useAnswersInfinite } from '@/app/hooks/useAnswersInfinite';
+import { useUserStats } from "@/app/hooks/useUserStats.js";
 
 const SHOW_PORTFOLIO_INTERVIEW = import.meta.env.VITE_SHOW_PORTFOLIO_INTERVIEW === 'true';
 
@@ -196,10 +197,13 @@ const ProfileMain = () => {
         return () => observer.disconnect();
     }, [observerCallback]);
 
+    const { data: statsData } = useUserStats();
+    const userStats = statsData?.data;
+
     const stats = [
-        { icon: Calendar, label: '총 학습일', value: '12일' },
-        { icon: Target, label: '연습 횟수', value: '24회' },
-        { icon: Award, label: '평균 점수', value: '85점' },
+        { icon: Calendar, label: '총 학습일', value: `${userStats?.distinct_days ?? '-'}일` },
+        { icon: Target, label: '연습 횟수', value: `${userStats?.practice_mode_count ?? '-'}회` },
+        { icon: Award, label: '총 답변 수', value: `${userStats?.total_questions_answered ?? '-'}개` },
     ];
 
     return (
