@@ -10,3 +10,8 @@ export async function fetchUserStats() {
     const response = await api.get('/api/users/me/stats')
     return handleResponse(response, '/profile')
 }
+
+export async function fetchWeeklyStats() {
+    const response = await api.get('/api/users/me/stats/weekly')
+    return handleResponse(response, '/')
+}

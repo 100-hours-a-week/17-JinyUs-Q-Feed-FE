@@ -6,19 +6,9 @@ import BottomNav from '@/app/components/BottomNav';
 import { Sparkles, TrendingUp, Calendar } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useRecommendedQuestion } from '@/app/hooks/useRecommendedQuestion';
+import { useWeeklyStats } from '@/app/hooks/useWeeklyStats';
 
 import { AppHeader } from '@/app/components/AppHeader';
-
-const HOME_DATA = (() => {
-    const days = ['월', '화', '수', '목', '금', '토', '일'];
-    const weeklyData = days.map((day, index) => ({
-        day,
-        count: Math.floor(Math.random() * 5),
-        isToday: index === new Date().getDay() - 1,
-    }));
-
-    return { weeklyData };
-})();
 
 const CATEGORY_LABEL_MAP = {
     OS: '운영체제',
@@ -36,7 +26,23 @@ const SHOW_REAL_INTERVIEW = import.meta.env.VITE_SHOW_REAL_INTERVIEW === 'true';
 const Home = () => {
     const navigate = useNavigate();
     const { nickname } = useAuth();
-    const { weeklyData } = HOME_DATA;
+
+    const { data: weeklyStatsData } = useWeeklyStats();
+
+    const today = new Date().toISOString().slice(0, 10);
+    const DAYS = ['월', '화', '수', '목', '금', '토', '일'];
+    const EMPTY_WEEKLY = DAYS.map((day) => ({ day, count: 0, isToday: false }));
+
+    const maxValue = weeklyStatsData?.max_value_for_chart ?? 3;
+    const totalThisWeek = weeklyStatsData?.total_this_week ?? 0;
+
+    const weeklyData = weeklyStatsData?.daily_stats
+        ? weeklyStatsData.daily_stats.map((stat) => ({
+              day: stat.day_of_week,
+              count: stat.real_count,
+              isToday: stat.date === today,
+          }))
+        : EMPTY_WEEKLY;
 
     const {
         data: todayQuestion,
@@ -122,7 +128,7 @@ const Home = () => {
                                                 ? 'bg-gradient-to-t from-pink-500 to-rose-400'
                                                 : 'bg-gradient-to-t from-gray-300 to-gray-200'
                                             }`}
-                                        style={{ height: `${Math.max(data.count * 20, 8)}%` }}
+                                        style={{ height: `${Math.max((data.count / maxValue) * 100, 8)}%` }}
                                     />
                                     <span className={`text-xs ${data.isToday ? 'text-pink-600 font-semibold' : 'text-muted-foreground'}`}>
                                         {data.day}
@@ -134,7 +140,7 @@ const Home = () => {
                         <div className="mt-4 pt-4 border-t flex justify-between text-sm">
                             <span className="text-muted-foreground">이번 주 총</span>
                             <span className="font-semibold text-pink-600">
-                                {weeklyData.reduce((acc, d) => acc + d.count, 0)}번 연습
+                                {totalThisWeek}번 연습
                             </span>
                         </div>
                     </Card>
