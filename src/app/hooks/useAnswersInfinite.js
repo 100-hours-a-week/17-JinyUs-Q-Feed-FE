@@ -19,6 +19,7 @@ export function useAnswersInfinite({ type, category, dateFrom, dateTo } = {}) {
       const { records = [], pagination = {} } = response?.data ?? response ?? {}
       return { records, pagination }
     },
+    placeholderData: (prev) => prev,
     initialPageParam: null,
     getNextPageParam: (lastPage) =>
       lastPage.pagination.hasNext ? lastPage.pagination.nextCursor : undefined,
