@@ -53,6 +53,10 @@ const PracticeMain = () => {
     const observerRef = useRef(null);
 
     useEffect(() => {
+        setSelectedQuestion(null);
+    }, [setSelectedQuestion]);
+
+    useEffect(() => {
         if (prevCategoryRef.current !== selectedCategory) {
             prevCategoryRef.current = selectedCategory;
             // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -216,22 +220,6 @@ const PracticeMain = () => {
                                 <p className="text-sm text-muted-foreground line-clamp-2 mb-3">
                                     {question.description}
                                 </p>
-
-                                <div className="flex flex-wrap gap-1">
-                                    {question.keywords.slice(0, 3).map((keyword, idx) => (
-                                        <span
-                                            key={idx}
-                                            className="text-xs px-2 py-1 bg-rose-50 text-rose-700 rounded-full"
-                                        >
-                                            #{keyword}
-                                        </span>
-                                    ))}
-                                    {question.keywords.length > 3 && (
-                                        <span className="text-xs px-2 py-1 text-gray-500">
-                                            +{question.keywords.length - 3}
-                                        </span>
-                                    )}
-                                </div>
                             </Card>
                         ))}
                         {isFetchingNextPage && (
