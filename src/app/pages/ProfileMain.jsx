@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Card } from '@/app/components/ui/card';
 import { Button } from '@/app/components/ui/button';
 import { Avatar, AvatarFallback } from '@/app/components/ui/avatar';
@@ -10,7 +10,7 @@ import { ChevronDown, ChevronRight, Calendar, Target, Award, Loader2 } from 'luc
 import { useAuth } from '@/context/AuthContext';
 import { AppHeader } from '@/app/components/AppHeader';
 import { useAnswersInfinite } from '@/app/hooks/useAnswersInfinite';
-import { useUserStats } from "@/app/hooks/useUserStats.js";
+import { useUserStats } from '@/app/hooks/useUserStats.js';
 
 const SHOW_PORTFOLIO_INTERVIEW = import.meta.env.VITE_SHOW_PORTFOLIO_INTERVIEW === 'true';
 
@@ -20,9 +20,7 @@ const ANSWER_TYPE_LABELS = {
     PORTFOLIO_INTERVIEW: '포트폴리오',
 };
 
-const MODE_OPTIONS = [
-    { value: 'PRACTICE_INTERVIEW', label: '연습' },
-];
+const MODE_OPTIONS = [{ value: 'PRACTICE_INTERVIEW', label: '연습' }];
 
 const CATEGORY_OPTIONS = [
     { value: 'ALL', label: '전체' },
@@ -64,11 +62,10 @@ const formatDate = (dateString) => {
     if (match) return match[0];
     const date = new Date(dateString);
     if (Number.isNaN(date.getTime())) return '';
-    return date.toLocaleDateString('ko-KR', {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-    }).replace(/\. /g, '-').replace('.', '');
+    return date
+        .toLocaleDateString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit' })
+        .replace(/\. /g, '-')
+        .replace('.', '');
 };
 
 const formatDateDisplay = (dateString) => {
@@ -81,7 +78,12 @@ const formatDateDisplay = (dateString) => {
 const ProfileMain = () => {
     const navigate = useNavigate();
     const { nickname } = useAuth();
+
     const observerRef = useRef(null);
+    const categoryDropdownRef = useRef(null);
+    const scrollPositionRef = useRef(0);
+    const shouldRestoreScrollRef = useRef(false);
+
     const [{ dateFrom, dateTo }] = useState(() => getDefaultDateRange());
     const [dateFromFilter, setDateFromFilter] = useState(dateFrom);
     const [dateToFilter, setDateToFilter] = useState(dateTo);
@@ -92,11 +94,13 @@ const ProfileMain = () => {
     const modeFilter = MODE_OPTIONS[0].value;
     const [categoryFilter, setCategoryFilter] = useState('ALL');
     const [isCategoryOpen, setIsCategoryOpen] = useState(false);
-    const categoryDropdownRef = useRef(null);
-    const scrollPositionRef = useRef(0);
-    const [shouldRestoreScroll, setShouldRestoreScroll] = useState(false);
 
     const categoryValue = categoryFilter === 'ALL' ? undefined : categoryFilter;
+
+    const requestScrollRestore = () => {
+        scrollPositionRef.current = window.scrollY;
+        shouldRestoreScrollRef.current = true;
+    };
 
     useEffect(() => {
         const handleClickOutside = (event) => {
@@ -116,8 +120,7 @@ const ProfileMain = () => {
     }, []);
 
     const handleDateFromChange = (value) => {
-        scrollPositionRef.current = window.scrollY;
-        setShouldRestoreScroll(true);
+        requestScrollRestore();
         setDateFromFilter(value);
         if (dateToFilter && value && value > dateToFilter) {
             setDateToFilter(value);
@@ -125,8 +128,7 @@ const ProfileMain = () => {
     };
 
     const handleDateToChange = (value) => {
-        scrollPositionRef.current = window.scrollY;
-        setShouldRestoreScroll(true);
+        requestScrollRestore();
         setDateToFilter(value);
         if (dateFromFilter && value && value < dateFromFilter) {
             setDateFromFilter(value);
@@ -150,8 +152,9 @@ const ProfileMain = () => {
         isFetchingNextPage,
         error,
         hasNextPage,
-        fetchNextPage,
-    } = useAnswersInfinite({
+        fetchNextPage
+    } =
+    useAnswersInfinite({
         type: modeFilter,
         category: categoryValue,
         dateFrom: debouncedDateRange.dateFrom,
@@ -165,12 +168,13 @@ const ProfileMain = () => {
 
     const loading = isLoading || isFetchingNextPage;
 
-    useEffect(() => {
-        if (!shouldRestoreScroll) return;
+    useLayoutEffect(() => {
+        if (!shouldRestoreScrollRef.current) return;
         if (isLoading || isFetchingNextPage) return;
+
         window.scrollTo({ top: scrollPositionRef.current, behavior: 'auto' });
-        setShouldRestoreScroll(false);
-    }, [shouldRestoreScroll, isLoading, isFetchingNextPage, data]);
+        shouldRestoreScrollRef.current = false;
+    }, [isLoading, isFetchingNextPage, data]);
 
     // IntersectionObserver for infinite scroll
     const observerCallback = useCallback(
@@ -222,7 +226,7 @@ const ProfileMain = () => {
                     <div className="flex items-center gap-4">
                         <Avatar className="w-20 h-20 border-4 border-white/30">
                             <AvatarFallback className="text-2xl bg-white text-pink-600">
-                                {nickname[0]}
+                                {nickname?.[0]}
                             </AvatarFallback>
                         </Avatar>
 
@@ -316,8 +320,7 @@ const ProfileMain = () => {
                                                     type="button"
                                                     className="w-full rounded-md px-3 py-2 text-left text-sm text-foreground hover:bg-rose-50"
                                                     onClick={() => {
-                                                        scrollPositionRef.current = window.scrollY;
-                                                        setShouldRestoreScroll(true);
+                                                        requestScrollRestore();
                                                         setCategoryFilter(option.value);
                                                         setIsCategoryOpen(false);
                                                     }}
