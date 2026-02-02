@@ -50,16 +50,6 @@ const PracticeAnswer = () => {
                     <p className="text-sm text-muted-foreground mb-4">
                         {question.description}
                     </p>
-                    <div className="flex flex-wrap gap-2">
-                        {question.keywords.map((keyword, idx) => (
-                            <span
-                                key={idx}
-                                className="text-xs px-3 py-1 bg-white text-rose-700 rounded-full border border-rose-200"
-                            >
-                                {keyword}
-                            </span>
-                        ))}
-                    </div>
                 </Card>
 
                 <Card className="p-6">
