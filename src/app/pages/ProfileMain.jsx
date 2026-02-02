@@ -12,8 +12,6 @@ import { AppHeader } from '@/app/components/AppHeader';
 import { useAnswersInfinite } from '@/app/hooks/useAnswersInfinite';
 import { useUserStats } from '@/app/hooks/useUserStats.js';
 
-const SHOW_PORTFOLIO_INTERVIEW = import.meta.env.VITE_SHOW_PORTFOLIO_INTERVIEW === 'true';
-
 const ANSWER_TYPE_LABELS = {
     PRACTICE_INTERVIEW: '연습',
     REAL_INTERVIEW: '실전',
@@ -213,13 +211,7 @@ const ProfileMain = () => {
     return (
         <div className="min-h-screen bg-background pb-20">
             {/* Header */}
-            <AppHeader
-                title="프로필"
-                showBack={false}
-                showSettings
-                onSetting={() => navigate('/settings')}
-                showNotifications={false}
-            />
+            <AppHeader title="프로필" showBack={false} onNotification={() => navigate('/settings')} />
 
             <div className="bg-gradient-to-br from-rose-400 to-pink-500 text-white max-w-lg mx-auto w-full">
                 <div className="p-6 max-w-lg mx-auto">
@@ -258,19 +250,17 @@ const ProfileMain = () => {
                 </section>
 
                 {/* Portfolio Management */}
-                {SHOW_PORTFOLIO_INTERVIEW && (
-                    <Card className="p-5">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <h3 className="mb-1">포트폴리오 관리</h3>
-                                <p className="text-sm text-muted-foreground">개인화된 질문을 받아보세요</p>
-                            </div>
-                            <Button variant="ghost" size="icon" className="rounded-full">
-                                <ChevronRight className="w-5 h-5" />
-                            </Button>
+                <Card className="p-5">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <h3 className="mb-1">포트폴리오 관리</h3>
+                            <p className="text-sm text-muted-foreground">개인화된 질문을 받아보세요</p>
                         </div>
-                    </Card>
-                )}
+                        <Button variant="ghost" size="icon" className="rounded-full">
+                            <ChevronRight className="w-5 h-5" />
+                        </Button>
+                    </div>
+                </Card>
 
                 {/* Recent Activities */}
                 <section>

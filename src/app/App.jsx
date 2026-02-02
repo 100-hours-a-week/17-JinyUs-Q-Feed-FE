@@ -2,7 +2,6 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from '@/app/components/ui/sonner';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
-import { PracticeQuestionProvider } from '@/context/practiceQuestionContext.jsx';
 import { queryClient } from '@/lib/queryClient';
 
 // Pages
@@ -26,8 +25,6 @@ function AppRoutes() {
     const { isAuthenticated, isLoading } = useAuth()
 
     if (isLoading) return null
-
-    const SHOW_REAL_INTERVIEW = import.meta.env.VITE_SHOW_REAL_INTERVIEW === 'true';
 
     return (
         <>
@@ -53,9 +50,7 @@ function AppRoutes() {
                         <Route path="/practice/result-ai/:questionId" element={<PracticeResultAI />} />
 
                         {/* Real Interview */}
-                        {(SHOW_REAL_INTERVIEW &&
-                            <Route path="/real-interview" element={<RealInterview />} />
-                        )}
+                        <Route path="/real-interview" element={<RealInterview />} />
 
                         {/* Profile */}
                         <Route path="/profile" element={<ProfileMain />} />
@@ -77,9 +72,7 @@ function App() {
         <QueryClientProvider client={queryClient}>
             <BrowserRouter>
                 <AuthProvider>
-                    <PracticeQuestionProvider>
-                        <AppRoutes />
-                    </PracticeQuestionProvider>
+                    <AppRoutes />
                 </AuthProvider>
             </BrowserRouter>
         </QueryClientProvider>
