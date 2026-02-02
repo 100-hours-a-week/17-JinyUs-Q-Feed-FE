@@ -22,7 +22,7 @@ const AuthLogin = () => {
           <img
             src="/qfeed-logo.jpeg"
             alt="Q-Feed Logo"
-            className="w-auto h-auto max-w-xs mb-4"
+            className="w-auto h-auto max-w-lg mb-4"
             style={{
               width: '200px',
               height: 'auto',
