@@ -52,6 +52,7 @@ const PracticeMain = () => {
     const prevCategoryRef = useRef(selectedCategory);
     const observerRef = useRef(null);
 
+    // 선택된 질문 Session-Storage-clear
     useEffect(() => {
         setSelectedQuestion(null);
     }, [setSelectedQuestion]);
