@@ -1,9 +1,11 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { useEffect } from 'react';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from '@/app/components/ui/sonner';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { PracticeQuestionProvider } from '@/context/practiceQuestionContext.jsx';
 import { queryClient } from '@/lib/queryClient';
+import { sendPageView } from '@/utils/analytics';
 
 // Pages
 import Splash from '@/app/pages/Splash';
@@ -23,9 +25,14 @@ import RealInterview from '@/app/pages/RealInterview';
 import OAuthCallback from '@/app/pages/OAuthCallback';
 
 function AppRoutes() {
-    const { isAuthenticated, isLoading } = useAuth()
+    const { isAuthenticated, isLoading } = useAuth();
+    const location = useLocation();
 
-    if (isLoading) return null
+    useEffect(() => {
+        sendPageView(location.pathname);
+    }, [location.pathname]);
+
+    if (isLoading) return null;
 
     const SHOW_REAL_INTERVIEW = import.meta.env.VITE_SHOW_REAL_INTERVIEW === 'true';
 
