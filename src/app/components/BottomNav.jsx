@@ -22,25 +22,22 @@ const BottomNav = () => {
     };
 
     return (
-        <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-border safe-area-bottom max-w-lg mx-auto">
-            <div className="flex justify-around items-center h-16">
-                {navItems.map((item) => {
-                    const Icon = item.icon;
-                    const active = isActive(item.path);
+        <nav className="bottom-nav">
+            {navItems.map((item) => {
+                const Icon = item.icon;
+                const active = isActive(item.path);
 
-                    return (
-                        <button
-                            key={item.path}
-                            onClick={() => navigate(item.path)}
-                            className={`flex flex-col items-center justify-center flex-1 h-full transition-colors ${active ? 'text-primary' : 'text-muted-foreground'
-                                }`}
-                        >
-                            <Icon className={`w-6 h-6 ${active ? 'stroke-[2.5]' : 'stroke-2'}`} />
-                            <span className="text-xs mt-1">{item.label}</span>
-                        </button>
-                    );
-                })}
-            </div>
+                return (
+                    <button
+                        key={item.path}
+                        onClick={() => navigate(item.path)}
+                        className={`nav-item ${active ? 'active' : ''}`}
+                    >
+                        <Icon className="w-[22px] h-[22px]" fill={active ? 'currentColor' : 'none'} strokeWidth={1.5} />
+                        <span className="nav-label">{item.label}</span>
+                    </button>
+                );
+            })}
         </nav>
     );
 };
