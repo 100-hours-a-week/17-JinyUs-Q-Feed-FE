@@ -2,3 +2,10 @@
 @source '../**/*.{js,ts,jsx,tsx}';
 
 @import 'tw-animate-css';
+
+/* 반응형 브레이크포인트 */
+@custom-media --bp-mobile (width >= 375px);
+@custom-media --bp-mobile-lg (width >= 428px);
+@custom-media --bp-tablet (width >= 768px);
+@custom-media --bp-desktop (width >= 1024px);
+@custom-media --bp-desktop-lg (width >= 1280px);
