@@ -31,20 +31,19 @@ const PracticeMain = () => {
     const [debouncedQuery, setDebouncedQuery] = useState(INITIAL_SEARCH_QUERY);
     const [selectedType, setSelectedType] = useState(ALL_FILTER_VALUE);
     const [selectedCategory, setSelectedCategory] = useState(ALL_FILTER_VALUE);
-    const prevTypeRef = useRef(selectedType);
     const observerRef = useRef(null);
+    const prevTypeRef = useRef(ALL_FILTER_VALUE);
 
     useEffect(() => {
-        setSelectedQuestion(null);
+        setSelectedQuestion(ALL_FILTER_VALUE);
     }, [setSelectedQuestion]);
 
-    useEffect(() => {
-        if (prevCategoryRef.current !== selectedCategory) {
-            prevCategoryRef.current = selectedCategory;
-            // eslint-disable-next-line react-hooks/set-state-in-effect
-            setSelectedCategory(ALL_FILTER_VALUE);
-        }
-    }, [selectedType]);
+    const handleTypeChange = useCallback((nextType) => {
+        if (prevTypeRef.current === nextType) return;
+        prevTypeRef.current = nextType;
+        setSelectedType(nextType);
+        setSelectedCategory(ALL_FILTER_VALUE);
+    }, []);
 
     const debouncedSetQuery = useMemo(
         () => debounce((value) => setDebouncedQuery(value.trim()), SEARCH_DEBOUNCE_MS),
@@ -162,7 +161,7 @@ const PracticeMain = () => {
                         <Button
                             variant={selectedType === ALL_FILTER_VALUE ? 'default' : 'outline'}
                             size="sm"
-                            onClick={() => setSelectedType(ALL_FILTER_VALUE)}
+                            onClick={() => handleTypeChange(ALL_FILTER_VALUE)}
                             className="rounded-full whitespace-nowrap"
                         >
                             {ALL_FILTER_LABEL}
@@ -172,7 +171,7 @@ const PracticeMain = () => {
                                 key={option.value}
                                 variant={selectedType === option.value ? 'default' : 'outline'}
                                 size="sm"
-                                onClick={() => setSelectedType(option.value)}
+                                onClick={() => handleTypeChange(option.value)}
                                 className="rounded-full whitespace-nowrap"
                             >
                                 {option.label}
