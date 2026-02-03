@@ -9,33 +9,15 @@ import { Search, Filter } from 'lucide-react';
 import debounce from 'lodash/debounce';
 import { usePracticeQuestion } from '@/context/practiceQuestionContext.jsx';
 import { useQuestionsInfinite } from '@/app/hooks/useQuestionsInfinite';
+import { useQuestionCategories } from '@/app/hooks/useQuestionCategories';
+import { useQuestionTypes } from '@/app/hooks/useQuestionTypes';
 
 import { AppHeader } from '@/app/components/AppHeader';
 
 const SHOW_REAL_INTERVIEW = import.meta.env.VITE_SHOW_REAL_INTERVIEW === 'true';
 const INITIAL_SEARCH_QUERY = '';
-const INITIAL_CATEGORY = '전체';
-const INITIAL_SUB_CATEGORY = '전체';
-const CATEGORY_OPTIONS = [
-    '전체',
-    'CS기초',
-    ...(SHOW_REAL_INTERVIEW ? ['시스템디자인'] : []),
-];
-const CS_SUB_CATEGORY_OPTIONS = ['전체', '운영체제', '네트워크', '데이터베이스', '컴퓨터 구조', '자료구조&알고리즘'];
-const CS_CATEGORY_MAP = {
-    운영체제: 'OS',
-    네트워크: 'NETWORK',
-    데이터베이스: 'DB',
-    '컴퓨터 구조': 'COMPUTER_ARCHITECTURE',
-    '자료구조&알고리즘': 'DATA_STRUCTURE_ALGORITHM',
-};
-const CATEGORY_LABEL_MAP = {
-    OS: '운영체제',
-    NETWORK: '네트워크',
-    DB: '데이터베이스',
-    COMPUTER_ARCHITECTURE: '컴퓨터 구조',
-    DATA_STRUCTURE_ALGORITHM: '자료구조&알고리즘',
-};
+const ALL_FILTER_VALUE = 'ALL';
+const ALL_FILTER_LABEL = '전체';
 const SEARCH_DEBOUNCE_MS = 300;
 const TEXT_LOADING = '질문을 불러오는 중...';
 const TEXT_LOADING_MORE = '더 불러오는 중...';
@@ -47,9 +29,9 @@ const PracticeMain = () => {
     const { setSelectedQuestion } = usePracticeQuestion();
     const [searchQuery, setSearchQuery] = useState(INITIAL_SEARCH_QUERY);
     const [debouncedQuery, setDebouncedQuery] = useState(INITIAL_SEARCH_QUERY);
-    const [selectedCategory, setSelectedCategory] = useState(INITIAL_CATEGORY);
-    const [selectedSubCategory, setSelectedSubCategory] = useState(INITIAL_SUB_CATEGORY);
-    const prevCategoryRef = useRef(selectedCategory);
+    const [selectedType, setSelectedType] = useState(ALL_FILTER_VALUE);
+    const [selectedCategory, setSelectedCategory] = useState(ALL_FILTER_VALUE);
+    const prevTypeRef = useRef(selectedType);
     const observerRef = useRef(null);
 
     useEffect(() => {
@@ -60,9 +42,9 @@ const PracticeMain = () => {
         if (prevCategoryRef.current !== selectedCategory) {
             prevCategoryRef.current = selectedCategory;
             // eslint-disable-next-line react-hooks/set-state-in-effect
-            setSelectedSubCategory(INITIAL_SUB_CATEGORY);
+            setSelectedCategory(ALL_FILTER_VALUE);
         }
-    }, [selectedCategory]);
+    }, [selectedType]);
 
     const debouncedSetQuery = useMemo(
         () => debounce((value) => setDebouncedQuery(value.trim()), SEARCH_DEBOUNCE_MS),
@@ -74,18 +56,39 @@ const PracticeMain = () => {
         return () => debouncedSetQuery.cancel();
     }, [searchQuery, debouncedSetQuery]);
 
-    const type = useMemo(() => {
-        if (selectedCategory === 'CS기초') return 'CS';
-        if (selectedCategory === '시스템디자인') return 'SYSTEM_DESIGN';
-        return undefined;
-    }, [selectedCategory]);
+    const { data: categoryMap = {} } = useQuestionCategories();
+    const { data: typeMap = {} } = useQuestionTypes();
+
+    const typeOptions = useMemo(
+        () => Object.entries(typeMap).map(([value, label]) => ({ value, label })),
+        [typeMap]
+    );
+    const categoryOptions = useMemo(
+        () => Object.entries(categoryMap).map(([value, label]) => ({ value, label })),
+        [categoryMap]
+    );
+
+    const visibleTypeOptions = useMemo(
+        () =>
+            typeOptions.filter((option) => {
+                if (option.value === 'PORTFOLIO') return false;
+                if (option.value === 'SYSTEM_DESIGN' && !SHOW_REAL_INTERVIEW) return false;
+                return option.value === 'CS' || option.value === 'SYSTEM_DESIGN';
+            }),
+        [typeOptions]
+    );
+
+    const type = useMemo(
+        () => (selectedType === ALL_FILTER_VALUE ? undefined : selectedType),
+        [selectedType]
+    );
 
     const category = useMemo(() => {
-        if (selectedCategory === 'CS기초' && selectedSubCategory !== INITIAL_SUB_CATEGORY) {
-            return CS_CATEGORY_MAP[selectedSubCategory];
+        if (selectedType === 'CS' && selectedCategory !== ALL_FILTER_VALUE) {
+            return selectedCategory;
         }
         return undefined;
-    }, [selectedCategory, selectedSubCategory]);
+    }, [selectedType, selectedCategory]);
 
     const {
         data,
@@ -156,31 +159,47 @@ const PracticeMain = () => {
                 <div className="px-4 pb-3 max-w-lg mx-auto">
                     <div className="flex items-center gap-2 overflow-x-auto pb-2">
                         <Filter className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                        {CATEGORY_OPTIONS.map((cat) => (
+                        <Button
+                            variant={selectedType === ALL_FILTER_VALUE ? 'default' : 'outline'}
+                            size="sm"
+                            onClick={() => setSelectedType(ALL_FILTER_VALUE)}
+                            className="rounded-full whitespace-nowrap"
+                        >
+                            {ALL_FILTER_LABEL}
+                        </Button>
+                        {visibleTypeOptions.map((option) => (
                             <Button
-                                key={cat}
-                                variant={selectedCategory === cat ? 'default' : 'outline'}
+                                key={option.value}
+                                variant={selectedType === option.value ? 'default' : 'outline'}
                                 size="sm"
-                                onClick={() => setSelectedCategory(cat)}
+                                onClick={() => setSelectedType(option.value)}
                                 className="rounded-full whitespace-nowrap"
                             >
-                                {cat}
+                                {option.label}
                             </Button>
                         ))}
                     </div>
                 </div>
-                {selectedCategory === 'CS기초' && (
+                {selectedType === 'CS' && categoryOptions.length > 0 && (
                     <div className="px-4 pb-4 max-w-lg mx-auto">
                         <div className="flex items-center gap-2 overflow-x-auto pb-2">
-                            {CS_SUB_CATEGORY_OPTIONS.map((cat) => (
+                            <Button
+                                variant={selectedCategory === ALL_FILTER_VALUE ? 'default' : 'outline'}
+                                size="sm"
+                                onClick={() => setSelectedCategory(ALL_FILTER_VALUE)}
+                                className="rounded-full whitespace-nowrap"
+                            >
+                                {ALL_FILTER_LABEL}
+                            </Button>
+                            {categoryOptions.map((option) => (
                                 <Button
-                                    key={cat}
-                                    variant={selectedSubCategory === cat ? 'default' : 'outline'}
+                                    key={option.value}
+                                    variant={selectedCategory === option.value ? 'default' : 'outline'}
                                     size="sm"
-                                    onClick={() => setSelectedSubCategory(cat)}
+                                    onClick={() => setSelectedCategory(option.value)}
                                     className="rounded-full whitespace-nowrap"
                                 >
-                                    {cat}
+                                    {option.label}
                                 </Button>
                             ))}
                         </div>
@@ -212,7 +231,7 @@ const PracticeMain = () => {
                             >
                                 <div className="flex items-start justify-between mb-2">
                                     <Badge variant="secondary" className="bg-rose-100 text-rose-700">
-                                        {CATEGORY_LABEL_MAP[question.category] || question.category}
+                                        {categoryMap[question.category] || question.category}
                                     </Badge>
                                 </div>
 
