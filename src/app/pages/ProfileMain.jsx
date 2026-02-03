@@ -11,6 +11,7 @@ import { useAuth } from '@/context/AuthContext';
 import { AppHeader } from '@/app/components/AppHeader';
 import { useAnswersInfinite } from '@/app/hooks/useAnswersInfinite';
 import { useUserStats } from '@/app/hooks/useUserStats.js';
+import { useQuestionCategories } from '@/app/hooks/useQuestionCategories';
 
 const SHOW_PORTFOLIO_INTERVIEW = import.meta.env.VITE_SHOW_PORTFOLIO_INTERVIEW === 'true';
 
@@ -21,23 +22,6 @@ const ANSWER_TYPE_LABELS = {
 };
 
 const MODE_OPTIONS = [{ value: 'PRACTICE_INTERVIEW', label: '연습' }];
-
-const CATEGORY_OPTIONS = [
-    { value: 'ALL', label: '전체' },
-    { value: 'OS', label: 'OS' },
-    { value: 'NETWORK', label: '네트워크' },
-    { value: 'DB', label: 'DB' },
-    { value: 'COMPUTER_ARCHITECTURE', label: '컴퓨터 구조' },
-    { value: 'DATA_STRUCTURE_ALGORITHM', label: '자료구조/알고리즘' },
-];
-
-const CATEGORY_LABELS = {
-    OS: 'OS',
-    NETWORK: '네트워크',
-    DB: 'DB',
-    COMPUTER_ARCHITECTURE: '컴퓨터 구조',
-    DATA_STRUCTURE_ALGORITHM: '자료구조/알고리즘',
-};
 
 const toDateInputValue = (date) => {
     const year = date.getFullYear();
@@ -78,6 +62,7 @@ const formatDateDisplay = (dateString) => {
 const ProfileMain = () => {
     const navigate = useNavigate();
     const { nickname } = useAuth();
+    const { data: categoryMap = {} } = useQuestionCategories();
 
     const observerRef = useRef(null);
     const categoryDropdownRef = useRef(null);
@@ -96,6 +81,14 @@ const ProfileMain = () => {
     const [isCategoryOpen, setIsCategoryOpen] = useState(false);
 
     const categoryValue = categoryFilter === 'ALL' ? undefined : categoryFilter;
+
+    const categoryOptions = useMemo(
+        () => [
+            { value: 'ALL', label: '전체' },
+            ...Object.entries(categoryMap).map(([value, label]) => ({ value, label })),
+        ],
+        [categoryMap]
+    );
 
     const requestScrollRestore = () => {
         scrollPositionRef.current = window.scrollY;
@@ -305,7 +298,7 @@ const ProfileMain = () => {
                                         aria-haspopup="listbox"
                                         aria-expanded={isCategoryOpen}
                                     >
-                                        {CATEGORY_OPTIONS.find((option) => option.value === categoryFilter)
+                                        {categoryOptions.find((option) => option.value === categoryFilter)
                                             ?.label ?? '전체'}
                                         <ChevronDown
                                             className={`transition-transform ${isCategoryOpen ? 'rotate-180' : ''}`}
@@ -314,7 +307,7 @@ const ProfileMain = () => {
 
                                     {isCategoryOpen && (
                                         <Card className="absolute z-30 mt-2 w-full gap-0 p-1 shadow-lg">
-                                            {CATEGORY_OPTIONS.map((option) => (
+                                            {categoryOptions.map((option) => (
                                                 <button
                                                     key={option.value}
                                                     type="button"
@@ -399,7 +392,7 @@ const ProfileMain = () => {
                                                 variant="secondary"
                                                 className="bg-rose-50 text-rose-600 w-fit text-[11px]"
                                             >
-                                                {CATEGORY_LABELS[activity.question.category] ||
+                                                {categoryMap[activity.question.category] ||
                                                     activity.question.category}
                                             </Badge>
                                         )}

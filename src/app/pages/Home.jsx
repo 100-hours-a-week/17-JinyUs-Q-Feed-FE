@@ -7,16 +7,9 @@ import { Sparkles, TrendingUp, Calendar } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useRecommendedQuestion } from '@/app/hooks/useRecommendedQuestion';
 import { useWeeklyStats } from '@/app/hooks/useWeeklyStats';
+import { useQuestionCategories } from '@/app/hooks/useQuestionCategories';
 
 import { AppHeader } from '@/app/components/AppHeader';
-
-const CATEGORY_LABEL_MAP = {
-    OS: '운영체제',
-    NETWORK: '네트워크',
-    DB: '데이터베이스',
-    COMPUTER_ARCHITECTURE: '컴퓨터 구조',
-    DATA_STRUCTURE_ALGORITHM: '자료구조&알고리즘',
-};
 
 const TEXT_RECOMMENDATION_LOADING = '추천 질문을 불러오는 중...';
 const TEXT_RECOMMENDATION_ERROR = '추천 질문을 불러오지 못했습니다.';
@@ -28,6 +21,7 @@ const Home = () => {
     const { nickname } = useAuth();
 
     const { data: weeklyStatsData } = useWeeklyStats();
+    const { data: categoryMap = {} } = useQuestionCategories();
 
     const today = new Date().toISOString().slice(0, 10);
     const DAYS = ['월', '화', '수', '목', '금', '토', '일'];
@@ -92,7 +86,7 @@ const Home = () => {
                             <>
                                 <div className="flex items-start justify-between mb-3">
                                     <Badge variant="secondary" className="bg-rose-100 text-rose-700">
-                                        {CATEGORY_LABEL_MAP[todayQuestion?.category] || todayQuestion?.category || '추천'}
+                                        {categoryMap[todayQuestion?.category] || todayQuestion?.category || '추천'}
                                     </Badge>
                                 </div>
 

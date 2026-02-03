@@ -76,3 +76,13 @@ export async function fetchTags() {
 export async function fetchQuestionTags(questionId) {
     return api.get(`/api/questions/${questionId}/tags`, { parseResponse: true });
 }
+
+// 질문 카테고리 목록 조회
+export async function fetchQuestionCategories() {
+    return api.get('/api/questions/categories', { parseResponse: true });
+}
+
+// 질문 타입 목록 조회
+export async function fetchQuestionTypes() {
+    return api.get('/api/questions/types', { parseResponse: true });
+}
