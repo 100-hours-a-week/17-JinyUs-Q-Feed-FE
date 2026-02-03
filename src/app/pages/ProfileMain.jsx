@@ -1,17 +1,12 @@
 import { useNavigate } from 'react-router-dom';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { Card } from '@/app/components/ui/card';
-import { Button } from '@/app/components/ui/button';
-import { Avatar, AvatarFallback } from '@/app/components/ui/avatar';
-import { Badge } from '@/app/components/ui/badge';
-import { Input } from '@/app/components/ui/input';
 import BottomNav from '@/app/components/BottomNav';
-import { ChevronDown, ChevronRight, Calendar, Target, Award, Loader2 } from 'lucide-react';
+import { Settings, Calendar, Target, MessageSquare, Filter, TrendingUp, Loader2 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
-import { AppHeader } from '@/app/components/AppHeader';
 import { useAnswersInfinite } from '@/app/hooks/useAnswersInfinite';
 import { useUserStats } from '@/app/hooks/useUserStats.js';
 import { useQuestionCategories } from '@/app/hooks/useQuestionCategories';
+import { useWeeklyStats } from '@/app/hooks/useWeeklyStats';
 
 const SHOW_PORTFOLIO_INTERVIEW = import.meta.env.VITE_SHOW_PORTFOLIO_INTERVIEW === 'true';
 
@@ -59,6 +54,73 @@ const formatDateDisplay = (dateString) => {
     return dateString;
 };
 
+// 숫자 카운팅 애니메이션 훅
+const useCountUp = (end, duration = 1000) => {
+    const [count, setCount] = useState(0);
+    
+    useEffect(() => {
+        if (end === '-' || isNaN(parseInt(end))) {
+            setCount(0);
+            return;
+        }
+        
+        let startTime = null;
+        const targetValue = parseInt(end);
+        
+        const animate = (timestamp) => {
+            if (!startTime) startTime = timestamp;
+            const progress = Math.min((timestamp - startTime) / duration, 1);
+            setCount(Math.floor(progress * targetValue));
+            if (progress < 1) {
+                requestAnimationFrame(animate);
+            }
+        };
+        requestAnimationFrame(animate);
+    }, [end, duration]);
+    
+    return count;
+};
+
+// 통계 카드 컴포넌트
+const StatCard = ({ icon, label, value, unit, delay = 0 }) => {
+    const numericValue = value.replace(/[^0-9]/g, '');
+    const animatedValue = useCountUp(numericValue || '0', 800);
+    const displayValue = value.includes('-') ? '-' : animatedValue;
+    
+    return (
+        <div className="stat-card" style={{ animationDelay: `${delay}ms` }}>
+            <div className="stat-icon">{icon}</div>
+            <div className="stat-content">
+                <span className="stat-value">
+                    {displayValue}<span className="stat-unit">{unit}</span>
+                </span>
+                <span className="stat-label">{label}</span>
+            </div>
+        </div>
+    );
+};
+
+// 학습 기록 아이템 컴포넌트
+const HistoryItem = ({ mode, category, categoryColor, title, date, delay = 0, feedbackAvailable }) => (
+    <div className="history-item" style={{ animationDelay: `${delay}ms` }}>
+        <div className="history-header">
+            <span className="history-mode">{mode}</span>
+            <div className="history-meta">
+                {category && (
+                    <span className="history-category" style={{ backgroundColor: categoryColor?.bg, color: categoryColor?.text }}>
+                        {category}
+                    </span>
+                )}
+                <span className="history-date">{date}</span>
+            </div>
+        </div>
+        <p className="history-title">{title}</p>
+        {!feedbackAvailable && (
+            <p className="history-status">피드백 대기 중</p>
+        )}
+    </div>
+);
+
 const ProfileMain = () => {
     const navigate = useNavigate();
     const { nickname } = useAuth();
@@ -79,6 +141,7 @@ const ProfileMain = () => {
     const modeFilter = MODE_OPTIONS[0].value;
     const [categoryFilter, setCategoryFilter] = useState('ALL');
     const [isCategoryOpen, setIsCategoryOpen] = useState(false);
+    const [showFilterModal, setShowFilterModal] = useState(false);
 
     const categoryValue = categoryFilter === 'ALL' ? undefined : categoryFilter;
 
@@ -146,8 +209,7 @@ const ProfileMain = () => {
         error,
         hasNextPage,
         fetchNextPage
-    } =
-    useAnswersInfinite({
+    } = useAnswersInfinite({
         type: modeFilter,
         category: categoryValue,
         dateFrom: debouncedDateRange.dateFrom,
@@ -196,252 +258,300 @@ const ProfileMain = () => {
 
     const { data: statsData } = useUserStats();
     const userStats = statsData?.data;
+    const { data: weeklyStatsData } = useWeeklyStats();
 
     const stats = [
         { icon: Calendar, label: '총 학습일', value: `${userStats?.distinct_days ?? '-'}일` },
         { icon: Target, label: '연습 횟수', value: `${userStats?.practice_mode_count ?? '-'}회` },
-        { icon: Award, label: '총 답변 수', value: `${userStats?.total_questions_answered ?? '-'}개` },
+        { icon: MessageSquare, label: '총 답변 수', value: `${userStats?.total_questions_answered ?? '-'}개` },
     ];
 
+    // 카테고리 색상 매핑
+    const categoryColors = useMemo(() => {
+        const colors = {
+            '네트워크': { bg: '#E8F5E9', text: '#2E7D32' },
+            '자료구조/알고리즘': { bg: '#E3F2FD', text: '#1565C0' },
+            '데이터베이스': { bg: '#FFF3E0', text: '#E65100' },
+            '운영체제': { bg: '#F3E5F5', text: '#7B1FA2' },
+        };
+        
+        // categoryMap의 값들을 색상에 매핑
+        const result = {};
+        Object.entries(categoryMap).forEach(([key, label]) => {
+            result[label] = colors[label] || { bg: '#F5F5F5', text: '#616161' };
+        });
+        return result;
+    }, [categoryMap]);
+
+    // 주간 목표 계산
+    const totalThisWeek = weeklyStatsData?.total_this_week ?? 0;
+    const weeklyGoal = 7; // 목표값
+    const weeklyProgress = Math.min((totalThisWeek / weeklyGoal) * 100, 100);
+    const remainingCount = Math.max(weeklyGoal - totalThisWeek, 0);
+
     return (
-        <div className="min-h-screen bg-background pb-20">
-            {/* Header */}
-            <AppHeader
-                title="프로필"
-                showBack={false}
-                showSettings
-                onSetting={() => navigate('/settings')}
-                showNotifications={false}
-            />
+        <div className="profile-container">
+            {/* 헤더 */}
+            <header className="profile-header">
+                <h1 className="header-title">프로필</h1>
+                <button 
+                    className="settings-btn" 
+                    aria-label="설정"
+                    onClick={() => navigate('/settings')}
+                >
+                    <Settings size={20} />
+                </button>
+            </header>
 
-            <div className="bg-gradient-to-br from-rose-400 to-pink-500 text-white max-w-lg mx-auto w-full">
-                <div className="p-6 max-w-lg mx-auto">
-                    <div className="flex items-center gap-4">
-                        <Avatar className="w-20 h-20 border-4 border-white/30">
-                            <AvatarFallback className="text-2xl bg-white text-pink-600">
-                                {nickname?.[0]}
-                            </AvatarFallback>
-                        </Avatar>
-
-                        <div className="flex-1">
-                            <h2 className="text-xl mb-1">{nickname}</h2>
-                            <Badge className="bg-white/20 text-white border-white/30">
-                                면접 준비 중
-                            </Badge>
-                        </div>
+            {/* 프로필 섹션 */}
+            <section className="profile-section">
+                <div className="profile-card">
+                    <div className="avatar">{nickname?.[0] || 'U'}</div>
+                    <div className="profile-info">
+                        <h2 className="profile-name">{nickname || '사용자'}</h2>
+                        <span className="profile-status">
+                            <span className="status-dot"></span>
+                            면접 준비 중
+                        </span>
                     </div>
                 </div>
-            </div>
+            </section>
 
-            <div className="p-6 max-w-lg mx-auto space-y-6">
-                {/* Stats */}
-                <section>
-                    <div className="grid grid-cols-3 gap-3">
-                        {stats.map((stat, index) => {
-                            const Icon = stat.icon;
-                            return (
-                                <Card key={index} className="p-4 text-center">
-                                    <Icon className="w-6 h-6 mx-auto mb-2 text-pink-600" />
-                                    <p className="text-sm text-muted-foreground mb-1">{stat.label}</p>
-                                    <p className="font-semibold">{stat.value}</p>
-                                </Card>
-                            );
-                        })}
+            {/* 통계 섹션 */}
+            <section className="stats-section">
+                <div className="stats-grid">
+                    {stats.map((stat, index) => {
+                        const Icon = stat.icon;
+                        return (
+                            <StatCard
+                                key={index}
+                                icon={<Icon size={24} />}
+                                label={stat.label}
+                                value={stat.value}
+                                unit={stat.value.includes('일') ? '일' : stat.value.includes('회') ? '회' : '개'}
+                                delay={index * 100}
+                            />
+                        );
+                    })}
+                </div>
+            </section>
+
+            {/* 성장 지표 */}
+            <section className="growth-section">
+                <div className="growth-card">
+                    <div className="growth-header">
+                        <span className="growth-title">이번 주 학습 목표</span>
+                        <span className="growth-badge">
+                            <TrendingUp size={16} />
+                            {Math.round(weeklyProgress)}%
+                        </span>
                     </div>
-                </section>
-
-                {/* Portfolio Management */}
-                {SHOW_PORTFOLIO_INTERVIEW && (
-                    <Card className="p-5">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <h3 className="mb-1">포트폴리오 관리</h3>
-                                <p className="text-sm text-muted-foreground">개인화된 질문을 받아보세요</p>
-                            </div>
-                            <Button variant="ghost" size="icon" className="rounded-full">
-                                <ChevronRight className="w-5 h-5" />
-                            </Button>
-                        </div>
-                    </Card>
-                )}
-
-                {/* Recent Activities */}
-                <section>
-                    <h2 className="text-lg mb-3">최근 학습 기록</h2>
-
-                    <div className="space-y-3 mb-4">
-                        <div className="grid grid-cols-[0.8fr_1.2fr] gap-3">
-                            <div className="space-y-2">
-                                <p className="text-xs text-muted-foreground">모드</p>
-                                <div className="relative">
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        className="w-full justify-between bg-input-background text-foreground"
-                                        disabled
-                                    >
-                                        {MODE_OPTIONS.find((option) => option.value === modeFilter)?.label ??
-                                            '연습'}
-                                        <ChevronDown className="opacity-60" />
-                                    </Button>
-                                </div>
-                            </div>
-
-                            <div className="space-y-2">
-                                <p className="text-xs text-muted-foreground">질문 카테고리</p>
-                                <div className="relative" ref={categoryDropdownRef}>
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        className="w-full justify-between bg-input-background text-foreground"
-                                        onClick={() => setIsCategoryOpen((prev) => !prev)}
-                                        aria-haspopup="listbox"
-                                        aria-expanded={isCategoryOpen}
-                                    >
-                                        {categoryOptions.find((option) => option.value === categoryFilter)
-                                            ?.label ?? '전체'}
-                                        <ChevronDown
-                                            className={`transition-transform ${isCategoryOpen ? 'rotate-180' : ''}`}
-                                        />
-                                    </Button>
-
-                                    {isCategoryOpen && (
-                                        <Card className="absolute z-30 mt-2 w-full gap-0 p-1 shadow-lg">
-                                            {categoryOptions.map((option) => (
-                                                <button
-                                                    key={option.value}
-                                                    type="button"
-                                                    className="w-full rounded-md px-3 py-2 text-left text-sm text-foreground hover:bg-rose-50"
-                                                    onClick={() => {
-                                                        requestScrollRestore();
-                                                        setCategoryFilter(option.value);
-                                                        setIsCategoryOpen(false);
-                                                    }}
-                                                    role="option"
-                                                    aria-selected={option.value === categoryFilter}
-                                                >
-                                                    {option.label}
-                                                </button>
-                                            ))}
-                                        </Card>
-                                    )}
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="space-y-2">
-                            <p className="text-xs text-muted-foreground">기간</p>
-                            <div className="grid grid-cols-2 gap-2">
-                                <div className="relative">
-                                    <Input
-                                        type="text"
-                                        value={formatDateDisplay(dateFromFilter)}
-                                        readOnly
-                                        className="text-[13px] pr-9 pointer-events-none"
-                                    />
-                                    <Calendar className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                                    <input
-                                        type="date"
-                                        value={dateFromFilter}
-                                        onChange={(event) => handleDateFromChange(event.target.value)}
-                                        onClick={(event) => event.currentTarget.showPicker?.()}
-                                        min=""
-                                        max={dateToFilter}
-                                        className="absolute inset-0 z-0 h-full w-full cursor-pointer opacity-0"
-                                        aria-label="시작일"
-                                    />
-                                </div>
-                                <div className="relative">
-                                    <Input
-                                        type="text"
-                                        value={formatDateDisplay(dateToFilter)}
-                                        readOnly
-                                        className="text-[13px] pr-9 pointer-events-none"
-                                    />
-                                    <Calendar className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                                    <input
-                                        type="date"
-                                        value={dateToFilter}
-                                        onChange={(event) => handleDateToChange(event.target.value)}
-                                        onClick={(event) => event.currentTarget.showPicker?.()}
-                                        min={dateFromFilter}
-                                        className="absolute inset-0 z-0 h-full w-full cursor-pointer opacity-0"
-                                        aria-label="종료일"
-                                    />
-                                </div>
-                            </div>
-                        </div>
+                    <div className="growth-progress">
+                        <div 
+                            className="growth-fill" 
+                            style={{ width: `${weeklyProgress}%` }}
+                        ></div>
                     </div>
+                    <div className="growth-footer">
+                        <span>{weeklyGoal}회 중 {totalThisWeek}회 완료</span>
+                        <span>{remainingCount}회 남음</span>
+                    </div>
+                </div>
+            </section>
 
-                    {error && (
-                        <Card className="p-4 text-center text-red-500">
-                            데이터를 불러오는데 실패했습니다.
-                        </Card>
-                    )}
+            {/* 학습 기록 섹션 */}
+            <section className="history-section">
+                <div className="section-header">
+                    <h3 className="section-title">최근 학습 기록</h3>
+                    <button 
+                        className="filter-btn"
+                        onClick={() => setShowFilterModal(!showFilterModal)}
+                    >
+                        <Filter size={16} />
+                        필터
+                    </button>
+                </div>
 
-                    <div className="space-y-3">
-                        {recentActivities.map((activity) => (
-                            <Card key={activity.answerId} className="p-2.5 overflow-x-hidden flex flex-col min-h-[88px]">
-                                <div className="flex items-start justify-between gap-2 mb-0 shrink-0">
-                                    <Badge variant="secondary" className="bg-rose-100 text-rose-700 w-fit">
-                                        {ANSWER_TYPE_LABELS[activity.type] || activity.type}
-                                    </Badge>
-                                    <div className="flex items-center gap-2">
-                                        {activity.question?.category && (
-                                            <Badge
-                                                variant="secondary"
-                                                className="bg-rose-50 text-rose-600 w-fit text-[11px]"
+                {/* 필터 모달 */}
+                {showFilterModal && (
+                    <div 
+                        className="filter-modal"
+                        onClick={(e) => {
+                            if (e.target === e.currentTarget) {
+                                setShowFilterModal(false);
+                            }
+                        }}
+                    >
+                        <div className="filter-modal-content" onClick={(e) => e.stopPropagation()}>
+                            <div className="space-y-3 mb-4">
+                                <div className="grid grid-cols-[0.8fr_1.2fr] gap-3">
+                                    <div className="space-y-2">
+                                        <p className="text-xs text-muted-foreground">모드</p>
+                                        <div className="relative">
+                                            <button
+                                                type="button"
+                                                className="filter-select-btn"
+                                                disabled
                                             >
-                                                {categoryMap[activity.question.category] ||
-                                                    activity.question.category}
-                                            </Badge>
-                                        )}
-                                        <span className="text-sm text-muted-foreground">
-                                            {formatDate(activity.createdAt)}
-                                        </span>
+                                                {MODE_OPTIONS.find((option) => option.value === modeFilter)?.label ?? '연습'}
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <p className="text-xs text-muted-foreground">질문 카테고리</p>
+                                        <div className="relative" ref={categoryDropdownRef}>
+                                            <button
+                                                type="button"
+                                                className="filter-select-btn"
+                                                onClick={() => setIsCategoryOpen((prev) => !prev)}
+                                            >
+                                                {categoryOptions.find((option) => option.value === categoryFilter)?.label ?? '전체'}
+                                                <span className={`filter-arrow ${isCategoryOpen ? 'open' : ''}`}>▼</span>
+                                            </button>
+
+                                            {isCategoryOpen && (
+                                                <div className="filter-dropdown">
+                                                    {categoryOptions.map((option) => (
+                                                        <button
+                                                            key={option.value}
+                                                            type="button"
+                                                            className={`filter-dropdown-item ${option.value === categoryFilter ? 'active' : ''}`}
+                                                            onClick={() => {
+                                                                requestScrollRestore();
+                                                                setCategoryFilter(option.value);
+                                                                setIsCategoryOpen(false);
+                                                            }}
+                                                        >
+                                                            {option.label}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
 
-                                <div className="flex flex-1 items-center">
-                                    <h4
-                                        className="text-[15px] truncate pr-6"
-                                        title={activity.question?.content || ''}
-                                    >
-                                        {activity.question?.content || '질문 정보 없음'}
-                                    </h4>
+                                <div className="space-y-2">
+                                    <p className="text-xs text-muted-foreground">기간</p>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <div className="relative">
+                                            <input
+                                                type="text"
+                                                value={formatDateDisplay(dateFromFilter)}
+                                                readOnly
+                                                className="filter-date-input"
+                                            />
+                                            <Calendar className="filter-date-icon" size={16} />
+                                            <input
+                                                type="date"
+                                                value={dateFromFilter}
+                                                onChange={(event) => handleDateFromChange(event.target.value)}
+                                                onClick={(event) => event.currentTarget.showPicker?.()}
+                                                min=""
+                                                max={dateToFilter}
+                                                className="filter-date-picker"
+                                                aria-label="시작일"
+                                            />
+                                        </div>
+                                        <div className="relative">
+                                            <input
+                                                type="text"
+                                                value={formatDateDisplay(dateToFilter)}
+                                                readOnly
+                                                className="filter-date-input"
+                                            />
+                                            <Calendar className="filter-date-icon" size={16} />
+                                            <input
+                                                type="date"
+                                                value={dateToFilter}
+                                                onChange={(event) => handleDateToChange(event.target.value)}
+                                                onClick={(event) => event.currentTarget.showPicker?.()}
+                                                min={dateFromFilter}
+                                                className="filter-date-picker"
+                                                aria-label="종료일"
+                                            />
+                                        </div>
+                                    </div>
                                 </div>
-
-
-                                {!activity.feedback?.feedbackAvailable && (
-                                    <p className="text-xs text-muted-foreground">
-                                        피드백 대기 중
-                                    </p>
-                                )}
-                            </Card>
-                        ))}
-
-                        {loading && (
-                            <div className="flex justify-center py-4">
-                                <Loader2 className="w-6 h-6 animate-spin text-pink-500" />
                             </div>
-                        )}
-
-                        {!loading && !error && recentActivities.length === 0 && (
-                            <Card className="p-8 text-center text-muted-foreground">
-                                아직 학습 기록이 없습니다.
-                            </Card>
-                        )}
-
-                        {!hasNextPage && recentActivities.length > 0 && (
-                            <p className="text-center text-sm text-muted-foreground py-2">
-                                모든 학습 기록을 불러왔습니다.
-                            </p>
-                        )}
-
-                        <div ref={observerRef} className="h-1" />
+                            <button
+                                className="filter-close-btn"
+                                onClick={() => setShowFilterModal(false)}
+                            >
+                                적용
+                            </button>
+                        </div>
                     </div>
-                </section>
-            </div>
+                )}
+
+                {/* 필터 칩 */}
+                <div className="filter-chips">
+                    {categoryOptions.map((option) => (
+                        <button
+                            key={option.value}
+                            className={`filter-chip ${categoryFilter === option.value ? 'active' : ''}`}
+                            onClick={() => {
+                                requestScrollRestore();
+                                setCategoryFilter(option.value);
+                            }}
+                        >
+                            {option.label}
+                        </button>
+                    ))}
+                </div>
+
+                {error && (
+                    <div className="error-message">
+                        데이터를 불러오는데 실패했습니다.
+                    </div>
+                )}
+
+                {/* 학습 기록 리스트 */}
+                <div className="history-list">
+                    {recentActivities.map((activity, index) => {
+                        const categoryLabel = activity.question?.category 
+                            ? (categoryMap[activity.question.category] || activity.question.category)
+                            : null;
+                        const categoryColor = categoryLabel ? categoryColors[categoryLabel] : null;
+                        
+                        return (
+                            <HistoryItem
+                                key={activity.answerId}
+                                mode={ANSWER_TYPE_LABELS[activity.type] || activity.type}
+                                category={categoryLabel}
+                                categoryColor={categoryColor}
+                                title={activity.question?.content || '질문 정보 없음'}
+                                date={formatDate(activity.createdAt)}
+                                delay={index * 80}
+                                feedbackAvailable={activity.feedback?.feedbackAvailable}
+                            />
+                        );
+                    })}
+
+                    {loading && (
+                        <div className="loading-indicator">
+                            <Loader2 className="w-6 h-6 animate-spin text-primary-500" />
+                        </div>
+                    )}
+
+                    {!loading && !error && recentActivities.length === 0 && (
+                        <div className="empty-state">
+                            아직 학습 기록이 없습니다.
+                        </div>
+                    )}
+
+                    {!hasNextPage && recentActivities.length > 0 && (
+                        <p className="end-message">
+                            모든 학습 기록을 불러왔습니다.
+                        </p>
+                    )}
+
+                    <div ref={observerRef} className="observer-target" />
+                </div>
+            </section>
+
+            <div className="scroll-padding" />
 
             <BottomNav />
         </div>
