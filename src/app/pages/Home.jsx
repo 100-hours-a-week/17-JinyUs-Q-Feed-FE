@@ -22,16 +22,18 @@ const Home = () => {
 
     const { data: weeklyStatsData } = useWeeklyStats();
     const { data: categoryMap = {} } = useQuestionCategories();
+    
+    const weeklyStats = weeklyStatsData?.data;
 
     const today = new Date().toISOString().slice(0, 10);
     const DAYS = ['월', '화', '수', '목', '금', '토', '일'];
     const EMPTY_WEEKLY = DAYS.map((day) => ({ day, count: 0, isToday: false }));
 
-    const maxValue = weeklyStatsData?.max_value_for_chart ?? 3;
-    const totalThisWeek = weeklyStatsData?.total_this_week ?? 0;
+    const maxValue = weeklyStats?.max_value_for_chart ?? 3;
+    const totalThisWeek = weeklyStats?.total_this_week ?? 0;
 
-    const weeklyData = weeklyStatsData?.daily_stats
-        ? weeklyStatsData.daily_stats.map((stat) => ({
+    const weeklyData = weeklyStats?.daily_stats
+        ? weeklyStats.daily_stats.map((stat) => ({
               day: stat.day_of_week,
               count: stat.real_count,
               isToday: stat.date === today,
