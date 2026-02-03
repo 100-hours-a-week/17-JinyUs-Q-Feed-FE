@@ -1,6 +1,4 @@
 import { useNavigate } from 'react-router-dom';
-import { Card } from '@/app/components/ui/card';
-import { Button } from '@/app/components/ui/button';
 import { Badge } from '@/app/components/ui/badge';
 import BottomNav from '@/app/components/BottomNav';
 import { Sparkles, TrendingUp, BookOpen, History, ArrowRight, Play } from 'lucide-react';
@@ -28,12 +26,24 @@ const WeeklyChart = ({ data, maxValue, totalThisWeek }) => {
     const today = new Date().getDay();
     const todayIndex = today === 0 ? 6 : today - 1;
 
-    // 주간 기간 계산
+    // 주간 기간 계산 (월요일 기준)
     const now = new Date();
+    const dayOfWeek = now.getDay();
+    const diff = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // 월요일을 0으로
     const startOfWeek = new Date(now);
-    startOfWeek.setDate(now.getDate() - now.getDay() + 1);
+    startOfWeek.setDate(now.getDate() - diff);
+    
     const month = startOfWeek.getMonth() + 1;
-    const weekNumber = Math.ceil((startOfWeek.getDate() + startOfWeek.getDay()) / 7);
+    // 해당 월의 첫 번째 월요일 찾기
+    const firstDayOfMonth = new Date(startOfWeek.getFullYear(), startOfWeek.getMonth(), 1);
+    const firstMonday = new Date(firstDayOfMonth);
+    const firstDayOfWeek = firstDayOfMonth.getDay();
+    const daysToAdd = firstDayOfWeek === 0 ? 1 : 8 - firstDayOfWeek;
+    firstMonday.setDate(1 + daysToAdd);
+    
+    // 현재 주가 몇 번째 주인지 계산
+    const daysDiff = Math.floor((startOfWeek - firstMonday) / (1000 * 60 * 60 * 24));
+    const weekNumber = Math.floor(daysDiff / 7) + 1;
 
     // 데이터를 요일 순서대로 정렬
     const sortedData = DAYS.map((day, index) => {
@@ -88,7 +98,7 @@ const QuickAction = ({ icon, label, description, color = 'var(--primary-500)', o
             <span className="action-label">{label}</span>
             <span className="action-desc">{description}</span>
         </div>
-        <ArrowRight className="w-4 h-4 text-gray-300" />
+        <ArrowRight className="action-arrow" />
     </button>
 );
 
@@ -150,76 +160,71 @@ const Home = () => {
                 {/* 오늘의 추천 질문 */}
                 <section className="section">
                     <div className="section-header">
-                        <Sparkles className="section-icon" />
+                        <Sparkles className="section-icon" size={18} />
                         <h3 className="section-title">오늘의 추천 질문</h3>
                     </div>
 
-                    {isLoadingQuestion ? (
-                        <Card className="question-card">
-                            <div className="text-sm text-muted-foreground py-6 text-center">
+                    <div className="question-card">
+                        {isLoadingQuestion ? (
+                            <div className="question-loading">
                                 {TEXT_RECOMMENDATION_LOADING}
                             </div>
-                        </Card>
-                    ) : questionError ? (
-                        <Card className="question-card">
-                            <div className="text-sm text-error py-6 text-center">
+                        ) : questionError ? (
+                            <div className="question-error">
                                 {questionError?.message || TEXT_RECOMMENDATION_ERROR}
                             </div>
-                        </Card>
-                    ) : !todayQuestion ? (
-                        <Card className="question-card">
-                            <div className="text-sm text-muted-foreground py-6 text-center">
+                        ) : !todayQuestion ? (
+                            <div className="question-empty">
                                 {TEXT_RECOMMENDATION_EMPTY}
                             </div>
-                        </Card>
-                    ) : (
-                        <Card className="question-card">
-                            <Badge 
-                                variant="default" 
-                                className="question-category"
-                            >
-                                {categoryMap[todayQuestion?.category] || todayQuestion?.category || '추천'}
-                            </Badge>
-                            <p className="question-text">{todayQuestion?.title}</p>
-                            <div className="question-footer">
-                                <div className="question-difficulty">
-                                    <div className="difficulty-dots">
-                                        {[1, 2, 3].map((level) => (
-                                            <span
-                                                key={level}
-                                                className={`difficulty-dot ${level <= difficultyLevel ? 'active' : ''}`}
-                                            />
-                                        ))}
-                                    </div>
-                                    {difficultyText}
-                                </div>
-                                <Button
-                                    onClick={handleStartPractice}
-                                    className="start-btn"
-                                    size="sm"
+                        ) : (
+                            <>
+                                <Badge 
+                                    variant="default" 
+                                    className="question-category"
                                 >
-                                    <Play className="w-4 h-4" />
-                                    연습 시작
-                                </Button>
-                            </div>
-                        </Card>
-                    )}
+                                    {categoryMap[todayQuestion?.category] || todayQuestion?.category || '추천'}
+                                </Badge>
+                                <p className="question-text">{todayQuestion?.title}</p>
+                                <div className="question-footer">
+                                    <div className="question-difficulty">
+                                        <div className="difficulty-dots">
+                                            {[1, 2, 3].map((level) => (
+                                                <span
+                                                    key={level}
+                                                    className={`difficulty-dot ${level <= difficultyLevel ? 'active' : ''}`}
+                                                />
+                                            ))}
+                                        </div>
+                                        {difficultyText}
+                                    </div>
+                                    <button
+                                        onClick={handleStartPractice}
+                                        className="start-btn"
+                                    >
+                                        <Play size={16} />
+                                        연습 시작
+                                    </button>
+                                </div>
+                            </>
+                        )}
+                    </div>
                 </section>
 
                 {/* 이번 주 학습 기록 */}
                 <section className="section">
                     <div className="section-header">
-                        <TrendingUp className="section-icon" />
+                        <TrendingUp className="section-icon" size={18} />
                         <h3 className="section-title">이번 주 학습</h3>
                     </div>
 
-                    <Card className="weekly-card-wrapper">
+                    <div className="weekly-card-wrapper">
                         <WeeklyChart 
                             data={weeklyData} 
                             maxValue={maxValue}
                             totalThisWeek={totalThisWeek}
                         />
-                    </Card>
+                    </div>
                 </section>
 
                 {/* 빠른 메뉴 */}
@@ -230,14 +235,14 @@ const Home = () => {
 
                     <div className="quick-actions">
                         <QuickAction
-                            icon={<BookOpen className="w-5 h-5" />}
+                            icon={<BookOpen size={22} />}
                             label="연습 모드"
                             description="카테고리별 면접 질문 연습"
                             color="var(--primary-500)"
                             onClick={() => navigate('/practice')}
                         />
                         <QuickAction
-                            icon={<History className="w-5 h-5" />}
+                            icon={<History size={22} />}
                             label="학습 히스토리"
                             description="지난 연습 기록 확인"
                             color="var(--accent-400)"
