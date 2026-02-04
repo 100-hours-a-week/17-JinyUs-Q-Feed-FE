@@ -9,6 +9,10 @@ import { usePracticeQuestionLoader } from '@/app/hooks/usePracticeQuestionLoader
 
 const TEXT_LOADING = '질문을 불러오는 중...';
 const TEXT_NOT_FOUND = '질문을 찾을 수 없습니다';
+const TEXT_ANSWER_TIP_LINES = [
+    '실제 면접관에게 설명한다는 생각으로 1분 이상 답변해 보세요.',
+    '답변이 자세할수록 피드백도 정확해요.',
+];
 
 const PracticeAnswer = () => {
     const navigate = useNavigate();
@@ -88,7 +92,12 @@ const PracticeAnswer = () => {
 
                 <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
                     <p className="text-sm text-amber-800">
-                        <span className="font-semibold">💡 Tip:</span> 면접관에게 설명한다는 생각으로 답변해보세요. 키워드를 모두 포함하려고 노력해주세요.
+                        <span className="font-semibold">💡 Tip:</span>
+                        {TEXT_ANSWER_TIP_LINES.map((line) => (
+                            <span key={line} className="block pl-5">
+                                {line}
+                            </span>
+                        ))}
                     </p>
                 </div>
             </div>
