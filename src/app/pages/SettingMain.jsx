@@ -68,6 +68,12 @@ const SettingMain = () => {
             items: [
                 {
                     icon: HelpCircle,
+                    label: '피드백 남기기',
+                    action: <span className="text-sm text-muted-foreground"></span>,
+                    onClick: () => window.open('https://forms.gle/nraq9VyYzQogYgFSA', '_blank', 'noopener,noreferrer'),
+                },
+                {
+                    icon: HelpCircle,
                     label: '의견 보내기',
                     action: <span className="text-sm text-muted-foreground">devqfeed@gmail.com</span>,
                     onClick: () => window.open('mailto:devqfeed@gmail.com?subject=[QFeed] 의견'),
