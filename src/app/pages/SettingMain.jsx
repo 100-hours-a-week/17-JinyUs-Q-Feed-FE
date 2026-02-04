@@ -1,5 +1,4 @@
 import { useNavigate } from 'react-router-dom';
-import { Button } from '@/app/components/ui/button';
 import { Card } from '@/app/components/ui/card';
 import { Switch } from '@/app/components/ui/switch';
 import {
@@ -12,7 +11,7 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from '@/app/components/ui/alert-dialog';
-import { Bell, HelpCircle, LogOut, Trash2, ChevronRight } from 'lucide-react';
+import { Bell, HelpCircle, LogOut, Trash2 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { toast } from 'sonner';
 import { useState } from 'react';
@@ -69,15 +68,9 @@ const SettingMain = () => {
             items: [
                 {
                     icon: HelpCircle,
-                    label: '자주 묻는 질문',
-                    action: <ChevronRight className="w-5 h-5 text-muted-foreground" />,
-                    onClick: () => toast.info('FAQ 페이지로 이동합니다'),
-                },
-                {
-                    icon: HelpCircle,
-                    label: '문의하기',
-                    action: <ChevronRight className="w-5 h-5 text-muted-foreground" />,
-                    onClick: () => toast.info('문의 페이지로 이동합니다'),
+                    label: '의견 보내기',
+                    action: <span className="text-sm text-muted-foreground">devqfeed@gmail.com</span>,
+                    onClick: () => window.open('mailto:devqfeed@gmail.com?subject=[QFeed] 의견'),
                 },
             ],
         },
@@ -89,12 +82,6 @@ const SettingMain = () => {
                     label: '로그아웃',
                     onClick: () => setShowLogoutDialog(true),
                     textColor: 'text-foreground',
-                },
-                {
-                    icon: Trash2,
-                    label: '회원 탈퇴',
-                    onClick: () => setShowDeleteDialog(true),
-                    textColor: 'text-destructive',
                 },
             ],
         },
