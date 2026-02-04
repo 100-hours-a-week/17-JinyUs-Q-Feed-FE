@@ -17,6 +17,7 @@ const ANSWER_TYPE_LABELS = {
 };
 
 const MODE_OPTIONS = [{ value: 'PRACTICE_INTERVIEW', label: '연습' }];
+const SERVICE_LAUNCH_DATE = '2026-02-04';
 
 const toDateInputValue = (date) => {
     const year = date.getFullYear();
@@ -25,13 +26,22 @@ const toDateInputValue = (date) => {
     return `${year}-${month}-${day}`;
 };
 
-const getDefaultDateRange = () => {
-    const today = new Date();
+const getDefaultDateRange = (todayDate) => {
+    const today = new Date(`${todayDate}T00:00:00`);
     const from = new Date(today);
     from.setMonth(from.getMonth() - 1);
+    let dateFrom = toDateInputValue(from);
+    if (dateFrom < SERVICE_LAUNCH_DATE) {
+        dateFrom = SERVICE_LAUNCH_DATE;
+    }
+
+    if (dateFrom > todayDate) {
+        dateFrom = todayDate;
+    }
+
     return {
-        dateFrom: toDateInputValue(from),
-        dateTo: toDateInputValue(today),
+        dateFrom,
+        dateTo: todayDate,
     };
 };
 
@@ -138,7 +148,8 @@ const ProfileMain = () => {
     const scrollPositionRef = useRef(0);
     const shouldRestoreScrollRef = useRef(false);
 
-    const [{ dateFrom, dateTo }] = useState(() => getDefaultDateRange());
+    const [accessDate] = useState(() => toDateInputValue(new Date()));
+    const [{ dateFrom, dateTo }] = useState(() => getDefaultDateRange(accessDate));
     const [dateFromFilter, setDateFromFilter] = useState(dateFrom);
     const [dateToFilter, setDateToFilter] = useState(dateTo);
     const [debouncedDateRange, setDebouncedDateRange] = useState({
@@ -183,18 +194,22 @@ const ProfileMain = () => {
     }, []);
 
     const handleDateFromChange = (value) => {
+        const launchClampedFrom = value < SERVICE_LAUNCH_DATE ? SERVICE_LAUNCH_DATE : value;
+        const clampedFrom = launchClampedFrom > accessDate ? accessDate : launchClampedFrom;
         requestScrollRestore();
-        setDateFromFilter(value);
-        if (dateToFilter && value && value > dateToFilter) {
-            setDateToFilter(value);
+        setDateFromFilter(clampedFrom);
+        if (dateToFilter && clampedFrom && clampedFrom > dateToFilter) {
+            setDateToFilter(clampedFrom);
         }
     };
 
     const handleDateToChange = (value) => {
+        const upperCappedTo = value > accessDate ? accessDate : value;
+        const cappedTo = upperCappedTo < SERVICE_LAUNCH_DATE ? SERVICE_LAUNCH_DATE : upperCappedTo;
         requestScrollRestore();
-        setDateToFilter(value);
-        if (dateFromFilter && value && value < dateFromFilter) {
-            setDateFromFilter(value);
+        setDateToFilter(cappedTo);
+        if (dateFromFilter && cappedTo && cappedTo < dateFromFilter) {
+            setDateFromFilter(cappedTo < SERVICE_LAUNCH_DATE ? SERVICE_LAUNCH_DATE : cappedTo);
         }
     };
 
@@ -455,8 +470,8 @@ const ProfileMain = () => {
                                                 value={dateFromFilter}
                                                 onChange={(event) => handleDateFromChange(event.target.value)}
                                                 onClick={(event) => event.currentTarget.showPicker?.()}
-                                                min=""
-                                                max={dateToFilter}
+                                                min={SERVICE_LAUNCH_DATE}
+                                                max={dateToFilter > accessDate ? accessDate : dateToFilter}
                                                 className="filter-date-picker"
                                                 aria-label="시작일"
                                             />
@@ -474,7 +489,8 @@ const ProfileMain = () => {
                                                 value={dateToFilter}
                                                 onChange={(event) => handleDateToChange(event.target.value)}
                                                 onClick={(event) => event.currentTarget.showPicker?.()}
-                                                min={dateFromFilter}
+                                                min={dateFromFilter < SERVICE_LAUNCH_DATE ? SERVICE_LAUNCH_DATE : dateFromFilter}
+                                                max={accessDate}
                                                 className="filter-date-picker"
                                                 aria-label="종료일"
                                             />
