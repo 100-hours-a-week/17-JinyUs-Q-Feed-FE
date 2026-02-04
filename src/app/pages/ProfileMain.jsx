@@ -99,13 +99,12 @@ const useCountUp = (end, duration = 1000) => {
 };
 
 // 통계 카드 컴포넌트
-const StatCard = ({ icon, label, value, unit, delay = 0 }) => {
+const StatCard = ({ icon, label, value, unit }) => {
     const numericValue = value.replace(/[^0-9]/g, '');
-    const animatedValue = useCountUp(numericValue || '0', 800);
-    const displayValue = value.includes('-') ? '-' : animatedValue;
-    
+    const displayValue = value.includes('-') ? '-' : numericValue || '0';
+
     return (
-        <div className="stat-card" style={{ animationDelay: `${delay}ms` }}>
+        <div className="stat-card">
             <div className="stat-icon">{icon}</div>
             <div className="stat-content">
                 <span className="stat-value">
@@ -118,8 +117,8 @@ const StatCard = ({ icon, label, value, unit, delay = 0 }) => {
 };
 
 // 학습 기록 아이템 컴포넌트
-const HistoryItem = ({ mode, category, categoryColor, title, date, delay = 0, feedbackAvailable }) => (
-    <div className="history-item" style={{ animationDelay: `${delay}ms` }}>
+const HistoryItem = ({ mode, category, categoryColor, title, date, feedbackAvailable }) => (
+    <div className="history-item">
         <div className="history-header">
             <span className="history-mode">{mode}</span>
             <div className="history-meta">
@@ -351,7 +350,6 @@ const ProfileMain = () => {
                                 label={stat.label}
                                 value={stat.value}
                                 unit={stat.value.includes('일') ? '일' : stat.value.includes('회') ? '회' : '개'}
-                                delay={index * 100}
                             />
                         );
                     })}
@@ -546,7 +544,6 @@ const ProfileMain = () => {
                                 categoryColor={categoryColor}
                                 title={activity.question?.content || '질문 정보 없음'}
                                 date={formatDate(activity.createdAt)}
-                                delay={index * 80}
                                 feedbackAvailable={activity.feedback?.feedbackAvailable}
                             />
                         );

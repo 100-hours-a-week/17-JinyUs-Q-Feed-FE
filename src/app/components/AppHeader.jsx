@@ -8,6 +8,7 @@ export const AppHeader = ({
     showBack = true,
     showNotifications,
     showSettings,
+    align = 'center',
     onBack,
     onNotification,
     onSetting,
@@ -26,6 +27,7 @@ export const AppHeader = ({
     };
 
     const isDark = tone === 'dark';
+    const isLeftAligned = align === 'left';
 
     return (
         <div
@@ -38,7 +40,13 @@ export const AppHeader = ({
             />
 
             {/* Back Button */}
-            <div className="min-w-[40px] flex items-center justify-start z-10">
+            <div
+                className={`z-10 ${
+                    !showBack && isLeftAligned
+                        ? 'w-0 min-w-0'
+                        : 'min-w-[40px] flex items-center justify-start'
+                }`}
+            >
                 {showBack && (
                     <button
                         onClick={handleBack}
@@ -58,8 +66,16 @@ export const AppHeader = ({
             </div>
 
             {/* Page Title */}
-            <div className="flex-1 flex items-center justify-center px-2 overflow-hidden z-0">
-                <p className="font-['Pretendard','Inter',sans-serif] font-bold text-[20px] text-current text-center truncate">
+            <div
+                className={`flex-1 flex items-center px-2 overflow-hidden z-0 ${
+                    isLeftAligned ? 'justify-start' : 'justify-center'
+                }`}
+            >
+                <p
+                    className={`font-['Pretendard','Inter',sans-serif] font-bold text-[20px] text-current truncate ${
+                        isLeftAligned ? 'text-left' : 'text-center'
+                    }`}
+                >
                     {title}
                 </p>
             </div>
