@@ -140,11 +140,6 @@ const Home = () => {
         navigate(`/practice/answer/${todayQuestion.id}`);
     };
 
-    // 난이도 계산 (임시로 키워드 개수 기반)
-    const difficulty = todayQuestion?.keywords?.length || 0;
-    const difficultyLevel = difficulty <= 2 ? 1 : difficulty <= 4 ? 2 : 3;
-    const difficultyText = difficultyLevel === 1 ? '초급' : difficultyLevel === 2 ? '중급' : '고급';
-
     return (
         <div className="home-container">
             {/* 인사 섹션 */}
@@ -190,20 +185,10 @@ const Home = () => {
                                 </Badge>
                                 <p className="question-text">{todayQuestion?.title}</p>
                                 <div className="question-footer">
-                                    <div className="question-difficulty">
-                                        <div className="difficulty-dots">
-                                            {[1, 2, 3].map((level) => (
-                                                <span
-                                                    key={level}
-                                                    className={`difficulty-dot ${level <= difficultyLevel ? 'active' : ''}`}
-                                                />
-                                            ))}
-                                        </div>
-                                        {difficultyText}
-                                    </div>
                                     <button
                                         onClick={handleStartPractice}
                                         className="start-btn"
+                                        style={{ marginLeft: 'auto' }}
                                     >
                                         <Play size={16} />
                                         연습 시작
