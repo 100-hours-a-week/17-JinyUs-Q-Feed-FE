@@ -83,8 +83,27 @@ const StatCard = ({ icon, label, value, unit }) => {
 };
 
 // 학습 기록 아이템 컴포넌트
-const HistoryItem = ({ mode, category, categoryColor, title, date, feedbackAvailable }) => (
-    <div className="history-item">
+const HistoryItem = ({
+    mode,
+    category,
+    categoryColor,
+    title,
+    date,
+    feedbackAvailable,
+    onClick,
+}) => (
+    <div
+        className="history-item"
+        onClick={onClick}
+        onKeyDown={(event) => {
+            if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                onClick?.();
+            }
+        }}
+        role="button"
+        tabIndex={0}
+    >
         <div className="history-header">
             <span className="history-mode">{mode}</span>
             <div className="history-meta">
@@ -521,6 +540,7 @@ const ProfileMain = () => {
                                 title={activity.question?.content || '질문 정보 없음'}
                                 date={formatDate(activity.createdAt)}
                                 feedbackAvailable={activity.feedback?.feedbackAvailable}
+                                onClick={() => navigate(`/profile/records/${activity.answerId}`)}
                             />
                         );
                     })}

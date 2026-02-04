@@ -20,6 +20,7 @@ import PracticeAnswerText from '@/app/pages/PracticeAnswerText';
 import PracticeResultKeyword from '@/app/pages/PracticeResultKeyword';
 import PracticeResultAI from '@/app/pages/PracticeResultAI';
 import ProfileMain from '@/app/pages/ProfileMain';
+import LearningRecordDetail from '@/app/pages/LearningRecordDetail';
 import SettingMain from '@/app/pages/SettingMain';
 import RealInterview from '@/app/pages/RealInterview';
 import OAuthCallback from '@/app/pages/OAuthCallback';
@@ -66,6 +67,7 @@ function AppRoutes() {
 
                         {/* Profile */}
                         <Route path="/profile" element={<ProfileMain />} />
+                        <Route path="/profile/records/:answerId" element={<LearningRecordDetail />} />
                         <Route path="/settings" element={<SettingMain />} />
 
                         <Route path="*" element={<Navigate to="/" replace />} />
