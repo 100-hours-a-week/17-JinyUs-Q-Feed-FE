@@ -64,40 +64,6 @@ const formatDateDisplay = (dateString) => {
     return dateString;
 };
 
-// 숫자 카운팅 애니메이션 훅
-const useCountUp = (end, duration = 1000) => {
-    const targetValue = useMemo(() => {
-        if (end === '-' || isNaN(parseInt(end))) return 0;
-        return parseInt(end);
-    }, [end]);
-
-    const [count, setCount] = useState(targetValue);
-    const rafRef = useRef(null);
-
-    useEffect(() => {
-        let startTime = null;
-
-        const animate = (timestamp) => {
-            if (!startTime) startTime = timestamp;
-            const progress = Math.min((timestamp - startTime) / duration, 1);
-            setCount(Math.floor(progress * targetValue));
-            if (progress < 1) {
-                rafRef.current = requestAnimationFrame(animate);
-            }
-        };
-
-        rafRef.current = requestAnimationFrame(animate);
-
-        return () => {
-            if (rafRef.current) {
-                cancelAnimationFrame(rafRef.current);
-            }
-        };
-    }, [targetValue, duration]);
-
-    return count;
-};
-
 // 통계 카드 컴포넌트
 const StatCard = ({ icon, label, value, unit }) => {
     const numericValue = value.replace(/[^0-9]/g, '');
@@ -530,7 +496,7 @@ const ProfileMain = () => {
 
                 {/* 학습 기록 리스트 */}
                 <div className="history-list">
-                    {recentActivities.map((activity, index) => {
+                    {recentActivities.map((activity) => {
                         const categoryLabel = activity.question?.category 
                             ? (categoryMap[activity.question.category] || activity.question.category)
                             : null;
