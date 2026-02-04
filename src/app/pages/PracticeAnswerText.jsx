@@ -64,7 +64,7 @@ const PracticeAnswerText = () => {
     if (!question) return <div>{TEXT_NOT_FOUND}</div>;
 
     return (
-        <div className="min-h-screen bg-background">
+        <div className="min-h-screen bg-[#FAFAFA]">
             <AppHeader
                 title={TEXT_PAGE_TITLE}
                 onBack={() => navigate(`/practice/answer/${questionId}`)}
