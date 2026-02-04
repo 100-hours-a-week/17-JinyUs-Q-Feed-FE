@@ -20,11 +20,11 @@ const AuthLogin = () => {
         {/* Q-Feed 로고 이미지 */}
         <div className="mb-8 flex flex-col items-center">
           <img
-            src="/qfeed-logo.jpeg"
+            src="/main-logo.png"
             alt="Q-Feed Logo"
             className="w-auto h-auto max-w-lg mb-4"
             style={{
-              width: '200px',
+              width: '300px',
               height: 'auto',
               objectFit: 'contain'
             }}

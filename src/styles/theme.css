@@ -411,12 +411,10 @@
   }
 
   .btn-primary:hover {
-    transform: translateY(-1px);
     box-shadow: 0 6px 16px rgba(232, 77, 110, 0.3);
   }
 
   .btn-primary:active {
-    transform: translateY(0);
     box-shadow: 0 2px 8px rgba(232, 77, 110, 0.2);
   }
 
@@ -496,7 +494,6 @@
 
   .card-interactive:hover {
     box-shadow: var(--shadow-md);
-    transform: translateY(-2px);
   }
 
   /* 뱃지/태그 스타일 */
@@ -545,7 +542,8 @@
     left: 50%;
     transform: translateX(-50%);
     width: 100%;
-    max-width: 428px;
+    max-width: 512px;
+    margin: 0 auto;
     background: white;
     border-top: 1px solid var(--gray-100);
     padding: var(--space-2) 0 calc(var(--space-2) + env(safe-area-inset-bottom, 0px));
@@ -973,7 +971,6 @@
 
 .quick-action:hover {
   border-color: var(--primary-200);
-  transform: translateX(4px);
 }
 
 .action-icon {
@@ -1207,7 +1204,6 @@
 }
 
 .stat-card:hover {
-  transform: translateY(-2px);
   box-shadow: var(--shadow-md);
   border-color: var(--primary-200);
 }
@@ -1568,7 +1564,6 @@
 .history-item:hover {
   border-color: var(--primary-200);
   box-shadow: var(--shadow-sm);
-  transform: translateX(4px);
 }
 
 .history-header {
