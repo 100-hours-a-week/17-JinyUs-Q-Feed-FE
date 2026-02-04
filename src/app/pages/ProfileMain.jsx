@@ -246,6 +246,7 @@ const ProfileMain = () => {
     const { data: statsData } = useUserStats();
     const userStats = statsData?.data;
     const { data: weeklyStatsData } = useWeeklyStats();
+    const weeklyStats = weeklyStatsData?.data;
 
     const stats = [
         { icon: Calendar, label: '총 학습일', value: `${userStats?.distinct_days ?? '-'}일` },
@@ -271,7 +272,7 @@ const ProfileMain = () => {
     }, [categoryMap]);
 
     // 주간 목표 계산
-    const totalThisWeek = weeklyStatsData?.total_this_week ?? 0;
+    const totalThisWeek = weeklyStats.total_this_week ?? 0;
     const weeklyGoal = 7; // 목표값
     const weeklyProgress = Math.min((totalThisWeek / weeklyGoal) * 100, 100);
     const remainingCount = Math.max(weeklyGoal - totalThisWeek, 0);
@@ -301,6 +302,15 @@ const ProfileMain = () => {
                             면접 준비 중
                         </span>
                     </div>
+                    <a
+                        className="btn-secondary"
+                        href="https://forms.gle/nraq9VyYzQogYgFSA"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{ marginLeft: 'auto' }}
+                    >
+                        피드백 남기기
+                    </a>
                 </div>
             </section>
 
