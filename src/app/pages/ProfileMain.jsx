@@ -56,28 +56,35 @@ const formatDateDisplay = (dateString) => {
 
 // 숫자 카운팅 애니메이션 훅
 const useCountUp = (end, duration = 1000) => {
-    const [count, setCount] = useState(0);
-    
+    const targetValue = useMemo(() => {
+        if (end === '-' || isNaN(parseInt(end))) return 0;
+        return parseInt(end);
+    }, [end]);
+
+    const [count, setCount] = useState(targetValue);
+    const rafRef = useRef(null);
+
     useEffect(() => {
-        if (end === '-' || isNaN(parseInt(end))) {
-            setCount(0);
-            return;
-        }
-        
         let startTime = null;
-        const targetValue = parseInt(end);
-        
+
         const animate = (timestamp) => {
             if (!startTime) startTime = timestamp;
             const progress = Math.min((timestamp - startTime) / duration, 1);
             setCount(Math.floor(progress * targetValue));
             if (progress < 1) {
-                requestAnimationFrame(animate);
+                rafRef.current = requestAnimationFrame(animate);
             }
         };
-        requestAnimationFrame(animate);
-    }, [end, duration]);
-    
+
+        rafRef.current = requestAnimationFrame(animate);
+
+        return () => {
+            if (rafRef.current) {
+                cancelAnimationFrame(rafRef.current);
+            }
+        };
+    }, [targetValue, duration]);
+
     return count;
 };
 
@@ -277,7 +284,7 @@ const ProfileMain = () => {
         
         // categoryMap의 값들을 색상에 매핑
         const result = {};
-        Object.entries(categoryMap).forEach(([key, label]) => {
+        Object.values(categoryMap).forEach((label) => {
             result[label] = colors[label] || { bg: '#F5F5F5', text: '#616161' };
         });
         return result;

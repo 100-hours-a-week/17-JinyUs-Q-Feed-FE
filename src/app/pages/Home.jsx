@@ -64,7 +64,7 @@ const WeeklyChart = ({ data, maxValue, totalThisWeek }) => {
                 </span>
             </div>
             <div className="weekly-chart">
-                {sortedData.map((dayData, index) => {
+                {sortedData.map((dayData) => {
                     const height = dayData.count > 0 
                         ? `${Math.min((dayData.count / maxValue) * 100, 100)}%` 
                         : '6px';
@@ -74,7 +74,10 @@ const WeeklyChart = ({ data, maxValue, totalThisWeek }) => {
                             <div className="day-bar-container">
                                 <div
                                     className={`day-bar ${dayData.count > 0 ? 'filled' : 'empty'}`}
-                                    style={{ height }}
+                                    style={{
+                                        height,
+                                        background: dayData.count > 0 ? 'linear-gradient(180deg, #FF8FA3, #FF6B8A)' : '#f3f4f6'
+                                    }}
                                 >
                                     {dayData.count > 0 && (
                                         <span className="bar-count">{dayData.count}</span>
