@@ -136,9 +136,9 @@ const PracticeMain = () => {
     };
 
     return (
-        <div className="min-h-screen bg-background pb-20">
+        <div className="min-h-screen bg-[#FAFAFA] pb-20">
             {/* Header */}
-            <AppHeader title="연습 모드" onBack={() => navigate('/')} />
+            <AppHeader title="연습 모드" showBack={false} align="left" />
 
             <div className="bg-white sticky top-[56px] z-10 border-b">
                 {/* Search */}
@@ -158,48 +158,52 @@ const PracticeMain = () => {
                 <div className="px-4 pb-3 max-w-lg mx-auto">
                     <div className="flex items-center gap-2 overflow-x-auto pb-2">
                         <Filter className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                        <Button
-                            variant={selectedType === ALL_FILTER_VALUE ? 'default' : 'outline'}
-                            size="sm"
+                        <button
+                            type="button"
                             onClick={() => handleTypeChange(ALL_FILTER_VALUE)}
-                            className="rounded-full whitespace-nowrap"
+                            className={`filter-chip ${
+                                selectedType === ALL_FILTER_VALUE ? 'active' : ''
+                            }`}
                         >
                             {ALL_FILTER_LABEL}
-                        </Button>
+                        </button>
                         {visibleTypeOptions.map((option) => (
-                            <Button
+                            <button
                                 key={option.value}
-                                variant={selectedType === option.value ? 'default' : 'outline'}
-                                size="sm"
+                                type="button"
                                 onClick={() => handleTypeChange(option.value)}
-                                className="rounded-full whitespace-nowrap"
+                                className={`filter-chip ${
+                                    selectedType === option.value ? 'active' : ''
+                                }`}
                             >
                                 {option.label}
-                            </Button>
+                            </button>
                         ))}
                     </div>
                 </div>
                 {selectedType === 'CS' && categoryOptions.length > 0 && (
                     <div className="px-4 pb-4 max-w-lg mx-auto">
                         <div className="flex items-center gap-2 overflow-x-auto pb-2">
-                            <Button
-                                variant={selectedCategory === ALL_FILTER_VALUE ? 'default' : 'outline'}
-                                size="sm"
+                            <button
+                                type="button"
                                 onClick={() => setSelectedCategory(ALL_FILTER_VALUE)}
-                                className="rounded-full whitespace-nowrap"
+                                className={`filter-chip ${
+                                    selectedCategory === ALL_FILTER_VALUE ? 'active' : ''
+                                }`}
                             >
                                 {ALL_FILTER_LABEL}
-                            </Button>
+                            </button>
                             {categoryOptions.map((option) => (
-                                <Button
+                                <button
                                     key={option.value}
-                                    variant={selectedCategory === option.value ? 'default' : 'outline'}
-                                    size="sm"
+                                    type="button"
                                     onClick={() => setSelectedCategory(option.value)}
-                                    className="rounded-full whitespace-nowrap"
+                                    className={`filter-chip ${
+                                        selectedCategory === option.value ? 'active' : ''
+                                    }`}
                                 >
                                     {option.label}
-                                </Button>
+                                </button>
                             ))}
                         </div>
                     </div>

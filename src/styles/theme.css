@@ -1038,11 +1038,10 @@
   justify-content: space-between;
   align-items: center;
   padding: 16px 20px;
-  background: white;
+  background: transparent;
   position: sticky;
   top: 0;
   z-index: 100;
-  border-bottom: 1px solid var(--gray-100);
 }
 
 .header-title {
@@ -1189,18 +1188,6 @@
   padding: 20px 16px;
   text-align: center;
   transition: all 0.2s ease;
-  animation: fadeInUp 0.5s ease-out backwards;
-}
-
-@keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(16px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
 }
 
 .stat-card:hover {
@@ -1558,7 +1545,6 @@
   padding: 18px;
   transition: all 0.2s ease;
   cursor: pointer;
-  animation: fadeInUp 0.4s ease-out backwards;
 }
 
 .history-item:hover {

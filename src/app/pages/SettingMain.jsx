@@ -88,7 +88,7 @@ const SettingMain = () => {
     ];
 
     return (
-        <div className="min-h-screen bg-background pb-12">
+        <div className="min-h-screen bg-[#FAFAFA] pb-12">
             <AppHeader title="설정" onBack={() => navigate('/profile')} showNotifications={false} />
 
             <div className="p-6 max-w-lg mx-auto space-y-6">
