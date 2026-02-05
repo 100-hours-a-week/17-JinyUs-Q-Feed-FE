@@ -291,7 +291,7 @@ const ProfileMain = () => {
     }, [categoryMap]);
 
     // 주간 목표 계산
-    const totalThisWeek = weeklyStats.total_this_week ?? 0;
+    const totalThisWeek = weeklyStats?.total_this_week ?? 0;
     const weeklyGoal = 7; // 목표값
     const weeklyProgress = Math.min((totalThisWeek / weeklyGoal) * 100, 100);
     const remainingCount = Math.max(weeklyGoal - totalThisWeek, 0);
