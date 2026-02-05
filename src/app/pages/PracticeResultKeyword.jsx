@@ -29,6 +29,7 @@ const TEXT_BACK_MODAL_DESC = '연습모드로 돌아가시겠습니까?';
 const TEXT_BACK_MODAL_CONFIRM = '연습모드로 돌아가기';
 const TEXT_BACK_MODAL_CANCEL = '닫기';
 const TEXT_RESULT_BUTTON = 'AI 분석결과 보기';
+const TEXT_RETRY_BUTTON = '다시 답변하기';
 const TEXT_PAGE_TITLE = '답변 분석';
 const TEXT_QUESTION_LABEL = '질문';
 const TEXT_MY_ANSWER_LABEL = '나의 답변';
@@ -60,6 +61,7 @@ const PracticeResultKeyword = () => {
     const [feedbackError, setFeedbackError] = useState('');
 
     const myAnswer = state?.answerText || '';
+    const retryPath = state?.retryPath || `/practice/answer/${questionId}`;
 
     // 0~95%까지 천천히 올라가며 대기 상태를 표현한다.
     useEffect(() => {
@@ -227,8 +229,16 @@ const PracticeResultKeyword = () => {
                         </div>
                     </Card>
                 ) : feedbackError ? (
-                    <div className="text-center text-rose-500 text-sm py-4">
-                        {feedbackError}
+                    <div className="space-y-3">
+                        <div className="text-center text-rose-500 text-sm py-2">
+                            {feedbackError}
+                        </div>
+                        <Button
+                            onClick={() => navigate(retryPath)}
+                            className="w-full rounded-xl h-12"
+                        >
+                            {TEXT_RETRY_BUTTON}
+                        </Button>
                     </div>
                 ) : (
                     <Button
