@@ -15,7 +15,6 @@ const TEXT_STRENGTHS_TITLE = '잘한 점';
 const TEXT_IMPROVEMENTS_TITLE = '개선하면 좋은 점';
 const TEXT_COMPLETE_TITLE = '분석 완료!';
 const TEXT_COMPLETE_DESC = '답변을 꼼꼼히 분석했어요';
-const TEXT_NEXT_GOAL = '실제 프로젝트 경험과 연결하여 답변하면 더욱 인상적입니다!';
 const TEXT_HOME_BUTTON = '홈으로 이동';
 const TEXT_AI_FEEDBACK_TITLE = 'AI 피드백';
 const TEXT_BAD_CASE_STRENGTHS = '더 잘 할 수 있어요. 지금의 시도가 충분히 의미 있습니다.';
@@ -102,7 +101,7 @@ const PracticeResultAI = () => {
 
                 <div className="text-center pb-6 px-6">
                     <div className="text-5xl mb-2">{TEXT_HEADER_EMOJI}</div>
-                    <h2 className="text-2xl mb-1">{TEXT_COMPLETE_TITLE}</h2>
+                    <h2 className="text-2xl mb-1 text-white">{TEXT_COMPLETE_TITLE}</h2>
                     <p className="text-white/80 text-sm">{TEXT_COMPLETE_DESC}</p>
                 </div>
             </div>
