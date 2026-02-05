@@ -30,16 +30,25 @@ const TEXT_ANSWER_PLACEHOLDER = '여기에 답변을 작성해주세요...';
 const TEXT_CHARACTER_SUFFIX = '자';
 const TEXT_CANCEL = '취소';
 const TEXT_SUBMIT = '제출';
+const TEXT_LIMIT_TITLE = '답변 길이 초과';
+const TEXT_LIMIT_DESC = '답변은 1500자 이내로 작성해주세요.';
+const TEXT_LIMIT_OK = '확인';
+const MAX_ANSWER_LENGTH = 1500;
 const PracticeAnswerText = () => {
     const navigate = useNavigate();
     const { questionId } = useParams();
     const [answer, setAnswer] = useState('');
     const [showConfirm, setShowConfirm] = useState(false);
+    const [showLengthWarning, setShowLengthWarning] = useState(false);
     const { submitAnswer, isSubmitting } = usePracticeAnswerSubmit();
     const { question, isLoading, errorMessage } = usePracticeQuestionLoader(questionId);
 
     const handleSubmit = () => {
         if (!answer.trim()) {
+            return;
+        }
+        if (answer.length > MAX_ANSWER_LENGTH) {
+            setShowLengthWarning(true);
             return;
         }
         setShowConfirm(true);
@@ -84,7 +93,13 @@ const PracticeAnswerText = () => {
                     <p className="text-sm text-muted-foreground mb-3">{TEXT_ANSWER_LABEL}</p>
                     <Textarea
                         value={answer}
-                        onChange={(e) => setAnswer(e.target.value)}
+                        onChange={(e) => {
+                            const nextValue = e.target.value;
+                            if (nextValue.length > MAX_ANSWER_LENGTH && answer.length <= MAX_ANSWER_LENGTH) {
+                                setShowLengthWarning(true);
+                            }
+                            setAnswer(nextValue);
+                        }}
                         className="h-[300px] overflow-y-auto text-base leading-relaxed"
                         placeholder={TEXT_ANSWER_PLACEHOLDER}
                     />
@@ -95,7 +110,7 @@ const PracticeAnswerText = () => {
 
                 <Button
                     onClick={handleSubmit}
-                    disabled={!answer.trim() || isSubmitting}
+                    disabled={!answer.trim() || isSubmitting || answer.length > MAX_ANSWER_LENGTH}
                     className="w-full rounded-xl h-12"
                 >
                     {isSubmitting ? TEXT_SUBMITTING : TEXT_SUBMIT_BUTTON}
@@ -113,6 +128,22 @@ const PracticeAnswerText = () => {
                     <AlertDialogFooter>
                         <AlertDialogCancel>{TEXT_CANCEL}</AlertDialogCancel>
                         <AlertDialogAction onClick={confirmSubmit}>{TEXT_SUBMIT}</AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
+            <AlertDialog open={showLengthWarning} onOpenChange={setShowLengthWarning}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>{TEXT_LIMIT_TITLE}</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            {TEXT_LIMIT_DESC}
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogAction onClick={() => setShowLengthWarning(false)}>
+                            {TEXT_LIMIT_OK}
+                        </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
