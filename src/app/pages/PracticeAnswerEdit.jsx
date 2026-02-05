@@ -57,7 +57,10 @@ const PracticeAnswerEdit = () => {
             answerText: answer,
             onAfterSubmit: (trimmedAnswer) => {
                 navigate(`/practice/result-keyword/${questionId}`, {
-                    state: { answerText: trimmedAnswer },
+                    state: {
+                        answerText: trimmedAnswer,
+                        retryPath: `/practice/answer-voice/${questionId}`,
+                    },
                 });
             },
         });
@@ -117,9 +120,14 @@ const PracticeAnswerEdit = () => {
                             </p>
                         </>
                     ) : (
-                        <div className="h-[300px] overflow-y-auto text-base leading-relaxed whitespace-pre-wrap">
-                            {answer}
-                        </div>
+                        <>
+                            <div className="h-[300px] overflow-y-auto text-base leading-relaxed whitespace-pre-wrap">
+                                {answer}
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-2">
+                                {(answer || '').length}{TEXT_CHARACTER_SUFFIX}
+                            </p>
+                        </>
                     )}
                 </Card>
 
