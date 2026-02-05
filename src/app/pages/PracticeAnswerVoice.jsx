@@ -241,7 +241,7 @@ const PracticeAnswerVoice = () => {
       <div className="flex-1 flex flex-col items-center justify-center px-6 py-12">
         <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 mb-8 w-full max-w-lg">
           <p className="text-center text-white/90 text-sm mb-2">질문</p>
-          <h2 className="text-center text-lg">{question.title}</h2>
+          <h2 className="text-center text-lg text-white">{question.title}</h2>
         </div>
 
         {/* Audio Visualizer */}
