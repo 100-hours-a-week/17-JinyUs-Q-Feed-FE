@@ -107,7 +107,7 @@ const PracticeAnswerEdit = () => {
                         <Textarea
                             value={answer}
                             onChange={(e) => setAnswer(e.target.value)}
-                            className="min-h-[300px] text-base leading-relaxed"
+                            className="h-[300px] overflow-y-auto text-base leading-relaxed"
                             placeholder="답변을 입력하세요..."
                         />
                     ) : (

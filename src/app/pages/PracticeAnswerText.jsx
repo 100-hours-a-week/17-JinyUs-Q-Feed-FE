@@ -82,7 +82,7 @@ const PracticeAnswerText = () => {
                     <Textarea
                         value={answer}
                         onChange={(e) => setAnswer(e.target.value)}
-                        className="min-h-[300px] text-base leading-relaxed"
+                        className="h-[300px] overflow-y-auto text-base leading-relaxed"
                         placeholder={TEXT_ANSWER_PLACEHOLDER}
                     />
                     <p className="text-xs text-muted-foreground mt-2">
