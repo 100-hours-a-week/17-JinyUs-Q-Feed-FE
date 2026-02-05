@@ -22,7 +22,8 @@ const TEXT_BAD_CASE_IMPROVEMENTS = '조금만 더 자세히 설명해도 충분�
 const TEXT_HEADER_EMOJI = '🎯';
 const TEXT_RADAR_LABEL = '평가';
 const FEEDBACK_SECTION_DELIMITER = '\n\n';
-const FEEDBACK_DELIMITER = '●';
+const FEEDBACK_SPLIT_DELIMITER = '●';
+const FEEDBACK_BULLET = '•';
 const FEEDBACK_DASH = '-';
 
 const PracticeResultAI = () => {
@@ -58,7 +59,7 @@ const PracticeResultAI = () => {
     const renderFeedbackText = (text, className) => {
         const normalized = text.replace(/\n+/g, '\n').trim();
         const lines = normalized
-            ? normalized.split(FEEDBACK_DELIMITER).map((line) => line.trim()).filter(Boolean)
+            ? normalized.split(FEEDBACK_SPLIT_DELIMITER).map((line) => line.trim()).filter(Boolean)
             : [];
         return (
             <div className={`space-y-2 ${className}`}>
@@ -66,7 +67,7 @@ const PracticeResultAI = () => {
                     const content = line.startsWith(FEEDBACK_DASH) ? line.slice(1).trim() : line;
                     return (
                         <p key={idx} className="leading-relaxed pl-5 relative">
-                            <span className="absolute left-0">{FEEDBACK_DELIMITER}</span>
+                            <span className="absolute left-0">{FEEDBACK_BULLET}</span>
                             {content}
                         </p>
                     );
