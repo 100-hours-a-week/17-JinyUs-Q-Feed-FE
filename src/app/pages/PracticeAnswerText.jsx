@@ -53,7 +53,10 @@ const PracticeAnswerText = () => {
             answerText: answer,
             onAfterSubmit: (trimmedAnswer) => {
                 navigate(`/practice/result-keyword/${questionId}`, {
-                    state: { answerText: trimmedAnswer },
+                    state: {
+                        answerText: trimmedAnswer,
+                        retryPath: `/practice/answer-text/${questionId}`,
+                    },
                 });
             },
         });
