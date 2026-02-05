@@ -39,8 +39,13 @@ const formatDateTime = (dateString) => {
 }
 
 const normalizeRadarValue = (metric) => {
+  const rawValue = Number(metric?.value)
   const score = Number(metric?.score)
   const maxScore = Number(metric?.maxScore)
+
+  if (!Number.isNaN(rawValue)) {
+    return Math.min(100, Math.max(0, Math.round(rawValue)))
+  }
 
   if (Number.isNaN(score)) return 0
 
@@ -92,12 +97,21 @@ const LearningRecordDetail = () => {
   const hasAnswerDetail = Boolean(answerDetail?.answerId)
   const detail = answerDetail
   const question = detail?.question
-  const aiFeedback = detail?.aiFeedback
-  const metrics = Array.isArray(aiFeedback?.metrics) ? aiFeedback.metrics : []
-  const radarData = (metrics ?? []).map(metric => ({
+  const aiFeedback =
+    detail?.aiFeedback ??
+    detail?.feedback ??
+    detail?.immediateFeedback ??
+    detail?.immediate_feedback
+  const metrics = Array.isArray(aiFeedback?.metrics)
+    ? aiFeedback.metrics
+    : Array.isArray(aiFeedback?.radarChart)
+      ? aiFeedback.radarChart
+      : []
+  const radarData = metrics.map((metric) => ({
     ...metric,
+    subject: metric?.subject ?? metric?.metricName ?? metric?.name ?? metric?.label ?? '평가',
     value: normalizeRadarValue(metric),
-  }));
+  }))
 
   const hasRadarChart = radarData.length > 0
 
