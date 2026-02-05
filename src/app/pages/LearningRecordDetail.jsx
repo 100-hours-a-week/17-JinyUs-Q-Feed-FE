@@ -95,14 +95,11 @@ const LearningRecordDetail = () => {
   const question = detail?.question
   const aiFeedback = detail?.aiFeedback
   const metrics = Array.isArray(aiFeedback?.metrics) ? aiFeedback.metrics : []
-  const radarData = useMemo(
-    () =>
-      metrics.map((metric) => ({
-        subject: metric?.metricName ?? '평가 항목',
-        value: normalizeRadarValue(metric),
-      })),
-    [metrics]
-  )
+  const radarData = (metrics ?? []).map(metric => ({
+    ...metric,
+    value: normalizeRadarValue(metric),
+  }));
+
   const hasRadarChart = radarData.length > 0
 
   const feedbackText = (aiFeedback?.feedback ?? '').trim()
