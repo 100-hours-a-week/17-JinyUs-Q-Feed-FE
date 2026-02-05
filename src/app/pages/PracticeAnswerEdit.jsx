@@ -22,6 +22,7 @@ import { usePracticeAnswerSubmit } from '@/app/hooks/usePracticeAnswerSubmit';
 const TEXT_LOADING = '질문을 불러오는 중...';
 const TEXT_NOT_FOUND = '질문을 찾을 수 없습니다';
 const TEXT_SUBMITTING = '제출 중...';
+const TEXT_CHARACTER_SUFFIX = '자';
 
 const PracticeAnswerEdit = () => {
     const navigate = useNavigate();
@@ -104,14 +105,19 @@ const PracticeAnswerEdit = () => {
                     <p className="text-sm text-muted-foreground mb-3">나의 답변</p>
 
                     {isEditing ? (
-                        <Textarea
-                            value={answer}
-                            onChange={(e) => setAnswer(e.target.value)}
-                            className="h-[300px] overflow-y-auto text-base leading-relaxed"
-                            placeholder="답변을 입력하세요..."
-                        />
+                        <>
+                            <Textarea
+                                value={answer}
+                                onChange={(e) => setAnswer(e.target.value)}
+                                className="h-[300px] overflow-y-auto text-base leading-relaxed"
+                                placeholder="답변을 입력하세요..."
+                            />
+                            <p className="text-xs text-muted-foreground mt-2">
+                                {(answer || '').length}{TEXT_CHARACTER_SUFFIX}
+                            </p>
+                        </>
                     ) : (
-                        <div className="text-base leading-relaxed whitespace-pre-wrap">
+                        <div className="h-[300px] overflow-y-auto text-base leading-relaxed whitespace-pre-wrap">
                             {answer}
                         </div>
                     )}

@@ -185,7 +185,7 @@ const PracticeResultKeyword = () => {
 
                 <Card className="p-4">
                     <p className="text-sm text-muted-foreground mb-3">{TEXT_MY_ANSWER_LABEL}</p>
-                    <div className="text-sm leading-relaxed whitespace-pre-wrap">
+                    <div className="h-[300px] overflow-y-auto text-sm leading-relaxed whitespace-pre-wrap">
                         {myAnswer}
                     </div>
                 </Card>
