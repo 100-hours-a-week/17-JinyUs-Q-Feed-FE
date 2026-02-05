@@ -1,4 +1,3 @@
-import { useMemo } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { AppHeader } from '@/app/components/AppHeader'
 import { Card } from '@/app/components/ui/card'
