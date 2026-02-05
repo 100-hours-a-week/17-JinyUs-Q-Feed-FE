@@ -22,11 +22,6 @@ import { usePracticeAnswerSubmit } from '@/app/hooks/usePracticeAnswerSubmit';
 const TEXT_LOADING = '질문을 불러오는 중...';
 const TEXT_NOT_FOUND = '질문을 찾을 수 없습니다';
 const TEXT_SUBMITTING = '제출 중...';
-const TEXT_CHARACTER_SUFFIX = '자';
-const TEXT_LIMIT_TITLE = '답변 길이 초과';
-const TEXT_LIMIT_DESC = '답변은 1500자 이내로 작성해주세요.';
-const TEXT_LIMIT_OK = '확인';
-const MAX_ANSWER_LENGTH = 1500;
 
 const PracticeAnswerEdit = () => {
     const navigate = useNavigate();
@@ -35,20 +30,11 @@ const PracticeAnswerEdit = () => {
 
     const [isEditing, setIsEditing] = useState(false);
     const [showConfirm, setShowConfirm] = useState(false);
-    const [showLengthWarning, setShowLengthWarning] = useState(false);
     const { submitAnswer, isSubmitting } = usePracticeAnswerSubmit();
-    const [answer, setAnswer] = useState(() => {
-        if (typeof state?.transcribedText === 'string') return state.transcribedText;
-        if (typeof state?.prefillAnswerText === 'string') return state.prefillAnswerText;
-        return '';
-    });
+    const [answer, setAnswer] = useState(state?.transcribedText);
     const { question, isLoading, errorMessage } = usePracticeQuestionLoader(questionId);
 
     const handleToggleEdit = () => {
-        if (isEditing && (answer || '').length > MAX_ANSWER_LENGTH) {
-            setShowLengthWarning(true);
-            return;
-        }
         if (isEditing) {
             toast.success('편집이 완료되었습니다');
         } else {
@@ -58,7 +44,7 @@ const PracticeAnswerEdit = () => {
     };
 
     const handleSubmit = () => {
-        if (!(answer || '').trim()) return;
+        if (!answer.trim()) return;
         setShowConfirm(true);
     };
 
@@ -70,10 +56,7 @@ const PracticeAnswerEdit = () => {
             answerText: answer,
             onAfterSubmit: (trimmedAnswer) => {
                 navigate(`/practice/result-keyword/${questionId}`, {
-                    state: {
-                        answerText: trimmedAnswer,
-                        retryPath: `/practice/answer-voice/${questionId}`,
-                    },
+                    state: { answerText: trimmedAnswer },
                 });
             },
         });
@@ -121,38 +104,22 @@ const PracticeAnswerEdit = () => {
                     <p className="text-sm text-muted-foreground mb-3">나의 답변</p>
 
                     {isEditing ? (
-                        <>
-                            <Textarea
-                                value={answer}
-                                onChange={(e) => {
-                                    const nextValue = e.target.value;
-                                    if (nextValue.length > MAX_ANSWER_LENGTH && (answer || '').length <= MAX_ANSWER_LENGTH) {
-                                        setShowLengthWarning(true);
-                                    }
-                                    setAnswer(nextValue);
-                                }}
-                                className="h-[300px] overflow-y-auto text-base leading-relaxed"
-                                placeholder="답변을 입력하세요..."
-                            />
-                            <p className="text-xs text-muted-foreground mt-2">
-                                {(answer || '').length}{TEXT_CHARACTER_SUFFIX}
-                            </p>
-                        </>
+                        <Textarea
+                            value={answer}
+                            onChange={(e) => setAnswer(e.target.value)}
+                            className="h-[300px] overflow-y-auto text-base leading-relaxed"
+                            placeholder="답변을 입력하세요..."
+                        />
                     ) : (
-                        <>
-                            <div className="h-[300px] overflow-y-auto text-base leading-relaxed whitespace-pre-wrap">
-                                {answer}
-                            </div>
-                            <p className="text-xs text-muted-foreground mt-2">
-                                {(answer || '').length}{TEXT_CHARACTER_SUFFIX}
-                            </p>
-                        </>
+                        <div className="text-base leading-relaxed whitespace-pre-wrap">
+                            {answer}
+                        </div>
                     )}
                 </Card>
 
                 <Button
                     onClick={handleSubmit}
-                    disabled={!answer.trim() || isSubmitting || (answer || '').length > MAX_ANSWER_LENGTH}
+                    disabled={!answer.trim() || isSubmitting}
                     className="w-full rounded-xl h-12"
                 >
                     {isSubmitting ? TEXT_SUBMITTING : '답변 제출'}
@@ -170,22 +137,6 @@ const PracticeAnswerEdit = () => {
                     <AlertDialogFooter>
                         <AlertDialogCancel>취소</AlertDialogCancel>
                         <AlertDialogAction onClick={confirmSubmit}>제출</AlertDialogAction>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
-
-            <AlertDialog open={showLengthWarning} onOpenChange={setShowLengthWarning}>
-                <AlertDialogContent>
-                    <AlertDialogHeader>
-                        <AlertDialogTitle>{TEXT_LIMIT_TITLE}</AlertDialogTitle>
-                        <AlertDialogDescription>
-                            {TEXT_LIMIT_DESC}
-                        </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                        <AlertDialogAction onClick={() => setShowLengthWarning(false)}>
-                            {TEXT_LIMIT_OK}
-                        </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
