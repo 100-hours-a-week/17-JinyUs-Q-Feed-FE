@@ -73,7 +73,7 @@ const PracticeSTT = () => {
                         <Loader2 className="w-16 h-16" />
                     </Motion.div>
 
-                    <h2 className="text-2xl mb-3">{statusMessage}</h2>
+                    <h2 className="text-2xl mb-3 text-white">{statusMessage}</h2>
                     <p className="text-white/80">
                         잠시만 기다려주세요
                     </p>
