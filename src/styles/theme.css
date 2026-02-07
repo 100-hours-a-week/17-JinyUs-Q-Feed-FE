@@ -1170,6 +1170,86 @@
   50% { opacity: 0.5; }
 }
 
+@media (max-width: 430px) {
+  .profile-card {
+    flex-wrap: wrap;
+  }
+
+  .profile-info {
+    min-width: 0;
+  }
+
+  .profile-status {
+    white-space: nowrap;
+  }
+
+  .stats-section {
+    padding: 20px 16px;
+  }
+
+  .stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .stats-grid .stat-card:last-child {
+    grid-column: span 2;
+  }
+
+  .stat-card {
+    padding: 16px 12px;
+  }
+
+  .stat-value {
+    font-size: 22px;
+    line-height: 1.1;
+  }
+
+  .stat-label {
+    font-size: 12px;
+    line-height: 1.2;
+  }
+}
+
+@media (max-width: 390px) {
+  .profile-section {
+    padding: 16px;
+  }
+
+  .profile-card {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 18px;
+    gap: 12px;
+  }
+
+  .avatar {
+    width: 56px;
+    height: 56px;
+    font-size: 22px;
+  }
+
+  .profile-info {
+    width: 100%;
+  }
+
+  .profile-name {
+    font-size: 18px;
+  }
+
+  .profile-status {
+    font-size: 11px;
+    padding: 4px 10px;
+  }
+
+  .profile-card .btn-secondary {
+    width: 100%;
+    text-align: center;
+    padding: 10px 12px;
+    margin-left: 0 !important;
+    align-self: stretch;
+  }
+}
+
 /* 통계 섹션 */
 .stats-section {
   padding: 24px 20px;
