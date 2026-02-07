@@ -64,17 +64,37 @@ const formatDateDisplay = (dateString) => {
     return dateString;
 };
 
+const formatCount = (value) => {
+    if (value === null || value === undefined) return '-';
+    const numericValue = Number(value);
+    if (Number.isNaN(numericValue)) return '-';
+    if (numericValue < 1000) return String(numericValue);
+
+    const units = ['K', 'M', 'B', 'T'];
+    let unitIndex = -1;
+    let scaled = numericValue;
+
+    while (scaled >= 1000 && unitIndex < units.length - 1) {
+        scaled /= 1000;
+        unitIndex += 1;
+    }
+
+    const precision = scaled >= 10 ? 0 : 1;
+    const display = scaled.toFixed(precision).replace(/\.0$/, '');
+    return `${display}${units[unitIndex]}`;
+};
+
 // 통계 카드 컴포넌트
 const StatCard = ({ icon, label, value, unit }) => {
-    const numericValue = value.replace(/[^0-9]/g, '');
-    const displayValue = value.includes('-') ? '-' : numericValue || '0';
+    const displayValue = formatCount(value);
+    const showUnit = displayValue !== '-' && unit;
 
     return (
         <div className="stat-card">
             <div className="stat-icon">{icon}</div>
             <div className="stat-content">
                 <span className="stat-value">
-                    {displayValue}<span className="stat-unit">{unit}</span>
+                    {displayValue}{showUnit && <span className="stat-unit">{unit}</span>}
                 </span>
                 <span className="stat-label">{label}</span>
             </div>
@@ -268,9 +288,9 @@ const ProfileMain = () => {
     const weeklyStats = weeklyStatsData?.data;
 
     const stats = [
-        { icon: Calendar, label: '총 학습일', value: `${userStats?.distinct_days ?? '-'}일` },
-        { icon: Target, label: '연습 횟수', value: `${userStats?.practice_mode_count ?? '-'}회` },
-        { icon: MessageSquare, label: '총 답변 수', value: `${userStats?.total_questions_answered ?? '-'}개` },
+        { icon: Calendar, label: '총 학습일', value: userStats?.distinct_days, unit: '일' },
+        { icon: Target, label: '연습 횟수', value: userStats?.practice_mode_count, unit: '회' },
+        { icon: MessageSquare, label: '총 답변 수', value: userStats?.total_questions_answered, unit: '개' },
     ];
 
     // 카테고리 색상 매핑
@@ -344,7 +364,7 @@ const ProfileMain = () => {
                                 icon={<Icon size={24} />}
                                 label={stat.label}
                                 value={stat.value}
-                                unit={stat.value.includes('일') ? '일' : stat.value.includes('회') ? '회' : '개'}
+                                unit={stat.unit}
                             />
                         );
                     })}
