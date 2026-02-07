@@ -7,16 +7,7 @@ import { useAnswersInfinite } from '@/app/hooks/useAnswersInfinite';
 import { useUserStats } from '@/app/hooks/useUserStats.js';
 import { useQuestionCategories } from '@/app/hooks/useQuestionCategories';
 import { useWeeklyStats } from '@/app/hooks/useWeeklyStats';
-import {
-    AlertDialog,
-    AlertDialogAction,
-    AlertDialogCancel,
-    AlertDialogContent,
-    AlertDialogDescription,
-    AlertDialogFooter,
-    AlertDialogHeader,
-    AlertDialogTitle,
-} from '@/app/components/ui/alert-dialog';
+import { useFeedbackFormDialog } from '@/app/hooks/useFeedbackFormDialog';
 
 const SHOW_PORTFOLIO_INTERVIEW = import.meta.env.VITE_SHOW_PORTFOLIO_INTERVIEW === 'true';
 
@@ -26,22 +17,8 @@ const ANSWER_TYPE_LABELS = {
     PORTFOLIO_INTERVIEW: '포트폴리오',
 };
 
-const FEEDBACK_FORM_URL = 'https://forms.gle/nraq9VyYzQogYgFSA';
 const MODE_OPTIONS = [{ value: 'PRACTICE_INTERVIEW', label: '연습' }];
 const SERVICE_LAUNCH_DATE = '2026-02-04';
-const TEXT_FEEDBACK_CONFIRM_TITLE = 'Q-Feed v1.0.0 사용 후기 설문';
-const TEXT_FEEDBACK_CONFIRM_DESC = [
-    'Q-Feed 사용해 주셔서 감사합니다! 🎙️',
-    '베타 단계라 의견을 빠르게 반영하고 있어요.',
-];
-const TEXT_FEEDBACK_CONFIRM_POINTS = [
-    '👍 좋았던 점',
-    '🛠️ 불편했던 점',
-    '🌱 바라는 점',
-];
-const TEXT_FEEDBACK_CONFIRM_FOOTER = '총 5문항 · 약 1분. 버튼을 누르면 새 창에서 구글폼이 열립니다.';
-const TEXT_FEEDBACK_CONFIRM_ACTION = '예, 피드백 남길래요';
-const TEXT_FEEDBACK_CONFIRM_CANCEL = '나중에 할게요';
 
 const toDateInputValue = (date) => {
     const year = date.getFullYear();
@@ -189,7 +166,7 @@ const ProfileMain = () => {
     const [categoryFilter, setCategoryFilter] = useState('ALL');
     const [isCategoryOpen, setIsCategoryOpen] = useState(false);
     const [showFilterModal, setShowFilterModal] = useState(false);
-    const [showFeedbackConfirm, setShowFeedbackConfirm] = useState(false);
+    const { open: openFeedbackDialog, dialog: feedbackDialog } = useFeedbackFormDialog();
 
     const categoryValue = categoryFilter === 'ALL' ? undefined : categoryFilter;
 
@@ -200,11 +177,6 @@ const ProfileMain = () => {
         ],
         [categoryMap]
     );
-
-    const handleOpenFeedbackForm = () => {
-        window.open(FEEDBACK_FORM_URL, '_blank', 'noopener,noreferrer');
-        setShowFeedbackConfirm(false);
-    };
 
     const requestScrollRestore = () => {
         scrollPositionRef.current = window.scrollY;
@@ -400,7 +372,7 @@ const ProfileMain = () => {
                         type="button"
                         className="btn-secondary text-xs px-3 py-2"
                         style={{ marginLeft: 'auto' }}
-                        onClick={() => setShowFeedbackConfirm(true)}
+                        onClick={openFeedbackDialog}
                     >
                         피드백 남기기
                     </button>
@@ -649,36 +621,7 @@ const ProfileMain = () => {
 
             <BottomNav />
 
-            <AlertDialog open={showFeedbackConfirm} onOpenChange={setShowFeedbackConfirm}>
-                <AlertDialogContent>
-                    <AlertDialogHeader>
-                        <AlertDialogTitle>{TEXT_FEEDBACK_CONFIRM_TITLE}</AlertDialogTitle>
-                        <AlertDialogDescription className="text-[13px] leading-snug">
-                            <div className="space-y-2">
-                                <div className="space-y-1">
-                                    {TEXT_FEEDBACK_CONFIRM_DESC.map((line) => (
-                                        <p key={line}>{line}</p>
-                                    ))}
-                                </div>
-                                <ul className="space-y-1">
-                                    {TEXT_FEEDBACK_CONFIRM_POINTS.map((point) => (
-                                        <li key={point} className="leading-snug">
-                                            {point}
-                                        </li>
-                                    ))}
-                                </ul>
-                                <p className="text-muted-foreground">{TEXT_FEEDBACK_CONFIRM_FOOTER}</p>
-                            </div>
-                        </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                        <AlertDialogCancel>{TEXT_FEEDBACK_CONFIRM_CANCEL}</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleOpenFeedbackForm}>
-                            {TEXT_FEEDBACK_CONFIRM_ACTION}
-                        </AlertDialogAction>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
+            {feedbackDialog}
         </div>
     );
 };

@@ -1069,6 +1069,31 @@
   color: var(--gray-800);
 }
 
+.setting-item {
+  gap: 12px;
+  position: relative;
+}
+
+.setting-main {
+  min-width: 0;
+}
+
+.setting-action {
+  margin-left: auto;
+  flex-shrink: 0;
+  text-align: right;
+}
+
+@media (max-width: 430px) {
+  .setting-item {
+    align-items: flex-start;
+  }
+
+  .setting-action {
+    max-width: 48%;
+  }
+}
+
 /* 프로필 섹션 */
 .profile-section {
   padding: 20px;
