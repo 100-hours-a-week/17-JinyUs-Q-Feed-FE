@@ -18,6 +18,7 @@ import { useState } from 'react';
 
 import { AppHeader } from '@/app/components/AppHeader';
 import { deleteAccount } from '@/api/userApi';
+import { useFeedbackFormDialog } from '@/app/hooks/useFeedbackFormDialog';
 
 const SettingMain = () => {
 
@@ -28,6 +29,7 @@ const SettingMain = () => {
     const [showLogoutDialog, setShowLogoutDialog] = useState(false);
     const [showDeleteDialog, setShowDeleteDialog] = useState(false);
     const [notifications, setNotifications] = useState(true);
+    const { open: openFeedbackDialog, dialog: feedbackDialog } = useFeedbackFormDialog();
 
     const handleLogout = async () => {
         await logout();
@@ -70,7 +72,7 @@ const SettingMain = () => {
                     icon: HelpCircle,
                     label: '피드백 남기기',
                     action: <span className="text-sm text-muted-foreground"></span>,
-                    onClick: () => window.open('https://forms.gle/nraq9VyYzQogYgFSA', '_blank', 'noopener,noreferrer'),
+                    onClick: openFeedbackDialog,
                 },
                 {
                     icon: HelpCircle,
@@ -102,20 +104,22 @@ const SettingMain = () => {
                     <section key={groupIndex}>
                         <h2 className="text-sm text-muted-foreground mb-3 px-2">{group.title}</h2>
 
-                        <Card className="divide-y">
+                        <Card className="p-0 gap-0 overflow-hidden">
                             {group.items.map((item, itemIndex) => {
                                 const Icon = item.icon;
                                 return (
                                     <div
                                         key={itemIndex}
-                                        className="flex items-center justify-between p-4 cursor-pointer hover:bg-gray-50 transition-colors"
+                                        className={`setting-item flex items-center justify-between p-4 cursor-pointer hover:bg-gray-50 transition-colors ${itemIndex > 0 ? 'border-t border-gray-100' : ''}`}
                                         onClick={item.onClick}
                                     >
-                                        <div className="flex items-center gap-3">
+                                        <div className="setting-main flex items-center gap-3">
                                             <Icon className={`w-5 h-5 ${item.textColor || 'text-muted-foreground'}`} />
                                             <span className={item.textColor || 'text-foreground'}>{item.label}</span>
                                         </div>
-                                        {item.action}
+                                        {item.action && (
+                                            <div className="setting-action">{item.action}</div>
+                                        )}
                                     </div>
                                 );
                             })}
@@ -144,6 +148,8 @@ const SettingMain = () => {
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
+
+            {feedbackDialog}
 
             {/* Delete Account Dialog */}
             <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>

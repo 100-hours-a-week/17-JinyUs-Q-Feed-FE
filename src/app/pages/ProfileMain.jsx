@@ -7,6 +7,7 @@ import { useAnswersInfinite } from '@/app/hooks/useAnswersInfinite';
 import { useUserStats } from '@/app/hooks/useUserStats.js';
 import { useQuestionCategories } from '@/app/hooks/useQuestionCategories';
 import { useWeeklyStats } from '@/app/hooks/useWeeklyStats';
+import { useFeedbackFormDialog } from '@/app/hooks/useFeedbackFormDialog';
 
 const SHOW_PORTFOLIO_INTERVIEW = import.meta.env.VITE_SHOW_PORTFOLIO_INTERVIEW === 'true';
 
@@ -64,17 +65,37 @@ const formatDateDisplay = (dateString) => {
     return dateString;
 };
 
+const formatCount = (value) => {
+    if (value === null || value === undefined) return '-';
+    const numericValue = Number(value);
+    if (Number.isNaN(numericValue)) return '-';
+    if (numericValue < 1000) return String(numericValue);
+
+    const units = ['K', 'M', 'B', 'T'];
+    let unitIndex = -1;
+    let scaled = numericValue;
+
+    while (scaled >= 1000 && unitIndex < units.length - 1) {
+        scaled /= 1000;
+        unitIndex += 1;
+    }
+
+    const precision = scaled >= 10 ? 0 : 1;
+    const display = scaled.toFixed(precision).replace(/\.0$/, '');
+    return `${display}${units[unitIndex]}`;
+};
+
 // 통계 카드 컴포넌트
 const StatCard = ({ icon, label, value, unit }) => {
-    const numericValue = value.replace(/[^0-9]/g, '');
-    const displayValue = value.includes('-') ? '-' : numericValue || '0';
+    const displayValue = formatCount(value);
+    const showUnit = displayValue !== '-' && unit;
 
     return (
         <div className="stat-card">
             <div className="stat-icon">{icon}</div>
             <div className="stat-content">
                 <span className="stat-value">
-                    {displayValue}<span className="stat-unit">{unit}</span>
+                    {displayValue}{showUnit && <span className="stat-unit">{unit}</span>}
                 </span>
                 <span className="stat-label">{label}</span>
             </div>
@@ -129,6 +150,7 @@ const ProfileMain = () => {
 
     const observerRef = useRef(null);
     const categoryDropdownRef = useRef(null);
+    const filterModalContentRef = useRef(null);
     const scrollPositionRef = useRef(0);
     const shouldRestoreScrollRef = useRef(false);
 
@@ -144,6 +166,7 @@ const ProfileMain = () => {
     const [categoryFilter, setCategoryFilter] = useState('ALL');
     const [isCategoryOpen, setIsCategoryOpen] = useState(false);
     const [showFilterModal, setShowFilterModal] = useState(false);
+    const { open: openFeedbackDialog, dialog: feedbackDialog } = useFeedbackFormDialog();
 
     const categoryValue = categoryFilter === 'ALL' ? undefined : categoryFilter;
 
@@ -176,6 +199,30 @@ const ProfileMain = () => {
             document.removeEventListener('touchstart', handleClickOutside);
         };
     }, []);
+
+    useEffect(() => {
+        if (!showFilterModal) return;
+        const originalOverflow = document.body.style.overflow;
+        const originalTouchAction = document.body.style.touchAction;
+        const originalOverscroll = document.body.style.overscrollBehavior;
+        document.body.style.overflow = 'hidden';
+        document.body.style.touchAction = 'none';
+        document.body.style.overscrollBehavior = 'none';
+
+        const preventScroll = (event) => {
+            const content = filterModalContentRef.current;
+            if (content && content.contains(event.target)) return;
+            event.preventDefault();
+        };
+
+        document.addEventListener('touchmove', preventScroll, { passive: false });
+        return () => {
+            document.body.style.overflow = originalOverflow;
+            document.body.style.touchAction = originalTouchAction;
+            document.body.style.overscrollBehavior = originalOverscroll;
+            document.removeEventListener('touchmove', preventScroll);
+        };
+    }, [showFilterModal]);
 
     const handleDateFromChange = (value) => {
         const launchClampedFrom = value < SERVICE_LAUNCH_DATE ? SERVICE_LAUNCH_DATE : value;
@@ -268,9 +315,9 @@ const ProfileMain = () => {
     const weeklyStats = weeklyStatsData?.data;
 
     const stats = [
-        { icon: Calendar, label: '총 학습일', value: `${userStats?.distinct_days ?? '-'}일` },
-        { icon: Target, label: '연습 횟수', value: `${userStats?.practice_mode_count ?? '-'}회` },
-        { icon: MessageSquare, label: '총 답변 수', value: `${userStats?.total_questions_answered ?? '-'}개` },
+        { icon: Calendar, label: '총 학습일', value: userStats?.distinct_days, unit: '일' },
+        { icon: Target, label: '연습 횟수', value: userStats?.practice_mode_count, unit: '회' },
+        { icon: MessageSquare, label: '총 답변 수', value: userStats?.total_questions_answered, unit: '개' },
     ];
 
     // 카테고리 색상 매핑
@@ -321,15 +368,14 @@ const ProfileMain = () => {
                             면접 준비 중
                         </span>
                     </div>
-                    <a
-                        className="btn-secondary"
-                        href="https://forms.gle/nraq9VyYzQogYgFSA"
-                        target="_blank"
-                        rel="noopener noreferrer"
+                    <button
+                        type="button"
+                        className="btn-secondary text-xs px-3 py-2"
                         style={{ marginLeft: 'auto' }}
+                        onClick={openFeedbackDialog}
                     >
                         피드백 남기기
-                    </a>
+                    </button>
                 </div>
             </section>
 
@@ -344,7 +390,7 @@ const ProfileMain = () => {
                                 icon={<Icon size={24} />}
                                 label={stat.label}
                                 value={stat.value}
-                                unit={stat.value.includes('일') ? '일' : stat.value.includes('회') ? '회' : '개'}
+                                unit={stat.unit}
                             />
                         );
                     })}
@@ -397,7 +443,11 @@ const ProfileMain = () => {
                             }
                         }}
                     >
-                        <div className="filter-modal-content" onClick={(e) => e.stopPropagation()}>
+                        <div
+                            className="filter-modal-content"
+                            ref={filterModalContentRef}
+                            onClick={(e) => e.stopPropagation()}
+                        >
                             <div className="space-y-3 mb-4">
                                 <div className="grid grid-cols-[0.8fr_1.2fr] gap-3">
                                     <div className="space-y-2">
@@ -570,6 +620,8 @@ const ProfileMain = () => {
             <div className="scroll-padding" />
 
             <BottomNav />
+
+            {feedbackDialog}
         </div>
     );
 };
