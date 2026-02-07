@@ -1475,15 +1475,14 @@
 .filter-modal {
   position: fixed;
   top: 0;
-  left: 50%;
-  transform: translateX(-50%);
+  left: 0;
   right: 0;
   bottom: 0;
+  width: 100%;
   background: rgba(0, 0, 0, 0.5);
   z-index: 200;
   display: flex;
   align-items: flex-end;
-  max-width: 428px;
   animation: fadeIn 0.2s ease-out;
 }
 
@@ -1501,8 +1500,10 @@
   border-radius: var(--radius-xl) var(--radius-xl) 0 0;
   padding: 24px 20px;
   width: 100%;
+  max-width: 428px;
   max-height: 80vh;
   overflow-y: auto;
+  margin: 0 auto;
   animation: slideUpModal 0.3s ease-out;
 }
 
