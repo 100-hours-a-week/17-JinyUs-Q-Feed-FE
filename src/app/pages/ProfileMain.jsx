@@ -173,6 +173,7 @@ const ProfileMain = () => {
 
     const observerRef = useRef(null);
     const categoryDropdownRef = useRef(null);
+    const filterModalContentRef = useRef(null);
     const scrollPositionRef = useRef(0);
     const shouldRestoreScrollRef = useRef(false);
 
@@ -226,6 +227,30 @@ const ProfileMain = () => {
             document.removeEventListener('touchstart', handleClickOutside);
         };
     }, []);
+
+    useEffect(() => {
+        if (!showFilterModal) return;
+        const originalOverflow = document.body.style.overflow;
+        const originalTouchAction = document.body.style.touchAction;
+        const originalOverscroll = document.body.style.overscrollBehavior;
+        document.body.style.overflow = 'hidden';
+        document.body.style.touchAction = 'none';
+        document.body.style.overscrollBehavior = 'none';
+
+        const preventScroll = (event) => {
+            const content = filterModalContentRef.current;
+            if (content && content.contains(event.target)) return;
+            event.preventDefault();
+        };
+
+        document.addEventListener('touchmove', preventScroll, { passive: false });
+        return () => {
+            document.body.style.overflow = originalOverflow;
+            document.body.style.touchAction = originalTouchAction;
+            document.body.style.overscrollBehavior = originalOverscroll;
+            document.removeEventListener('touchmove', preventScroll);
+        };
+    }, [showFilterModal]);
 
     const handleDateFromChange = (value) => {
         const launchClampedFrom = value < SERVICE_LAUNCH_DATE ? SERVICE_LAUNCH_DATE : value;
@@ -446,7 +471,11 @@ const ProfileMain = () => {
                             }
                         }}
                     >
-                        <div className="filter-modal-content" onClick={(e) => e.stopPropagation()}>
+                        <div
+                            className="filter-modal-content"
+                            ref={filterModalContentRef}
+                            onClick={(e) => e.stopPropagation()}
+                        >
                             <div className="space-y-3 mb-4">
                                 <div className="grid grid-cols-[0.8fr_1.2fr] gap-3">
                                     <div className="space-y-2">
