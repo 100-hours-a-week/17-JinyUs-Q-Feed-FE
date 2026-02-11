@@ -41,11 +41,23 @@ jobs:
         run: npm test
         # 테스트 스크립트가 없을 경우에도 워크플로우가 중단되지 않도록 설정
         continue-on-error: true
+
+      # 5-1. 브랜치별 API Base URL 설정 (dev → dev.q-feed.com, main → q-feed.com)
+      - name: API Base URL 설정
+        id: api-url
+        run: |
+          if [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            echo "url=https://q-feed.com" >> $GITHUB_OUTPUT
+          elif [ "${{ github.ref }}" = "refs/heads/dev" ]; then
+            echo "url=https://dev.q-feed.com" >> $GITHUB_OUTPUT
+          else
+            echo "url=https://q-feed.com" >> $GITHUB_OUTPUT
+          fi
       
       # 6. 프로젝트 빌드 (dist 디렉토리 생성)
       - name: 프로젝트 빌드
         env:
-          VITE_API_BASE_URL: https://q-feed.com
+          VITE_API_BASE_URL: ${{ steps.api-url.outputs.url }}
           VITE_SHOW_REAL_INTERVIEW: false
           VITE_SHOW_PORTFOLIO_INTERVIEW: false
           VITE_SHOW_NOTIFICATIONS: false
@@ -157,6 +169,7 @@ jobs:
           key: ${{ secrets.QFEED_EC2_SSH_KEY }}
           timeout: 60s
           command_timeout: 5m
+          
           script: |
             set -e
             sudo /srv/qfeed/deploy-fe.sh /tmp/fe-v${{ steps.package-version.outputs.version }}.tar.gz
