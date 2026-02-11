@@ -240,7 +240,7 @@ jobs:
 
   # CI 실패 시 어떤 과정에서 실패했는지 Discord 알림
   discord-notify-failure:
-    name: Discord 알림 (CI 실패)
+    name: Discord 알림 (실패 상세)
     runs-on: ubuntu-latest
     needs: [build-and-test, deploy-prod, deploy-dev]
     if: always() && (needs.build-and-test.result == 'failure' || needs.deploy-prod.result == 'failure' || needs.deploy-dev.result == 'failure')
@@ -261,27 +261,96 @@ jobs:
           fi
           [ -z "$FAILED_JOB" ] && FAILED_JOB="(알 수 없음)"
           [ -z "$FAILED_STEP" ] && FAILED_STEP="(알 수 없음)"
+
+          # 어떤 job(단계)에서 실패했는지에 따라 Discord 메시지 내용을 다르게 구성
+          STAGE="unknown"
+          TITLE="❌ FE 워크플로우 실패"
+          TARGET="(알 수 없음)"
+
+          if [ "${{ needs.build-and-test.result }}" = "failure" ]; then
+            STAGE="build-and-test"
+            TITLE="❌ FE CI 실패 (빌드/테스트)"
+            TARGET="CI"
+          elif [ "${{ needs.deploy-prod.result }}" = "failure" ]; then
+            STAGE="deploy-prod"
+            TITLE="❌ FE 배포 실패 (Production)"
+            TARGET="PROD (EC2_HOST 시크릿 사용)"
+          elif [ "${{ needs.deploy-dev.result }}" = "failure" ]; then
+            STAGE="deploy-dev"
+            TITLE="❌ FE 배포 실패 (Dev)"
+            TARGET="DEV (EC2_DEV_HOST 시크릿 사용)"
+          fi
+
+          # 실패 Step 기반으로 바로 실행 가능한 점검 가이드 생성
+          GUIDE="Actions 로그에서 에러 스택/메시지를 확인하세요."
+          case "$FAILED_STEP" in
+            "의존성 설치"*)
+              GUIDE=$'의존성 설치 실패\n- package-lock.json 충돌/손상 여부 확인\n- 로컬에서: npm ci\n- Node 버전(20)과 패키지 호환성 확인'
+              ;;
+            "린트 검사 실행"*)
+              GUIDE=$'린트 실패\n- 로컬에서: npm run lint\n- 실패 파일/규칙 확인 후 수정'
+              ;;
+            "테스트 실행"*)
+              GUIDE=$'테스트 실패\n- 로컬에서: npm test\n- 테스트가 flaky면 원인(네트워크/타임아웃/환경 변수) 확인'
+              ;;
+            "프로젝트 빌드"*)
+              GUIDE=$'빌드 실패\n- 로컬에서: npm run build\n- VITE_* 환경 변수 주입/값 확인\n- (dev/main 분기) VITE_API_BASE_URL 값이 기대와 같은지 확인'
+              ;;
+            "SSH 키 설정"*)
+              GUIDE=$'SSH 키 설정 실패\n- secrets.QFEED_EC2_SSH_KEY 값이 PEM 형식인지 확인\n- 줄바꿈 포함 여부/권한(chmod 600) 확인'
+              ;;
+            "서버 연결 테스트"*)
+              GUIDE=$'서버 연결 실패\n- 대상 서버에서 22번 포트/보안그룹 허용 확인\n- host/user 시크릿 값 확인 (값 자체는 노출 금지)\n- 서버가 살아있는지(Ping/EC2 상태) 확인'
+              ;;
+            "서버로 파일 업로드 (SCP)"*)
+              GUIDE=$'SCP 업로드 실패\n- /tmp 디스크 용량/권한 확인\n- 네트워크/보안그룹/SSH 연결 안정성 확인'
+              ;;
+            "서버에서 배포 실행 (deploy-fe.sh)"*)
+              GUIDE=$'배포 스크립트 실행 실패\n- 서버에 /srv/qfeed/deploy-fe.sh 존재/실행권한 확인\n- sudo 권한 및 스크립트 내부 로그 확인\n- tar.gz 경로(/tmp/fe-vX.Y.Z.tar.gz) 확인'
+              ;;
+          esac
+
           echo "job=$FAILED_JOB" >> $GITHUB_OUTPUT
           echo "step=$FAILED_STEP" >> $GITHUB_OUTPUT
+          echo "stage=$STAGE" >> $GITHUB_OUTPUT
+          echo "title=$TITLE" >> $GITHUB_OUTPUT
+          echo "target=$TARGET" >> $GITHUB_OUTPUT
+          # multiline 지원을 위해 heredoc 형태로 output 작성
+          {
+            echo "guide<<'EOF'"
+            echo "$GUIDE"
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
 
-      - name: Discord 알림 (CI 실패)
+      - name: Discord 알림 (실패 상세)
         continue-on-error: true
         run: |
           PAYLOAD=$(jq -n \
             --arg job "${{ steps.failed.outputs.job }}" \
             --arg step "${{ steps.failed.outputs.step }}" \
+            --arg stage "${{ steps.failed.outputs.stage }}" \
+            --arg title "${{ steps.failed.outputs.title }}" \
+            --arg target "${{ steps.failed.outputs.target }}" \
+            --arg guide "${{ steps.failed.outputs.guide }}" \
             --arg ref "${{ github.ref_name }}" \
             --arg sha "${{ github.sha }}" \
             --arg url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
             --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
             '{
               embeds: [{
-                title: "❌ FE CI 실패",
-                description: ("**실패한 Job:** " + $job + "\n**실패한 Step:** " + $step),
+                title: $title,
+                description: (
+                  "**대상:** " + $target + "\n"
+                  + "**실패한 Job:** " + $job + "\n"
+                  + "**실패한 Step:** " + $step + "\n\n"
+                  + "**점검 가이드**\n" + $guide + "\n\n"
+                  + "_상세 로그는 Run 보기 링크에서 확인하세요._"
+                ),
                 color: 15158332,
                 fields: [
                   {name: "브랜치", value: $ref, inline: true},
                   {name: "커밋", value: ("`" + $sha + "`"), inline: true},
+                  {name: "Stage", value: $stage, inline: true},
                   {name: "워크플로우", value: ("[Run 보기](" + $url + ")"), inline: false}
                 ],
                 timestamp: $ts
