@@ -6,10 +6,12 @@ import { useAuth } from '@/context/AuthContext';
 import { useRecommendedQuestion } from '@/app/hooks/useRecommendedQuestion';
 import { useWeeklyStats } from '@/app/hooks/useWeeklyStats';
 import { useQuestionCategories } from '@/app/hooks/useQuestionCategories';
+import { getQuestionCategoryLabel } from '@/app/constants/questionCategoryMeta';
 
 const TEXT_RECOMMENDATION_LOADING = '추천 질문을 불러오는 중...';
 const TEXT_RECOMMENDATION_ERROR = '추천 질문을 불러오지 못했습니다.';
 const TEXT_RECOMMENDATION_EMPTY = '오늘의 추천 질문이 없습니다';
+const TEXT_RECOMMENDATION_EMPTY_HELP = '잠시 후 다시 확인하거나 연습 모드에서 직접 질문을 선택해 주세요.';
 const SHOW_REAL_INTERVIEW = import.meta.env.VITE_SHOW_REAL_INTERVIEW === 'true';
 
 // 시간대별 인사말
@@ -110,7 +112,8 @@ const Home = () => {
     const { nickname } = useAuth();
 
     const { data: weeklyStatsData } = useWeeklyStats();
-    const { data: categoryMap = {} } = useQuestionCategories();
+    const { data: categoryData } = useQuestionCategories();
+    const categoryMap = categoryData?.flat ?? {};
     
     const weeklyStats = weeklyStatsData?.data;
 
@@ -134,9 +137,10 @@ const Home = () => {
         isLoading: isLoadingQuestion,
         error: questionError,
     } = useRecommendedQuestion();
+    const hasTodayQuestion = Boolean(todayQuestion?.id && todayQuestion?.title?.trim());
 
     const handleStartPractice = () => {
-        if (!todayQuestion?.id) return;
+        if (!hasTodayQuestion) return;
         navigate(`/practice/answer/${todayQuestion.id}`);
     };
 
@@ -171,9 +175,12 @@ const Home = () => {
                             <div className="question-error">
                                 {questionError?.message || TEXT_RECOMMENDATION_ERROR}
                             </div>
-                        ) : !todayQuestion ? (
+                        ) : !hasTodayQuestion ? (
                             <div className="question-empty">
-                                {TEXT_RECOMMENDATION_EMPTY}
+                                <p>{TEXT_RECOMMENDATION_EMPTY}</p>
+                                <p className="mt-1 text-xs text-muted-foreground">
+                                    {TEXT_RECOMMENDATION_EMPTY_HELP}
+                                </p>
                             </div>
                         ) : (
                             <>
@@ -181,7 +188,7 @@ const Home = () => {
                                     variant="default" 
                                     className="question-category"
                                 >
-                                    {categoryMap[todayQuestion?.category] || todayQuestion?.category || '추천'}
+                                    {getQuestionCategoryLabel(todayQuestion?.category, categoryMap) || '추천'}
                                 </Badge>
                                 <p className="question-text">{todayQuestion?.title}</p>
                                 <div className="question-footer">

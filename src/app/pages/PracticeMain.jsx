@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { Card } from '@/app/components/ui/card';
 import { Input } from '@/app/components/ui/input';
 import { Badge } from '@/app/components/ui/badge';
-import { Button } from '@/app/components/ui/button';
 import BottomNav from '@/app/components/BottomNav';
 import { Search, Filter } from 'lucide-react';
 import debounce from 'lodash/debounce';
@@ -11,10 +10,10 @@ import { usePracticeQuestion } from '@/context/practiceQuestionContext.jsx';
 import { useQuestionsInfinite } from '@/app/hooks/useQuestionsInfinite';
 import { useQuestionCategories } from '@/app/hooks/useQuestionCategories';
 import { useQuestionTypes } from '@/app/hooks/useQuestionTypes';
+import { getQuestionCategoryLabel, getQuestionTypeLabel } from '@/app/constants/questionCategoryMeta';
 
 import { AppHeader } from '@/app/components/AppHeader';
 
-const SHOW_REAL_INTERVIEW = import.meta.env.VITE_SHOW_REAL_INTERVIEW === 'true';
 const INITIAL_SEARCH_QUERY = '';
 const ALL_FILTER_VALUE = 'ALL';
 const ALL_FILTER_LABEL = '전체';
@@ -23,6 +22,7 @@ const TEXT_LOADING = '질문을 불러오는 중...';
 const TEXT_LOADING_MORE = '더 불러오는 중...';
 const TEXT_EMPTY = '검색 결과가 없습니다';
 const TEXT_ERROR_FALLBACK = '질문 목록을 불러오지 못했습니다.';
+const EMPTY_MAP = Object.freeze({});
 
 const PracticeMain = () => {
     const navigate = useNavigate();
@@ -32,15 +32,12 @@ const PracticeMain = () => {
     const [selectedType, setSelectedType] = useState(ALL_FILTER_VALUE);
     const [selectedCategory, setSelectedCategory] = useState(ALL_FILTER_VALUE);
     const observerRef = useRef(null);
-    const prevTypeRef = useRef(ALL_FILTER_VALUE);
 
     useEffect(() => {
         setSelectedQuestion(ALL_FILTER_VALUE);
     }, [setSelectedQuestion]);
 
     const handleTypeChange = useCallback((nextType) => {
-        if (prevTypeRef.current === nextType) return;
-        prevTypeRef.current = nextType;
         setSelectedType(nextType);
         setSelectedCategory(ALL_FILTER_VALUE);
     }, []);
@@ -55,39 +52,26 @@ const PracticeMain = () => {
         return () => debouncedSetQuery.cancel();
     }, [searchQuery, debouncedSetQuery]);
 
-    const { data: categoryMap = {} } = useQuestionCategories();
+    const { data: categoryData } = useQuestionCategories();
     const { data: typeMap = {} } = useQuestionTypes();
+    const categoryMap = categoryData?.flat ?? EMPTY_MAP;
+    const categoriesByType = categoryData?.byType ?? EMPTY_MAP;
 
-    const typeOptions = useMemo(
-        () => Object.entries(typeMap).map(([value, label]) => ({ value, label })),
-        [typeMap]
-    );
-    const categoryOptions = useMemo(
-        () => Object.entries(categoryMap).map(([value, label]) => ({ value, label })),
-        [categoryMap]
-    );
+    const typeOptions = Object.keys(categoriesByType).map((typeKey) => ({
+        value: typeKey,
+        label: getQuestionTypeLabel(typeKey, typeMap),
+    }));
 
-    const visibleTypeOptions = useMemo(
-        () =>
-            typeOptions.filter((option) => {
-                if (option.value === 'PORTFOLIO') return false;
-                if (option.value === 'SYSTEM_DESIGN' && !SHOW_REAL_INTERVIEW) return false;
-                return option.value === 'CS' || option.value === 'SYSTEM_DESIGN';
-            }),
-        [typeOptions]
-    );
+    const selectedTypeCategories =
+        selectedType === ALL_FILTER_VALUE ? null : categoriesByType[selectedType];
 
-    const type = useMemo(
-        () => (selectedType === ALL_FILTER_VALUE ? undefined : selectedType),
-        [selectedType]
-    );
-
-    const category = useMemo(() => {
-        if (selectedType === 'CS' && selectedCategory !== ALL_FILTER_VALUE) {
-            return selectedCategory;
-        }
-        return undefined;
-    }, [selectedType, selectedCategory]);
+    const categoryOptions =
+        selectedTypeCategories && typeof selectedTypeCategories === 'object'
+            ? Object.entries(selectedTypeCategories).map(([value, label]) => ({
+                  value,
+                  label: typeof label === 'string' ? label : value,
+              }))
+            : [];
 
     const {
         data,
@@ -96,7 +80,11 @@ const PracticeMain = () => {
         error,
         hasNextPage,
         fetchNextPage,
-    } = useQuestionsInfinite({ query: debouncedQuery, type, category });
+    } = useQuestionsInfinite({
+        query: debouncedQuery,
+        type: selectedType === ALL_FILTER_VALUE ? undefined : selectedType,
+        category: selectedCategory === ALL_FILTER_VALUE ? undefined : selectedCategory,
+    });
 
     const questions = useMemo(
         () => data?.pages?.flatMap((p) => p.records) ?? [],
@@ -167,7 +155,7 @@ const PracticeMain = () => {
                         >
                             {ALL_FILTER_LABEL}
                         </button>
-                        {visibleTypeOptions.map((option) => (
+                        {typeOptions.map((option) => (
                             <button
                                 key={option.value}
                                 type="button"
@@ -181,23 +169,18 @@ const PracticeMain = () => {
                         ))}
                     </div>
                 </div>
-                {selectedType === 'CS' && categoryOptions.length > 0 && (
+                {selectedType !== ALL_FILTER_VALUE && categoryOptions.length > 0 && (
                     <div className="px-4 pb-4 max-w-lg mx-auto">
                         <div className="flex items-center gap-2 overflow-x-auto pb-2">
-                            <button
-                                type="button"
-                                onClick={() => setSelectedCategory(ALL_FILTER_VALUE)}
-                                className={`filter-chip ${
-                                    selectedCategory === ALL_FILTER_VALUE ? 'active' : ''
-                                }`}
-                            >
-                                {ALL_FILTER_LABEL}
-                            </button>
                             {categoryOptions.map((option) => (
                                 <button
                                     key={option.value}
                                     type="button"
-                                    onClick={() => setSelectedCategory(option.value)}
+                                    onClick={() =>
+                                        setSelectedCategory((prev) =>
+                                            prev === option.value ? ALL_FILTER_VALUE : option.value
+                                        )
+                                    }
                                     className={`filter-chip ${
                                         selectedCategory === option.value ? 'active' : ''
                                     }`}
@@ -234,7 +217,7 @@ const PracticeMain = () => {
                             >
                                 <div className="flex items-start justify-between mb-2">
                                     <Badge variant="secondary" className="bg-rose-100 text-rose-700">
-                                        {categoryMap[question.category] || question.category}
+                                        {getQuestionCategoryLabel(question.category, categoryMap)}
                                     </Badge>
                                 </div>
 
