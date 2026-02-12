@@ -3,12 +3,13 @@ import { fetchAnswers } from '@/api/answerApi'
 
 const PAGE_SIZE = 10
 
-export function useAnswersInfinite({ type, category, dateFrom, dateTo } = {}) {
+export function useAnswersInfinite({ type, questionType, category, dateFrom, dateTo } = {}) {
   return useInfiniteQuery({
-    queryKey: ['answers', { type, category, dateFrom, dateTo }],
+    queryKey: ['answers', { type, questionType, category, dateFrom, dateTo }],
     queryFn: async ({ pageParam = null }) => {
       const response = await fetchAnswers({
         type,
+        questionType,
         category,
         dateFrom,
         dateTo,

@@ -45,7 +45,7 @@ export const useFeedbackFormDialog = () => {
             <AlertDialogContent>
                 <AlertDialogHeader>
                     <AlertDialogTitle>{TEXT_TITLE}</AlertDialogTitle>
-                    <AlertDialogDescription className="text-[13px] leading-snug">
+                    <AlertDialogDescription asChild className="text-[13px] leading-snug">
                         <div className="space-y-2">
                             <div className="space-y-1">
                                 {TEXT_DESC.map((line) => (
