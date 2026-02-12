@@ -10,12 +10,9 @@ import { usePracticeQuestion } from '@/context/practiceQuestionContext.jsx';
 import { useQuestionsInfinite } from '@/app/hooks/useQuestionsInfinite';
 import { useQuestionCategories } from '@/app/hooks/useQuestionCategories';
 import { useQuestionTypes } from '@/app/hooks/useQuestionTypes';
-import {
-    getQuestionCategoryLabel,
-    getQuestionCategoryColor,
-    getQuestionTypeLabel,
-} from '@/app/constants/questionCategoryMeta';
+import { getQuestionCategoryLabel, getQuestionTypeLabel } from '@/app/constants/questionCategoryMeta';
 
+import { AppHeader } from '@/app/components/AppHeader';
 
 const INITIAL_SEARCH_QUERY = '';
 const ALL_FILTER_VALUE = 'ALL';
@@ -126,27 +123,27 @@ const PracticeMain = () => {
         navigate(`/practice/answer/${question.id}`);
     };
 
-    const showCategoryRow = selectedType !== ALL_FILTER_VALUE && categoryOptions.length > 0;
-
     return (
         <div className="min-h-screen bg-[#FAFAFA] pb-20">
-            {/* 상단 검색/필터 - 고정 (BottomNav처럼 스크롤해도 유지) */}
-            <div className="fixed top-0 left-1/2 -translate-x-1/2 w-full max-w-lg z-[100] bg-white border-b border-gray-100">
+            {/* Header */}
+            <AppHeader title="연습 모드" showBack={false} align="left" />
+
+            <div className="bg-white sticky top-[56px] z-10 border-b">
                 {/* Search */}
-                <div className="px-4 py-4">
+                <div className="px-4 py-4 max-w-lg mx-auto">
                     <div className="relative">
                         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                         <Input
                             placeholder="질문 검색..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="pl-10 rounded-lg bg-gray-50"
+                            className="pl-10 rounded-xl bg-gray-50"
                         />
                     </div>
                 </div>
 
                 {/* Categories */}
-                <div className="px-4 pb-3">
+                <div className="px-4 pb-3 max-w-lg mx-auto">
                     <div className="flex items-center gap-2 overflow-x-auto pb-2">
                         <Filter className="w-4 h-4 text-muted-foreground flex-shrink-0" />
                         <button
@@ -173,7 +170,7 @@ const PracticeMain = () => {
                     </div>
                 </div>
                 {selectedType !== ALL_FILTER_VALUE && categoryOptions.length > 0 && (
-                    <div className="px-4 pb-4">
+                    <div className="px-4 pb-4 max-w-lg mx-auto">
                         <div className="flex items-center gap-2 overflow-x-auto pb-2">
                             {categoryOptions.map((option) => (
                                 <button
@@ -196,12 +193,8 @@ const PracticeMain = () => {
                 )}
             </div>
 
-            {/* Question List - 고정 바 높이에 맞춰 padding (전체: 작게, 타입 선택 시 카드가 밀리며 확장) */}
-            <div
-                className={`p-4 space-y-3 max-w-lg mx-auto transition-[padding-top] duration-200 ease-out ${
-                    showCategoryRow ? 'pt-[192px]' : 'pt-[136px]'
-                }`}
-            >
+            {/* Question List */}
+            <div className="p-4 space-y-3 max-w-lg mx-auto">
                 {isLoading && questions.length === 0 ? (
                     <div className="text-center py-12 text-muted-foreground">
                         <p>{TEXT_LOADING}</p>
@@ -216,23 +209,14 @@ const PracticeMain = () => {
                     </div>
                 ) : (
                     <>
-                        {questions.map((question) => {
-                            const categoryColor = getQuestionCategoryColor(question.category);
-                            return (
+                        {questions.map((question) => (
                             <Card
                                 key={question.id}
                                 className="p-4 hover:shadow-md transition-shadow cursor-pointer"
                                 onClick={() => handleSelectQuestion(question)}
                             >
                                 <div className="flex items-start justify-between mb-2">
-                                    <Badge
-                                        variant="secondary"
-                                        className="border-0"
-                                        style={{
-                                            backgroundColor: categoryColor.bg,
-                                            color: categoryColor.text,
-                                        }}
-                                    >
+                                    <Badge variant="secondary" className="bg-rose-100 text-rose-700">
                                         {getQuestionCategoryLabel(question.category, categoryMap)}
                                     </Badge>
                                 </div>
@@ -242,8 +226,7 @@ const PracticeMain = () => {
                                     {question.description}
                                 </p>
                             </Card>
-                            );
-                        })}
+                        ))}
                         {isFetchingNextPage && (
                             <div className="text-center py-6 text-muted-foreground">
                                 <p>{TEXT_LOADING_MORE}</p>

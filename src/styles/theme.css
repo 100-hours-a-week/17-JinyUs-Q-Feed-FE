@@ -1726,7 +1726,8 @@
 .history-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
+  gap: 10px;
   margin-bottom: 10px;
 }
 
@@ -1744,7 +1745,10 @@
 .history-meta {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
   gap: 10px;
+  min-width: 0;
 }
 
 .history-category {
@@ -1752,11 +1756,17 @@
   font-size: 11px;
   font-weight: var(--font-weight-medium);
   border-radius: var(--radius-sm);
+  max-width: 170px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .history-date {
   font-size: var(--text-caption);
   color: var(--gray-500);
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .history-title {
