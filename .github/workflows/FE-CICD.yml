@@ -12,6 +12,11 @@ on:
     branches:
       - main
 
+# OIDC를 통한 AWS 인증을 위한 권한 설정
+permissions:
+  id-token: write   # OIDC 토큰 발급 권한
+  contents: read    # 리포지토리 읽기 권한
+
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
@@ -109,73 +114,74 @@ jobs:
               }]
             }'
             
-  deploy-prod:
-    name: Deploy to Production (EC2)
-    runs-on: ubuntu-latest
-    needs: build-and-test
-
-    # main 브랜치로 push된 경우에만 배포 실행
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-
-    steps:
-      - name: 코드 체크아웃
-        uses: actions/checkout@v4
-
-      - name: 패키지 버전 추출
-        id: package-version
-        run: |
-          VERSION=$(node -p "require('./package.json').version")
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-
-      - name: 빌드 산출물 다운로드
-        uses: actions/download-artifact@v4
-        with:
-          name: fe-v${{ steps.package-version.outputs.version }}
-
-      # 서버로 산출물을 전송한 뒤, 서버 내부 deploy.sh로 교체/백업 처리
-      - name: SSH 키 설정
-        run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.QFEED_EC2_SSH_KEY }}" > ~/.ssh/deploy_key
-          chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan -H ${{ secrets.QFEED_EC2_HOST }} >> ~/.ssh/known_hosts 2>/dev/null || true
-
-      - name: 서버 연결 테스트
-        run: |
-          ssh -i ~/.ssh/deploy_key \
-            -o StrictHostKeyChecking=no \
-            -o ConnectTimeout=30 \
-            -o ServerAliveInterval=10 \
-            ${{ secrets.QFEED_EC2_USER }}@${{ secrets.QFEED_EC2_HOST }} \
-            "echo 'Connection successful'"
-
-      - name: 서버로 파일 업로드 (SCP)
-        timeout-minutes: 5
-        run: |
-          scp -i ~/.ssh/deploy_key \
-            -o StrictHostKeyChecking=no \
-            -o ConnectTimeout=60 \
-            -o ServerAliveInterval=10 \
-            -o ServerAliveCountMax=3 \
-            fe-v${{ steps.package-version.outputs.version }}.tar.gz \
-            ${{ secrets.QFEED_EC2_USER }}@${{ secrets.QFEED_EC2_HOST }}:/tmp/
-
-      - name: 서버에서 배포 실행 (deploy-fe.sh)
-        timeout-minutes: 5
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.QFEED_EC2_HOST }}
-          username: ${{ secrets.QFEED_EC2_USER }}
-          key: ${{ secrets.QFEED_EC2_SSH_KEY }}
-          timeout: 60s
-          command_timeout: 5m
-          
-          script: |
-            set -e
-            sudo /srv/qfeed/deploy-fe.sh /tmp/fe-v${{ steps.package-version.outputs.version }}.tar.gz
+  # Prod 배포는 임시로 주석 처리 (S3 전환 준비 중)
+  # deploy-prod:
+  #   name: Deploy to Production (EC2)
+  #   runs-on: ubuntu-latest
+  #   needs: build-and-test
+  # 
+  #   # main 브랜치로 push된 경우에만 배포 실행
+  #   if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+  # 
+  #   steps:
+  #     - name: 코드 체크아웃
+  #       uses: actions/checkout@v4
+  # 
+  #     - name: 패키지 버전 추출
+  #       id: package-version
+  #       run: |
+  #         VERSION=$(node -p "require('./package.json').version")
+  #         echo "version=$VERSION" >> $GITHUB_OUTPUT
+  # 
+  #     - name: 빌드 산출물 다운로드
+  #       uses: actions/download-artifact@v4
+  #       with:
+  #         name: fe-v${{ steps.package-version.outputs.version }}
+  # 
+  #     # 서버로 산출물을 전송한 뒤, 서버 내부 deploy.sh로 교체/백업 처리
+  #     - name: SSH 키 설정
+  #       run: |
+  #         mkdir -p ~/.ssh
+  #         echo "${{ secrets.QFEED_EC2_SSH_KEY }}" > ~/.ssh/deploy_key
+  #         chmod 600 ~/.ssh/deploy_key
+  #         ssh-keyscan -H ${{ secrets.QFEED_EC2_HOST }} >> ~/.ssh/known_hosts 2>/dev/null || true
+  # 
+  #     - name: 서버 연결 테스트
+  #       run: |
+  #         ssh -i ~/.ssh/deploy_key \
+  #           -o StrictHostKeyChecking=no \
+  #           -o ConnectTimeout=30 \
+  #           -o ServerAliveInterval=10 \
+  #           ${{ secrets.QFEED_EC2_USER }}@${{ secrets.QFEED_EC2_HOST }} \
+  #           "echo 'Connection successful'"
+  # 
+  #     - name: 서버로 파일 업로드 (SCP)
+  #       timeout-minutes: 5
+  #       run: |
+  #         scp -i ~/.ssh/deploy_key \
+  #           -o StrictHostKeyChecking=no \
+  #           -o ConnectTimeout=60 \
+  #           -o ServerAliveInterval=10 \
+  #           -o ServerAliveCountMax=3 \
+  #           fe-v${{ steps.package-version.outputs.version }}.tar.gz \
+  #           ${{ secrets.QFEED_EC2_USER }}@${{ secrets.QFEED_EC2_HOST }}:/tmp/
+  # 
+  #     - name: 서버에서 배포 실행 (deploy-fe.sh)
+  #       timeout-minutes: 5
+  #       uses: appleboy/ssh-action@v1.0.3
+  #       with:
+  #         host: ${{ secrets.QFEED_EC2_HOST }}
+  #         username: ${{ secrets.QFEED_EC2_USER }}
+  #         key: ${{ secrets.QFEED_EC2_SSH_KEY }}
+  #         timeout: 60s
+  #         command_timeout: 5m
+  #         
+  #         script: |
+  #           set -e
+  #           sudo /srv/qfeed/deploy-fe.sh /tmp/fe-v${{ steps.package-version.outputs.version }}.tar.gz
 
   deploy-dev:
-    name: Deploy to Dev (EC2)
+    name: Deploy to Dev (S3)
     runs-on: ubuntu-latest
     needs: build-and-test
 
@@ -197,53 +203,33 @@ jobs:
         with:
           name: fe-v${{ steps.package-version.outputs.version }}
 
-      # 서버로 산출물을 전송한 뒤, 서버 내부 deploy.sh로 교체/백업 처리
-      - name: SSH 키 설정
+      # tar.gz 압축 해제하여 dist 폴더 추출
+      - name: 압축 해제
         run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.QFEED_EC2_SSH_KEY }}" > ~/.ssh/deploy_key
-          chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan -H ${{ secrets.QFEED_EC2_DEV_HOST }} >> ~/.ssh/known_hosts 2>/dev/null || true
+          tar -xzf fe-v${{ steps.package-version.outputs.version }}.tar.gz
 
-      - name: 서버 연결 테스트
-        run: |
-          ssh -i ~/.ssh/deploy_key \
-            -o StrictHostKeyChecking=no \
-            -o ConnectTimeout=30 \
-            -o ServerAliveInterval=10 \
-            ${{ secrets.QFEED_EC2_USER }}@${{ secrets.QFEED_EC2_DEV_HOST }} \
-            "echo 'Connection successful'"
-
-      - name: 서버로 파일 업로드 (SCP)
-        timeout-minutes: 5
-        run: |
-          scp -i ~/.ssh/deploy_key \
-            -o StrictHostKeyChecking=no \
-            -o ConnectTimeout=60 \
-            -o ServerAliveInterval=10 \
-            -o ServerAliveCountMax=3 \
-            fe-v${{ steps.package-version.outputs.version }}.tar.gz \
-            ${{ secrets.QFEED_EC2_USER }}@${{ secrets.QFEED_EC2_DEV_HOST }}:/tmp/
-
-      - name: 서버에서 배포 실행 (deploy-fe.sh)
-        timeout-minutes: 5
-        uses: appleboy/ssh-action@v1.0.3
+      # AWS 자격증명 설정 (OIDC 방식)
+      - name: AWS 자격증명 설정 (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
         with:
-          host: ${{ secrets.QFEED_EC2_DEV_HOST }}
-          username: ${{ secrets.QFEED_EC2_USER }}
-          key: ${{ secrets.QFEED_EC2_SSH_KEY }}
-          timeout: 60s
-          command_timeout: 5m
-          script: |
-            set -e
-            sudo /srv/qfeed/deploy-fe.sh /tmp/fe-v${{ steps.package-version.outputs.version }}.tar.gz
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          aws-region: ap-northeast-2
+
+      # S3 버킷에 파일 업로드 (기존 파일 삭제 후 새로 업로드)
+      - name: S3에 배포
+        run: |
+          # 기존 파일 삭제
+          aws s3 rm s3://qfeed-dev-s3-static --recursive
+          # 새 파일 업로드 (dist 폴더의 내용을 버킷 루트에 업로드)
+          aws s3 cp dist/ s3://qfeed-dev-s3-static --recursive
+          # CloudFront 캐시 무효화가 필요한 경우 여기에 추가 가능
 
   # CI 실패 시 어떤 과정에서 실패했는지 Discord 알림
   discord-notify-failure:
     name: Discord 알림 (실패 상세)
     runs-on: ubuntu-latest
-    needs: [build-and-test, deploy-prod, deploy-dev]
-    if: always() && (needs.build-and-test.result == 'failure' || needs.deploy-prod.result == 'failure' || needs.deploy-dev.result == 'failure')
+    needs: [build-and-test, deploy-dev]
+    if: always() && (needs.build-and-test.result == 'failure' || needs.deploy-dev.result == 'failure')
     steps:
       - name: 실패한 Job/Step 조회
         id: failed
@@ -271,14 +257,10 @@ jobs:
             STAGE="build-and-test"
             TITLE="❌ FE CI 실패 (빌드/테스트)"
             TARGET="CI"
-          elif [ "${{ needs.deploy-prod.result }}" = "failure" ]; then
-            STAGE="deploy-prod"
-            TITLE="❌ FE 배포 실패 (Production)"
-            TARGET="PROD (EC2_HOST 시크릿 사용)"
           elif [ "${{ needs.deploy-dev.result }}" = "failure" ]; then
             STAGE="deploy-dev"
             TITLE="❌ FE 배포 실패 (Dev)"
-            TARGET="DEV (EC2_DEV_HOST 시크릿 사용)"
+            TARGET="DEV (S3: qfeed-dev-s3-static)"
           fi
 
           # 실패 Step 기반으로 바로 실행 가능한 점검 가이드 생성
