@@ -43,12 +43,20 @@ export const QUESTION_CATEGORY_COLOR_BY_KEY = Object.freeze({
 
 export function getQuestionTypeLabel(typeKey, typeMap = {}) {
   if (!typeKey) return ''
-  return typeMap[typeKey] || QUESTION_TYPE_FALLBACK_LABELS[typeKey] || typeKey
+  const mapped = typeMap?.[typeKey]
+  if (typeof mapped === 'string' && mapped.trim()) {
+    return mapped
+  }
+  return QUESTION_TYPE_FALLBACK_LABELS[typeKey] || typeKey
 }
 
 export function getQuestionCategoryLabel(categoryKey, categoryMap = {}) {
   if (!categoryKey) return ''
-  return categoryMap[categoryKey] || QUESTION_CATEGORY_FALLBACK_LABELS[categoryKey] || categoryKey
+  const mapped = categoryMap?.[categoryKey]
+  if (typeof mapped === 'string' && mapped.trim()) {
+    return mapped
+  }
+  return QUESTION_CATEGORY_FALLBACK_LABELS[categoryKey] || categoryKey
 }
 
 export function getQuestionCategoryColor(categoryKey) {
