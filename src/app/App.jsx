@@ -23,6 +23,7 @@ import ProfileMain from '@/app/pages/ProfileMain';
 import LearningRecordDetail from '@/app/pages/LearningRecordDetail';
 import SettingMain from '@/app/pages/SettingMain';
 import RealInterview from '@/app/pages/RealInterview';
+import RealInterviewSession from '@/app/pages/RealInterviewSession';
 import OAuthCallback from '@/app/pages/OAuthCallback';
 
 function AppRoutes() {
@@ -62,7 +63,10 @@ function AppRoutes() {
 
                         {/* Real Interview */}
                         {(SHOW_REAL_INTERVIEW &&
-                            <Route path="/real-interview" element={<RealInterview />} />
+                            <>
+                                <Route path="/real-interview" element={<RealInterview />} />
+                                <Route path="/real-interview/session" element={<RealInterviewSession />} />
+                            </>
                         )}
 
                         {/* Profile */}
