@@ -156,7 +156,13 @@ jobs:
           aws s3 rm s3://qfeed-prod-s3-frontend --recursive
           # 새 파일 업로드 (dist 폴더의 내용을 버킷 루트에 업로드)
           aws s3 cp dist/ s3://qfeed-prod-s3-frontend --recursive
-          # CloudFront 캐시 무효화가 필요한 경우 여기에 추가 가능
+
+      # CloudFront 캐시 무효화
+      - name: CloudFront 캐시 무효화 (Prod)
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID_PROD }} \
+            --paths "/*"
 
       # Prod 배포 성공 알림
       - name: Discord 알림 (Prod 배포 성공)
@@ -222,7 +228,13 @@ jobs:
           aws s3 rm s3://qfeed-dev-s3-static --recursive
           # 새 파일 업로드 (dist 폴더의 내용을 버킷 루트에 업로드)
           aws s3 cp dist/ s3://qfeed-dev-s3-static --recursive
-          # CloudFront 캐시 무효화가 필요한 경우 여기에 추가 가능
+
+      # CloudFront 캐시 무효화
+      - name: CloudFront 캐시 무효화 (Dev)
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID_DEV }} \
+            --paths "/*"
 
       # Dev 배포 성공 알림
       - name: Discord 알림 (Dev 배포 성공)
