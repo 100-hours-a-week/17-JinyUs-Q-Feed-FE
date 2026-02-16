@@ -361,18 +361,6 @@ const ProfileMain = () => {
 
     return (
         <div className="profile-container">
-            {/* 헤더 */}
-            <header className="profile-header">
-                <h1 className="header-title">프로필</h1>
-                <button 
-                    className="settings-btn" 
-                    aria-label="설정"
-                    onClick={() => navigate('/settings')}
-                >
-                    <Settings size={20} />
-                </button>
-            </header>
-
             {/* 프로필 섹션 */}
             <section className="profile-section">
                 <div className="profile-card">
@@ -384,14 +372,22 @@ const ProfileMain = () => {
                             면접 준비 중
                         </span>
                     </div>
-                    <button
-                        type="button"
-                        className="btn-secondary text-xs px-3 py-2"
-                        style={{ marginLeft: 'auto' }}
-                        onClick={openFeedbackDialog}
-                    >
-                        피드백 남기기
-                    </button>
+                    <div className="profile-card-actions">
+                        <button
+                            type="button"
+                            className="btn-secondary text-xs px-3 py-2"
+                            onClick={openFeedbackDialog}
+                        >
+                            피드백 남기기
+                        </button>
+                        <button
+                            className="settings-btn"
+                            aria-label="설정"
+                            onClick={() => navigate('/settings')}
+                        >
+                            <Settings size={20} />
+                        </button>
+                    </div>
                 </div>
             </section>
 
