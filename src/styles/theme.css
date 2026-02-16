@@ -837,7 +837,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 10px 16px;
+  padding: 8px 16px;
   background: var(--primary-500);
   color: white;
   border: none;
@@ -1659,7 +1659,7 @@
   gap: 8px;
   overflow-x: auto;
   padding-bottom: 16px;
-  margin-bottom: 8px;
+  margin-bottom: 5px;
   scrollbar-width: none;
 }
 
@@ -1668,7 +1668,7 @@
 }
 
 .filter-chip {
-  padding: 8px 16px;
+  padding: 5px 16px;
   background: white;
   border: 1px solid var(--gray-200);
   border-radius: var(--radius-full);
