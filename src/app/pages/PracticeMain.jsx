@@ -125,10 +125,8 @@ const PracticeMain = () => {
 
     return (
         <div className="min-h-screen bg-[#FAFAFA] pb-20">
-            {/* Header */}
-            <AppHeader title="연습 모드" showBack={false} align="left" />
 
-            <div className="bg-white sticky top-[56px] z-10 border-b">
+            <div className="bg-white sticky top-[56px] z-10">
                 {/* Search */}
                 <div className="px-4 py-4 max-w-lg mx-auto">
                     <div className="relative">
@@ -137,7 +135,7 @@ const PracticeMain = () => {
                             placeholder="질문 검색..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="pl-10 rounded-xl bg-gray-50"
+                            className="pl-10 rounded-lg bg-gray-50"
                         />
                     </div>
                 </div>
