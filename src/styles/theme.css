@@ -692,7 +692,7 @@
 /* 인사 섹션 */
 .greeting-section {
   padding: 48px 20px 32px;
-  background: linear-gradient(180deg, var(--primary-50) 0%, white 100%);
+  background: linear-gradient(180deg, var(--primary-50) 0%, var(--gray-50) 100%);
   position: relative;
   overflow: hidden;
 }

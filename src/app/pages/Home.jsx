@@ -246,7 +246,6 @@ const Home = () => {
                     </div>
                 </section>
 
-                <div className="scroll-padding" />
             </div>
 
             <BottomNav />
