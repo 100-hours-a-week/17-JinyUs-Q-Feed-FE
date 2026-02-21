@@ -122,6 +122,8 @@ const PracticeMain = () => {
         navigate(`/practice/answer/${question.id}`);
     };
 
+    const showCategoryRow = selectedType !== ALL_FILTER_VALUE && categoryOptions.length > 0;
+
     return (
         <div className="min-h-screen bg-[#FAFAFA] pb-20">
             {/* 상단 검색/필터 - 고정 (BottomNav처럼 스크롤해도 유지) */}
@@ -190,8 +192,12 @@ const PracticeMain = () => {
                 )}
             </div>
 
-            {/* Question List - 상단 고정 바 높이만큼 padding */}
-            <div className="p-4 pt-52 space-y-3 max-w-lg mx-auto">
+            {/* Question List - 고정 바 높이에 맞춰 padding (전체: 작게, 타입 선택 시 카드가 밀리며 확장) */}
+            <div
+                className={`p-4 space-y-3 max-w-lg mx-auto transition-[padding-top] duration-200 ease-out ${
+                    showCategoryRow ? 'pt-[192px]' : 'pt-[136px]'
+                }`}
+            >
                 {isLoading && questions.length === 0 ? (
                     <div className="text-center py-12 text-muted-foreground">
                         <p>{TEXT_LOADING}</p>
