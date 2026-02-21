@@ -41,7 +41,7 @@ const AuthLogin = () => {
         {/* 카카오 로그인 버튼 */}
         <button
           onClick={handleKakaoLogin}
-          className="w-full bg-[#FEE500] hover:bg-[#FDD835] text-black rounded-lg h-14 flex items-center justify-center gap-2 transition-colors"
+          className="w-full bg-[#FEE500] hover:bg-[#FDD835] text-black rounded-md h-14 flex items-center justify-center gap-2 transition-colors"
         >
           <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path fillRule="evenodd" clipRule="evenodd" d="M9 0.5C4.02944 0.5 0 3.69 0 7.62C0 10.06 1.558 12.22 3.931 13.48L2.933 17.04C2.845 17.36 3.213 17.61 3.491 17.42L7.873 14.55C8.243 14.59 8.619 14.61 9 14.61C13.9706 14.61 18 11.42 18 7.49C18 3.56 13.9706 0.5 9 0.5Z" fill="black" />
