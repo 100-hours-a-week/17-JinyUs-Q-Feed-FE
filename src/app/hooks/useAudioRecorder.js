@@ -13,7 +13,10 @@ export function useAudioRecorder() {
   const [recorderState, setRecorderState] = useState('idle')
   const [audioBlob, setAudioBlob] = useState(null)
   const [audioLevel, setAudioLevel] = useState(0)
+  const [audioBands, setAudioBands] = useState(() => Array(12).fill(0))
   const [error, setError] = useState(null)
+
+  const BAND_COUNT = 12
 
   const mediaRecorderRef = useRef(null)
   const audioContextRef = useRef(null)
@@ -35,6 +38,19 @@ export function useAudioRecorder() {
 
     const average = dataArray.reduce((a, b) => a + b, 0) / dataArray.length
     setAudioLevel(average / 255)
+
+    // 주파수 대역별 값 (0~1) - 비주얼라이저 막대 높이에 사용
+    const len = dataArray.length
+    const bandSize = Math.floor(len / BAND_COUNT)
+    const bands = []
+    for (let i = 0; i < BAND_COUNT; i++) {
+      const start = i * bandSize
+      const end = i === BAND_COUNT - 1 ? len : start + bandSize
+      let sum = 0
+      for (let j = start; j < end; j++) sum += dataArray[j]
+      bands.push(Math.min((sum / (end - start)) / 255, 1))
+    }
+    setAudioBands(bands)
 
     if (updateAudioLevelRef.current) {
       animationFrameRef.current = requestAnimationFrame(updateAudioLevelRef.current)
@@ -132,6 +148,7 @@ export function useAudioRecorder() {
       mediaRecorderRef.current.stop()
       setRecorderState('idle')
       setAudioLevel(0)
+      setAudioBands(Array(BAND_COUNT).fill(0))
     }
   }, [])
 
@@ -145,6 +162,7 @@ export function useAudioRecorder() {
         animationFrameRef.current = null
       }
       setAudioLevel(0)
+      setAudioBands(Array(BAND_COUNT).fill(0))
     }
   }, [])
 
@@ -170,6 +188,7 @@ export function useAudioRecorder() {
     setRecorderState('idle')
     setAudioBlob(null)
     setAudioLevel(0)
+    setAudioBands(Array(BAND_COUNT).fill(0))
     chunksRef.current = []
   }, [cleanupStream, cleanupAudioContext])
 
@@ -201,6 +220,7 @@ export function useAudioRecorder() {
     isRecording,
     audioBlob,
     audioLevel,
+    audioBands,
     startRecording,
     stopRecording,
     pauseRecording,

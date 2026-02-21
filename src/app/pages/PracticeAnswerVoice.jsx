@@ -39,6 +39,7 @@ const PracticeAnswerVoice = () => {
     recorderState,
     audioBlob,
     audioLevel,
+    audioBands,
     startRecording,
     stopRecording,
     pauseRecording,
@@ -230,49 +231,94 @@ const PracticeAnswerVoice = () => {
   if (!question) return <div>{TEXT_NOT_FOUND}</div>;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-rose-400 to-pink-500 text-white flex flex-col">
+    <div
+      className="min-h-screen flex flex-col"
+      style={{
+        background: 'linear-gradient(165deg, var(--primary-50) 0%, var(--primary-100) 40%, var(--primary-50) 100%)',
+      }}
+    >
       <AppHeader
         title="음성 답변"
         onBack={handleBackClick}
         showNotifications={false}
-        tone="dark"
+        tone="light"
       />
 
       <div className="flex-1 flex flex-col items-center justify-center px-6 py-12">
-        <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 mb-8 w-full max-w-lg">
-          <p className="text-center text-white/90 text-sm mb-2">질문</p>
-          <h2 className="text-center text-lg text-white">{question.title}</h2>
+        <div className="bg-white rounded-2xl p-6 mb-8 w-full max-w-lg shadow-sm border border-white/80">
+          <p className="text-center text-[var(--gray-600)] text-sm mb-2">질문</p>
+          <h2 className="text-center text-lg font-semibold text-[var(--gray-900)]">{question.title}</h2>
         </div>
 
-        {/* Audio Visualizer */}
-        <div className="relative mb-12">
+        {/* Audio Visualizer - 주파수 밴드에 따른 파장 막대 (오디오 입력 크기에 따라 막대 높이 변함) */}
+        <div className="relative mb-12 w-44 h-44 flex items-center justify-center">
+          <div className="absolute inset-0 pointer-events-none">
+            {(audioBands || Array(12).fill(0)).map((band, i) => {
+              const angle = (i / 12) * 360 - 90
+              const isActive = visualizerState === 'active' && recorderState === 'recording'
+              const height = isActive ? Math.round(8 + band * 28) : 8
+              return (
+                <div
+                  key={i}
+                  className="absolute rounded-full"
+                  style={{
+                    left: '50%',
+                    bottom: '50%',
+                    width: 6,
+                    height,
+                    marginLeft: -3,
+                    transformOrigin: 'center 100%',
+                    transform: `rotate(${angle}deg)`,
+                    background: 'linear-gradient(to top, var(--primary-500), var(--primary-400))',
+                  }}
+                />
+              )
+            })}
+          </div>
+          {/* 중앙 마이크 아이콘 */}
           <Motion.div
-            className={`w-40 h-40 rounded-full backdrop-blur-sm flex items-center justify-center ${visualizerState === 'paused' ? 'bg-white/30' : 'bg-white/20'
-              }`}
-            animate={{
-              scale: visualizerState === 'active'
-                ? [1, 1 + audioLevel * 0.3, 1]
-                : visualizerState === 'idle' && recorderState === 'idle'
-                  ? [1, 1.02, 1]
-                  : 1,
-            }}
-            transition={{
-              duration: visualizerState === 'active' ? 0.3 : 2,
-              repeat: visualizerState === 'active' || (visualizerState === 'idle' && recorderState === 'idle') ? Infinity : 0,
-            }}
+            className={`relative z-10 w-28 h-28 rounded-full flex items-center justify-center ${
+              visualizerState === 'paused'
+                ? 'bg-white/90 shadow-md border border-[var(--primary-200)]'
+                : 'bg-white shadow-md border border-[var(--primary-200)]/60'
+            }`}
+            animate={
+              visualizerState === 'idle' && recorderState === 'idle'
+                ? { scale: [1, 1.02, 1] }
+                : {}
+            }
+            transition={
+              visualizerState === 'idle' && recorderState === 'idle'
+                ? { duration: 2, repeat: Infinity }
+                : {}
+            }
           >
-            <div className="w-32 h-32 rounded-full bg-white/30 backdrop-blur-sm flex items-center justify-center">
-              <div className="w-24 h-24 rounded-full bg-white/40 backdrop-blur-sm flex items-center justify-center">
+            <div className="w-20 h-20 rounded-full bg-[var(--primary-50)] flex items-center justify-center">
+              <div className="w-14 h-14 rounded-full bg-[var(--primary-100)] flex items-center justify-center">
                 {isUploading ? (
-                  <Loader2 className="w-12 h-12 text-white animate-spin" />
+                  <Loader2 className="w-8 h-8 text-[var(--primary-600)] animate-spin" />
                 ) : visualizerState === 'paused' ? (
-                  <svg className="w-12 h-12 text-white" fill="currentColor" viewBox="0 0 24 24">
+                  <svg
+                    className="w-8 h-8 text-[var(--primary-600)]"
+                    fill="currentColor"
+                    viewBox="0 0 24 24"
+                  >
                     <rect x="6" y="4" width="4" height="16" />
                     <rect x="14" y="4" width="4" height="16" />
                   </svg>
                 ) : (
-                  <svg className="w-16 h-16 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                  <svg
+                    className="w-10 h-10 text-[var(--primary-500)]"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"
+                    />
                   </svg>
                 )}
               </div>
@@ -282,10 +328,12 @@ const PracticeAnswerVoice = () => {
 
         {/* Timer */}
         <div className="text-center mb-8">
-          <div className="text-5xl font-mono mb-2">{formatTime(seconds)}</div>
-          <p className="text-white/70 text-sm">{getStatusMessage()}</p>
+          <div className="text-5xl font-mono font-semibold text-[var(--gray-800)] mb-2">
+            {formatTime(seconds)}
+          </div>
+          <p className="text-[var(--gray-600)] text-sm">{getStatusMessage()}</p>
           {recorderState === 'recording' && (
-            <p className="text-white/50 text-xs mt-1">
+            <p className="text-[var(--gray-500)] text-xs mt-1">
               최대 {Math.floor(MAX_RECORDING_SECONDS / 60)}분까지 녹음 가능
             </p>
           )}
@@ -295,18 +343,17 @@ const PracticeAnswerVoice = () => {
         <Button
           onClick={handleToggleRecording}
           disabled={isUploading}
-          className={`w-48 h-14 rounded-full text-lg ${recorderState === 'recording' || recorderState === 'paused'
-              ? 'bg-red-500 hover:bg-red-600'
-              : 'bg-white text-pink-600 hover:bg-white/90'
-            } disabled:opacity-50`}
+          className={`w-48 h-14 rounded-full text-lg font-semibold ${
+            recorderState === 'recording' || recorderState === 'paused'
+              ? 'bg-red-500 hover:bg-red-600 text-white'
+              : 'bg-white text-[var(--primary-600)] hover:bg-[var(--primary-50)] border border-[var(--primary-200)] shadow-sm'
+          } disabled:opacity-50`}
         >
           {getButtonText()}
         </Button>
 
         {recorderState === 'recording' && (
-          <p className="text-white/60 text-sm mt-4">
-            편안하게 답변해주세요
-          </p>
+          <p className="text-[var(--gray-600)] text-sm mt-4">편안하게 답변해주세요</p>
         )}
       </div>
 

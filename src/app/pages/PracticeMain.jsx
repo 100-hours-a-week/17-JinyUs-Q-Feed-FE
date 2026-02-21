@@ -12,7 +12,6 @@ import { useQuestionCategories } from '@/app/hooks/useQuestionCategories';
 import { useQuestionTypes } from '@/app/hooks/useQuestionTypes';
 import { getQuestionCategoryLabel, getQuestionTypeLabel } from '@/app/constants/questionCategoryMeta';
 
-import { AppHeader } from '@/app/components/AppHeader';
 
 const INITIAL_SEARCH_QUERY = '';
 const ALL_FILTER_VALUE = 'ALL';
