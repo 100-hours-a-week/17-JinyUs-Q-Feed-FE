@@ -85,7 +85,7 @@ const PracticeAnswer = () => {
                         </div>
                     </div>
 
-                    <Button onClick={handleStart} className="w-full rounded-xl h-12">
+                    <Button onClick={handleStart} className="w-full rounded-md h-12">
                         답변 시작
                     </Button>
                 </Card>

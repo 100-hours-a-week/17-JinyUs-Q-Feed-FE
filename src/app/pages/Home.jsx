@@ -151,8 +151,7 @@ const Home = () => {
                 <div className="greeting-decoration" />
                 <div className="greeting-content">
                     <h1 className="greeting-text">
-                        {getGreeting()},<br />
-                        {nickname}님
+                        {getGreeting()}, {nickname}님
                     </h1>
                     <p className="greeting-sub">오늘도 한 걸음 더 성장해볼까요?</p>
                 </div>
