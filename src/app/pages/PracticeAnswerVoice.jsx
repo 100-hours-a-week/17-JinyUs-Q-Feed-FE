@@ -353,7 +353,7 @@ const PracticeAnswerVoice = () => {
         </Button>
 
         {recorderState === 'recording' && (
-          <p className="text-[var(--gray-600)] text-sm mt-4">편안하게 답변해주세요</p>
+          <p className="text-[var(--gray-600)] text-sm mt-4">충분히 답변 후 종료 버튼을 눌러주세요.</p>
         )}
       </div>
 
