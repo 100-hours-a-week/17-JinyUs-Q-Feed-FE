@@ -124,10 +124,10 @@ const PracticeMain = () => {
 
     return (
         <div className="min-h-screen bg-[#FAFAFA] pb-20">
-
-            <div className="bg-white sticky top-[56px] z-10">
+            {/* 상단 검색/필터 - 고정 (BottomNav처럼 스크롤해도 유지) */}
+            <div className="fixed top-0 left-1/2 -translate-x-1/2 w-full max-w-lg z-[100] bg-white border-b border-gray-100">
                 {/* Search */}
-                <div className="px-4 py-4 max-w-lg mx-auto">
+                <div className="px-4 py-4">
                     <div className="relative">
                         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                         <Input
@@ -140,7 +140,7 @@ const PracticeMain = () => {
                 </div>
 
                 {/* Categories */}
-                <div className="px-4 pb-3 max-w-lg mx-auto">
+                <div className="px-4 pb-3">
                     <div className="flex items-center gap-2 overflow-x-auto pb-2">
                         <Filter className="w-4 h-4 text-muted-foreground flex-shrink-0" />
                         <button
@@ -167,7 +167,7 @@ const PracticeMain = () => {
                     </div>
                 </div>
                 {selectedType !== ALL_FILTER_VALUE && categoryOptions.length > 0 && (
-                    <div className="px-4 pb-4 max-w-lg mx-auto">
+                    <div className="px-4 pb-4">
                         <div className="flex items-center gap-2 overflow-x-auto pb-2">
                             {categoryOptions.map((option) => (
                                 <button
@@ -190,8 +190,8 @@ const PracticeMain = () => {
                 )}
             </div>
 
-            {/* Question List */}
-            <div className="p-4 space-y-3 max-w-lg mx-auto">
+            {/* Question List - 상단 고정 바 높이만큼 padding */}
+            <div className="p-4 pt-52 space-y-3 max-w-lg mx-auto">
                 {isLoading && questions.length === 0 ? (
                     <div className="text-center py-12 text-muted-foreground">
                         <p>{TEXT_LOADING}</p>
