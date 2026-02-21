@@ -235,7 +235,7 @@ const PracticeResultKeyword = () => {
                         </div>
                         <Button
                             onClick={() => navigate(retryPath)}
-                            className="w-full rounded-xl h-12"
+                            className="w-full rounded-md h-12"
                         >
                             {TEXT_RETRY_BUTTON}
                         </Button>
@@ -245,7 +245,7 @@ const PracticeResultKeyword = () => {
                         onClick={() => navigate(`/practice/result-ai/${questionId}`, {
                             state: { feedbackResponse, answerText: myAnswer },
                         })}
-                        className="w-full rounded-xl h-12 bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600"
+                        className="w-full rounded-md h-12"
                         disabled={!feedbackResponse}
                     >
                         {TEXT_RESULT_BUTTON}
