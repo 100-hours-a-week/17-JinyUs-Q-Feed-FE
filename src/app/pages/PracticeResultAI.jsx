@@ -92,19 +92,22 @@ const PracticeResultAI = () => {
 
     return (
         <div className="min-h-screen bg-background">
-            <div className="bg-gradient-to-r from-pink-500 to-rose-500 text-white">
-                <AppHeader
-                    title={TEXT_AI_FEEDBACK_TITLE}
-                    onBack={() => navigate('/practice')}
-                    showNotifications={false}
-                    tone="dark"
-                />
+            <AppHeader
+                title={TEXT_AI_FEEDBACK_TITLE}
+                onBack={() => navigate('/practice')}
+                showNotifications={false}
+                tone="light"
+            />
 
-                <div className="text-center pb-6 px-6">
-                    <div className="text-5xl mb-2">{TEXT_HEADER_EMOJI}</div>
-                    <h2 className="text-2xl mb-1 text-white">{TEXT_COMPLETE_TITLE}</h2>
-                    <p className="text-white/80 text-sm">{TEXT_COMPLETE_DESC}</p>
-                </div>
+            <div
+                className="text-center pb-6 px-6 pt-2"
+                style={{
+                    background: 'linear-gradient(165deg, var(--primary-50) 0%, var(--primary-100) 50%, var(--primary-50) 100%)',
+                }}
+            >
+                <div className="text-5xl mb-2">{TEXT_HEADER_EMOJI}</div>
+                <h2 className="text-2xl mb-1 font-semibold text-[var(--gray-900)]">{TEXT_COMPLETE_TITLE}</h2>
+                <p className="text-[var(--gray-600)] text-sm">{TEXT_COMPLETE_DESC}</p>
             </div>
 
             <div className="p-6 max-w-lg mx-auto space-y-4 -mt-4">
@@ -170,8 +173,7 @@ const PracticeResultAI = () => {
                         clearSelectedQuestion();
                         navigate('/');
                     }}
-                    className="w-full rounded-xl h-12 gap-2"
-                    variant="default"
+                    className="w-full rounded-md h-12 gap-2"
                 >
                     <Home className="w-5 h-5" />
                     {TEXT_HOME_BUTTON}
