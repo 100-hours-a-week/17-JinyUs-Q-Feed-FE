@@ -4,7 +4,14 @@ import { fetchQuestionTypes } from '@/api/questionApi'
 function mapTypes(response) {
   const data = response?.data ?? response ?? {}
   const types = data.types ?? {}
-  return types && typeof types === 'object' ? types : {}
+
+  if (!types || typeof types !== 'object' || Array.isArray(types)) {
+    return {}
+  }
+
+  return Object.fromEntries(
+    Object.entries(types).filter(([, value]) => typeof value === 'string')
+  )
 }
 
 export function useQuestionTypes() {
