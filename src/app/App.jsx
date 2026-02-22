@@ -26,6 +26,8 @@ import RealInterview from '@/app/pages/RealInterview';
 import RealInterviewSession from '@/app/pages/RealInterviewSession';
 import OAuthCallback from '@/app/pages/OAuthCallback';
 
+const SPLASH_SHOWN_KEY = 'qfeed_splash_shown';
+
 function AppRoutes() {
     const { isAuthenticated, isLoading } = useAuth();
     const location = useLocation();
@@ -35,6 +37,14 @@ function AppRoutes() {
     }, [location.pathname]);
 
     if (isLoading) return null;
+
+    // 앱 실행 시(루트 또는 로그인 화면 진입 시) 스플래시를 한 번 보여준다.
+    const shouldShowSplash = (location.pathname === '/' || location.pathname === '/login')
+        && typeof sessionStorage !== 'undefined'
+        && !sessionStorage.getItem(SPLASH_SHOWN_KEY);
+    if (shouldShowSplash) {
+        return <Navigate to="/splash" replace />;
+    }
 
     const SHOW_REAL_INTERVIEW = import.meta.env.VITE_SHOW_REAL_INTERVIEW === 'true';
 
