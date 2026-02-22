@@ -1,6 +1,7 @@
 const DEFAULT_ERROR_MESSAGE = '요청 처리에 실패했습니다.'
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'
+// 끝의 슬래시 제거 (base + '/api/...' 조합 시 // 가 되지 않도록)
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080').replace(/\/+$/, '')
 
 export async function parseJsonSafe(response) {
   const contentType = response.headers.get('Content-Type') || ''
