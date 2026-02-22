@@ -374,13 +374,6 @@ const ProfileMain = () => {
                     </div>
                     <div className="profile-card-actions">
                         <button
-                            type="button"
-                            className="btn-secondary text-xs px-3 py-2"
-                            onClick={openFeedbackDialog}
-                        >
-                            피드백 남기기
-                        </button>
-                        <button
                             className="settings-btn"
                             aria-label="설정"
                             onClick={() => navigate('/settings')}
@@ -391,6 +384,19 @@ const ProfileMain = () => {
                 </div>
             </section>
 
+            {/* 피드백 이벤트 광고 배너 (클릭 시 피드백 다이얼로그) */}
+            <button
+                type="button"
+                className="profile-event-banner"
+                onClick={openFeedbackDialog}
+            >
+                <p className="profile-event-banner__text">
+                    <span className="profile-event-banner__highlight">피드백을 남긴 분 중 3명을 추첨</span>하여
+                    <br />
+                    <span className="profile-event-banner__gift">금액권 상품권 5천원권</span>을 지급합니다.
+                </p>
+            </button>
+
             {/* 통계 섹션 */}
             <section className="stats-section">
                 <div className="stats-grid">
@@ -399,7 +405,7 @@ const ProfileMain = () => {
                         return (
                             <StatCard
                                 key={index}
-                                icon={<Icon size={24} />}
+                                icon={<Icon size={18} />}
                                 label={stat.label}
                                 value={stat.value}
                                 unit={stat.unit}
