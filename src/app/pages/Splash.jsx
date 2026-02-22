@@ -1,47 +1,55 @@
-import { useEffect } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion as Motion } from 'motion/react';
 import { useAuth } from '@/context/AuthContext';
-import { AppHeader } from '@/app/components/AppHeader';
+
+/** 스플래시 GIF 1회 재생으로 간주하는 시간(ms). GIF 실제 길이에 맞게 조정 가능 */
+const SPLASH_GIF_DURATION_MS = 3000;
+
+const SPLASH_SHOWN_KEY = 'qfeed_splash_shown';
+
+export function markSplashShown() {
+  try {
+    sessionStorage.setItem(SPLASH_SHOWN_KEY, '1');
+  } catch {
+    // ignore
+  }
+}
+
+export function clearSplashShown() {
+  try {
+    sessionStorage.removeItem(SPLASH_SHOWN_KEY);
+  } catch {
+    // ignore
+  }
+}
 
 const Splash = () => {
   const navigate = useNavigate();
   const { isAuthenticated, isLoading } = useAuth();
+  const [gifLoaded, setGifLoaded] = useState(false);
+  const navigateRef = useRef(false);
 
   useEffect(() => {
-    if (isLoading) return;
+    if (isLoading || !gifLoaded) return;
+    if (navigateRef.current) return;
+    navigateRef.current = true;
 
     const timer = setTimeout(() => {
+      markSplashShown();
       navigate(isAuthenticated ? '/' : '/login', { replace: true });
-    }, 1200);
+    }, SPLASH_GIF_DURATION_MS);
 
     return () => clearTimeout(timer);
-  }, [navigate, isAuthenticated, isLoading]);
+  }, [navigate, isAuthenticated, isLoading, gifLoaded]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-rose-50 via-white to-pink-50 flex flex-col">
-      <AppHeader title="Q-Feed" showBack={false} showNotifications={false} />
-
-      <div className="flex-1 flex items-center justify-center p-4">
-        <Motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.5 }}
-          className="text-center w-full max-w-lg"
-        >
-          <Motion.div
-            initial={{ y: -20 }}
-            animate={{ y: 0 }}
-            transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
-          >
-            <h1 className="text-5xl font-bold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-pink-500 to-rose-500">Q-Feed</h1>
-            <p className="text-muted-foreground text-base">
-              Debug Your Answers.<br />
-              Refactor Your Interview Skills.
-            </p>
-          </Motion.div>
-        </Motion.div>
-      </div>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#F5F5F7]">
+      <img
+        src="/q-feed-splash.gif"
+        alt="Q-Feed"
+        className="h-full w-full object-contain object-center"
+        onLoad={() => setGifLoaded(true)}
+      />
     </div>
   );
 };
