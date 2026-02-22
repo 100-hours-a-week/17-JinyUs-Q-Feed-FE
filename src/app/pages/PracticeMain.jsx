@@ -10,7 +10,11 @@ import { usePracticeQuestion } from '@/context/practiceQuestionContext.jsx';
 import { useQuestionsInfinite } from '@/app/hooks/useQuestionsInfinite';
 import { useQuestionCategories } from '@/app/hooks/useQuestionCategories';
 import { useQuestionTypes } from '@/app/hooks/useQuestionTypes';
-import { getQuestionCategoryLabel, getQuestionTypeLabel } from '@/app/constants/questionCategoryMeta';
+import {
+    getQuestionCategoryLabel,
+    getQuestionCategoryColor,
+    getQuestionTypeLabel,
+} from '@/app/constants/questionCategoryMeta';
 
 
 const INITIAL_SEARCH_QUERY = '';
@@ -212,14 +216,23 @@ const PracticeMain = () => {
                     </div>
                 ) : (
                     <>
-                        {questions.map((question) => (
+                        {questions.map((question) => {
+                            const categoryColor = getQuestionCategoryColor(question.category);
+                            return (
                             <Card
                                 key={question.id}
                                 className="p-4 hover:shadow-md transition-shadow cursor-pointer"
                                 onClick={() => handleSelectQuestion(question)}
                             >
                                 <div className="flex items-start justify-between mb-2">
-                                    <Badge variant="secondary" className="bg-rose-100 text-rose-700">
+                                    <Badge
+                                        variant="secondary"
+                                        className="border-0"
+                                        style={{
+                                            backgroundColor: categoryColor.bg,
+                                            color: categoryColor.text,
+                                        }}
+                                    >
                                         {getQuestionCategoryLabel(question.category, categoryMap)}
                                     </Badge>
                                 </div>
@@ -229,7 +242,8 @@ const PracticeMain = () => {
                                     {question.description}
                                 </p>
                             </Card>
-                        ))}
+                            );
+                        })}
                         {isFetchingNextPage && (
                             <div className="text-center py-6 text-muted-foreground">
                                 <p>{TEXT_LOADING_MORE}</p>
