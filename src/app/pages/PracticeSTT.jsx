@@ -27,12 +27,14 @@ const PracticeSTT = () => {
             try {
                 setStatusMessage('답변을 텍스트로 변환 중입니다...');
 
-                const sessionId = Number(questionId);
-                console.log(audioUrl);
-                // 백엔드 스키마(user_id, session_id, audio_url)에 맞춰 전달
+                const sessionId = typeof questionId === 'string' ? questionId.trim() : '';
+                if (!sessionId) {
+                    throw new Error('세션 정보를 확인할 수 없습니다');
+                }
+                // 백엔드 스키마(user_id, session_id, audio_url)에 맞춰 전달 (session_id string)
                 const result = await requestSTT({
                     userId: DEFAULT_USER_ID,
-                    sessionId: Number.isNaN(sessionId) ? questionId : sessionId,
+                    sessionId,
                     audioUrl,
                 });
                 const { text } = result.data;
