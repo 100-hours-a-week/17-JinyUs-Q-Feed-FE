@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { motion as Motion } from 'motion/react';
 import { Loader2 } from 'lucide-react';
-import { requestSTT } from '@/api/sttApi';
+import { useAudioSttPipeline } from '@/app/hooks/useAudioSttPipeline';
 import { toast } from 'sonner';
 
 // TODO: 인증 연동 후 실제 사용자 ID로 교체
@@ -15,6 +15,7 @@ const PracticeSTT = () => {
     const audioUrl = state?.audioUrl;
 
     const [statusMessage, setStatusMessage] = useState('음성을 분석하고 있어요');
+    const { transcribeAudioUrl } = useAudioSttPipeline();
 
     useEffect(() => {
         if (!audioUrl) {
@@ -32,12 +33,12 @@ const PracticeSTT = () => {
                     throw new Error('세션 정보를 확인할 수 없습니다');
                 }
                 // 백엔드 스키마(user_id, session_id, audio_url)에 맞춰 전달 (session_id string)
-                const result = await requestSTT({
+                const result = await transcribeAudioUrl({
                     userId: DEFAULT_USER_ID,
                     sessionId,
                     audioUrl,
                 });
-                const { text } = result.data;
+                const text = result?.text || '';
 
                 navigate(`/practice/answer-edit/${questionId}`, {
                     state: { transcribedText: text },
@@ -49,7 +50,7 @@ const PracticeSTT = () => {
         };
 
         processSTT();
-    }, [audioUrl, questionId, navigate]);
+    }, [audioUrl, navigate, questionId, transcribeAudioUrl]);
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-rose-50/80 via-white to-pink-50/80 flex flex-col items-center justify-center p-6">

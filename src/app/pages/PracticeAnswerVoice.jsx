@@ -4,7 +4,7 @@ import { Button } from '@/app/components/ui/button';
 import { motion as Motion } from 'motion/react';
 import { AppHeader } from '@/app/components/AppHeader';
 import { useAudioRecorder } from '@/app/hooks/useAudioRecorder';
-import { getPresignedUrl, uploadToS3, confirmFileUpload } from '@/api/fileApi';
+import { useAudioSttPipeline } from '@/app/hooks/useAudioSttPipeline';
 import { toast } from 'sonner';
 import { Loader2 } from 'lucide-react';
 import { usePracticeQuestionLoader } from '@/app/hooks/usePracticeQuestionLoader';
@@ -48,6 +48,7 @@ const PracticeAnswerVoice = () => {
     error: recorderError,
     resetAudioBlob,
   } = useAudioRecorder();
+  const { uploadAudioBlob } = useAudioSttPipeline();
 
   const prefillAnswerText =
     typeof state?.prefillAnswerText === 'string' ? state.prefillAnswerText : '';
@@ -97,41 +98,14 @@ const PracticeAnswerVoice = () => {
     const processAudio = async () => {
       setIsUploading(true);
       try {
-        // mp3를 기본값으로 두고, 명확한 타입이면 그 타입을 사용한다.
-        const rawType = audioBlob.type || '';
-        let extension = 'mp3';
-        let mimeType = 'audio/mpeg';
-        if (rawType.includes('wav')) {
-          extension = 'wav';
-          mimeType = 'audio/wav';
-        } else if (rawType.includes('mp4') || rawType.includes('m4a')) {
-          extension = 'm4a';
-          mimeType = 'audio/mp4';
-        } else if (rawType.includes('mpeg') || rawType.includes('mp3')) {
-          extension = 'mp3';
-          mimeType = 'audio/mpeg';
-        }
-
-        // 1. Presigned URL 획득
-        const presignedResult = await getPresignedUrl({
-          fileName: `voice_${questionId}_${Date.now()}.${extension}`,
-          fileSize: audioBlob.size,
-          mimeType,
-          category: 'AUDIO',
+        const { audioUrl } = await uploadAudioBlob({
+          audioBlob,
+          fileNamePrefix: `voice_${questionId}`,
         });
-
-        const { fileId, presignedUrl } = presignedResult.data;
-
-        // 2. S3 업로드
-        await uploadToS3(presignedUrl, audioBlob, mimeType);
-
-        // 3. 업로드 확인 및 S3 URL 획득
-        const confirmResult = await confirmFileUpload(fileId);
-        const { fileUrl } = confirmResult.data;
 
         // 4. STT 페이지로 이동 (S3 URL과 questionId 전달)
         navigate(`/practice/stt/${questionId}`, {
-          state: { audioUrl: fileUrl },
+          state: { audioUrl },
         });
       } catch (err) {
         toast.error(err.message || '업로드에 실패했습니다');
@@ -142,7 +116,7 @@ const PracticeAnswerVoice = () => {
     };
 
     processAudio();
-  }, [audioBlob, questionId, navigate, resetAudioBlob]);
+  }, [audioBlob, navigate, questionId, resetAudioBlob, uploadAudioBlob]);
 
   const formatTime = (secs) => {
     const mins = Math.floor(secs / 60);
