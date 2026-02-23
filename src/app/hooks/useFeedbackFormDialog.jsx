@@ -57,10 +57,10 @@ export const useFeedbackFormDialog = () => {
                                 </div>
                             </div>
                             <ul className="space-y-1.5">
-                                {FEEDBACK_POINTS.map(({ icon: Comp, label }) => (
-                                    <li key={label} className="leading-snug flex items-center gap-2">
-                                        <Comp className="w-4 h-4 shrink-0 text-muted-foreground" />
-                                        {label}
+                                {FEEDBACK_POINTS.map((item) => (
+                                    <li key={item.label} className="leading-snug flex items-center gap-2">
+                                        <item.icon className="w-4 h-4 shrink-0 text-muted-foreground" />
+                                        {item.label}
                                     </li>
                                 ))}
                             </ul>
