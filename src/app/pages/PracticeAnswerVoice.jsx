@@ -39,7 +39,6 @@ const PracticeAnswerVoice = () => {
     recorderState,
     audioBlob,
     audioLevel,
-    audioBands,
     startRecording,
     stopRecording,
     pauseRecording,
