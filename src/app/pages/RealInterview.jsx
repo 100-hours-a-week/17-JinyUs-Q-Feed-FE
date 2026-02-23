@@ -7,13 +7,11 @@ import { AppHeader } from '@/app/components/AppHeader';
 import { createInterviewSession } from '@/api/interviewApi';
 import { SESSION_STORAGE_KEYS } from '@/app/constants/storageKeys';
 import { INTERVIEW_TYPES, QUESTION_TYPES } from '@/app/constants/interviewTaxonomy';
-import { useAuth } from '@/context/AuthContext';
 
 const SHOW_PORTFOLIO_INTERVIEW = import.meta.env.VITE_SHOW_PORTFOLIO_INTERVIEW === 'true';
 const REAL_SESSION_STORAGE_KEY = SESSION_STORAGE_KEYS.REAL_INTERVIEW_SESSION;
 const TEXT_SESSION_CREATE_FAILED = '면접 세션 생성에 실패했습니다.';
 const TEXT_SESSION_CREATING = '실전면접 준비 중';
-const DEFAULT_REAL_USER_ID = 1;
 
 const safeSetSessionItem = (key, value) => {
     try {
@@ -29,44 +27,7 @@ const normalizeTurnType = (value, fallback = 'main') => {
     return normalized || fallback;
 };
 
-const resolveUserIdFromAccessToken = (token) => {
-    if (!token) return DEFAULT_REAL_USER_ID;
-
-    const parts = token.split('.');
-    if (parts.length < 2) return DEFAULT_REAL_USER_ID;
-
-    try {
-        const normalized = parts[1].replace(/-/g, '+').replace(/_/g, '/');
-        const padded = normalized.padEnd(
-            normalized.length + (4 - (normalized.length % 4 || 4)) % 4,
-            '='
-        );
-        const payload = JSON.parse(atob(padded));
-        const candidates = [
-            payload?.userId,
-            payload?.user_id,
-            payload?.memberId,
-            payload?.member_id,
-            payload?.id,
-            payload?.sub,
-        ];
-
-        for (const candidate of candidates) {
-            if (typeof candidate === 'number' && Number.isInteger(candidate)) {
-                return candidate;
-            }
-            if (typeof candidate === 'string' && /^\d+$/.test(candidate.trim())) {
-                return Number(candidate.trim());
-            }
-        }
-    } catch {
-        return DEFAULT_REAL_USER_ID;
-    }
-
-    return DEFAULT_REAL_USER_ID;
-};
-
-const saveRealInterviewSession = ({ userId, questionType, sessionData }) => {
+const saveRealInterviewSession = ({ questionType, sessionData }) => {
     const sessionId = sessionData?.session_id ?? sessionData?.sessionId;
     if (!sessionId) return;
 
@@ -79,7 +40,6 @@ const saveRealInterviewSession = ({ userId, questionType, sessionData }) => {
     safeSetSessionItem(
         REAL_SESSION_STORAGE_KEY,
         JSON.stringify({
-            user_id: userId,
             session_id: String(sessionId),
             interview_type: INTERVIEW_TYPES.REAL,
             question_type: resolvedQuestionType,
@@ -91,6 +51,7 @@ const saveRealInterviewSession = ({ userId, questionType, sessionData }) => {
                 category: sessionData?.category ?? '',
             },
             interview_history: [],
+            status: typeof sessionData?.status === 'string' ? sessionData.status : 'IN_PROGRESS',
             expires_at: sessionData?.expires_at ?? sessionData?.expiresAt ?? null,
             created_at: new Date().toISOString(),
         })
@@ -99,7 +60,6 @@ const saveRealInterviewSession = ({ userId, questionType, sessionData }) => {
 
 const RealInterview = () => {
     const navigate = useNavigate();
-    const { accessToken } = useAuth();
     const [isCreatingSession, setIsCreatingSession] = useState(false);
 
     const handleComingSoon = (title) => {
@@ -124,9 +84,7 @@ const RealInterview = () => {
                 throw new Error(TEXT_SESSION_CREATE_FAILED);
             }
 
-            const userId = resolveUserIdFromAccessToken(accessToken);
             saveRealInterviewSession({
-                userId,
                 questionType,
                 sessionData,
             });

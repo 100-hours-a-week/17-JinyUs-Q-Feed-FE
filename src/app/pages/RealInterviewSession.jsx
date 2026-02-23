@@ -254,13 +254,6 @@ const normalizeTurnType = (value, fallback = 'follow_up') => {
     return normalized || fallback;
 };
 
-const normalizeTurnTypeForApi = (value) => {
-    const normalized = normalizeTurnType(value, 'follow_up');
-    if (normalized === 'main') return 'new_topic';
-    if (normalized === 'new_topic') return 'new_topic';
-    return 'follow_up';
-};
-
 const normalizeTurnOrder = (value, fallback = 1) => {
     const parsed = toIntegerOrNull(value);
     if (parsed !== null && parsed >= 0) return parsed;
@@ -283,17 +276,6 @@ const normalizeHistoryItem = (item, index) => {
         answer_text: toTrimmedString(item?.answer_text ?? item?.answerText),
         turn_type: normalizeTurnType(item?.turn_type ?? item?.turnType, index === 0 ? 'main' : 'follow_up'),
         turn_order: normalizeTurnOrder(item?.turn_order ?? item?.turnOrder, fallbackOrder),
-        topic_id: toIntegerOrNull(item?.topic_id ?? item?.topicId),
-        category: toTrimmedString(item?.category),
-    };
-};
-
-const toApiHistoryItem = (item, index) => {
-    return {
-        question: toTrimmedString(item?.question),
-        answer_text: toTrimmedString(item?.answer_text ?? item?.answerText),
-        turn_type: normalizeTurnTypeForApi(item?.turn_type ?? item?.turnType),
-        turn_order: index,
         topic_id: toIntegerOrNull(item?.topic_id ?? item?.topicId),
         category: toTrimmedString(item?.category),
     };
@@ -348,13 +330,22 @@ const normalizeStoredRealSession = (raw, fallbackUserId) => {
             raw.current_question ?? raw.currentQuestion,
             raw.question_text ?? raw.questionText ?? ''
         ),
+        status: toTrimmedString(raw.status),
         expires_at: raw.expires_at ?? raw.expiresAt ?? null,
         created_at: raw.created_at ?? raw.createdAt ?? null,
     };
 };
 
 const persistRealSession = (session) => {
-    safeSetSessionItem(REAL_SESSION_STORAGE_KEY, JSON.stringify(session));
+    if (!session || typeof session !== 'object') return;
+
+    const persistedSession = {
+        ...session,
+    };
+    delete persistedSession.user_id;
+    delete persistedSession.userId;
+
+    safeSetSessionItem(REAL_SESSION_STORAGE_KEY, JSON.stringify(persistedSession));
 };
 
 const resolveQuestionFromCandidate = (candidate) => {
@@ -1099,12 +1090,11 @@ const RealInterviewSession = () => {
         };
 
         const nextInterviewHistory = [...(activeSession.interview_history || []), historyEntry];
-        const apiInterviewHistory = nextInterviewHistory.map((item, index) => toApiHistoryItem(item, index));
         const requestPayload = {
-            user_id: activeSession.user_id ?? realUserId,
             session_id: activeSession.session_id ?? realSessionId,
             question_type: activeSession.question_type || realQuestionType,
-            interview_history: apiInterviewHistory,
+            question: normalizedCurrentQuestion,
+            answer_text: answerText,
         };
 
         const submittedAt = new Date().toISOString();
@@ -1125,6 +1115,7 @@ const RealInterviewSession = () => {
             });
 
             const payload = submitResponse?.data ?? submitResponse ?? {};
+            const submissionStatus = toTrimmedString(payload?.status) || activeSession.status || 'IN_PROGRESS';
             const badCaseFeedback = extractBadCaseFeedback(submitResponse, payload);
 
             if (badCaseFeedback) {
@@ -1142,6 +1133,7 @@ const RealInterviewSession = () => {
                         }),
                         turn_order: nextRetryTurnOrder,
                     },
+                    status: submissionStatus,
                     updated_at: new Date().toISOString(),
                 };
                 storedSessionRef.current = updatedSession;
@@ -1167,10 +1159,12 @@ const RealInterviewSession = () => {
 
             if (isFinished) {
                 const finishedMessage = nextQuestion?.text || COPY.interviewFinishedQuestion;
+                const hasFinishedTtsTarget = Boolean(nextQuestion?.text);
                 const finishedSession = {
                     ...activeSession,
                     interview_history: nextInterviewHistory,
                     current_question: null,
+                    status: submissionStatus,
                     updated_at: new Date().toISOString(),
                 };
                 storedSessionRef.current = finishedSession;
@@ -1184,6 +1178,10 @@ const RealInterviewSession = () => {
                 setCurrentCategory('');
                 setTranscriptDraft('');
                 setPhase(PHASE.READY);
+                if (hasFinishedTtsTarget) {
+                    stopQuestionTtsPlayback();
+                    await playQuestionTtsText(finishedMessage, { allowFinishedText: true });
+                }
                 return;
             }
 
@@ -1194,6 +1192,7 @@ const RealInterviewSession = () => {
                     ...activeSession,
                     interview_history: nextInterviewHistory,
                     current_question: null,
+                    status: submissionStatus,
                     updated_at: new Date().toISOString(),
                 };
                 storedSessionRef.current = finishedSession;
@@ -1226,6 +1225,7 @@ const RealInterviewSession = () => {
                     topic_id: nextTopicId,
                     category: nextCategory,
                 },
+                status: submissionStatus,
                 updated_at: new Date().toISOString(),
             };
             storedSessionRef.current = updatedSession;
@@ -1263,7 +1263,6 @@ const RealInterviewSession = () => {
         interviewRound,
         playQuestionTtsText,
         realQuestionType,
-        realUserId,
         realSessionId,
         seconds,
         stopQuestionTtsPlayback,
@@ -1416,6 +1415,7 @@ const RealInterviewSession = () => {
                 const payload = sessionResponse?.data ?? sessionResponse ?? {};
                 const resolvedQuestion = extractQuestionFromPayload(payload);
                 const isFinished = resolveInterviewFinished(payload);
+                const sessionStatus = toTrimmedString(payload?.status) || normalizedSession.status || 'IN_PROGRESS';
 
                 if (resolvedQuestion?.text) {
                     const turnType = normalizeTurnType(resolvedQuestion.turnType, 'main');
@@ -1432,6 +1432,7 @@ const RealInterviewSession = () => {
                             topic_id: topicId,
                             category,
                         },
+                        status: sessionStatus,
                     };
                     storedSessionRef.current = updatedSession;
                     persistRealSession(updatedSession);
@@ -1456,6 +1457,7 @@ const RealInterviewSession = () => {
                     const finishedSession = {
                         ...normalizedSession,
                         current_question: null,
+                        status: sessionStatus,
                     };
                     storedSessionRef.current = finishedSession;
                     persistRealSession(finishedSession);
