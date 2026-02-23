@@ -1,27 +1,10 @@
 import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
+import { markSplashShown } from '@/app/utils/splashUtils';
 
 /** 스플래시 GIF 1회 재생으로 간주하는 시간(ms). GIF 실제 길이에 맞게 조정 가능 */
 const SPLASH_GIF_DURATION_MS = 3000;
-
-const SPLASH_SHOWN_KEY = 'qfeed_splash_shown';
-
-export function markSplashShown() {
-  try {
-    sessionStorage.setItem(SPLASH_SHOWN_KEY, '1');
-  } catch {
-    // ignore
-  }
-}
-
-export function clearSplashShown() {
-  try {
-    sessionStorage.removeItem(SPLASH_SHOWN_KEY);
-  } catch {
-    // ignore
-  }
-}
 
 const Splash = () => {
   const navigate = useNavigate();
