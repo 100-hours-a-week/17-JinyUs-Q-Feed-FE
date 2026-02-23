@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Button } from '@/app/components/ui/button';
 import { motion as Motion } from 'motion/react';
 import { AppHeader } from '@/app/components/AppHeader';
@@ -26,6 +26,7 @@ const TEXT_NOT_FOUND = '질문을 찾을 수 없습니다';
 const PracticeAnswerVoice = () => {
   const navigate = useNavigate();
   const { questionId } = useParams();
+  const { state } = useLocation();
   const [seconds, setSeconds] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
   const [showBackModal, setShowBackModal] = useState(false);
@@ -47,6 +48,18 @@ const PracticeAnswerVoice = () => {
     error: recorderError,
     resetAudioBlob,
   } = useAudioRecorder();
+
+  const prefillAnswerText =
+    typeof state?.prefillAnswerText === 'string' ? state.prefillAnswerText : '';
+
+  useEffect(() => {
+    if (!prefillAnswerText.trim()) return;
+
+    navigate(`/practice/answer-edit/${questionId}`, {
+      replace: true,
+      state: { transcribedText: prefillAnswerText },
+    });
+  }, [navigate, prefillAnswerText, questionId]);
 
   // 녹음 타이머 (recording 상태일 때만 동작)
   useEffect(() => {

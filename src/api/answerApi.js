@@ -71,7 +71,7 @@ export async function fetchAnswerDetail(
  * @returns {Promise<Object>} 피드백 조회 결과
  */
 export async function fetchAnswerFeedback(answerId) {
-  const response = await api.get(`/api/interviews/answers/${answerId}/feedback`, {
+  const response = await api.get(`/api/answers/practice/${answerId}/feedback`, {
     parseResponse: true,
   })
   return response
