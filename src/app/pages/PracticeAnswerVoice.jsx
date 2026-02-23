@@ -202,7 +202,7 @@ const PracticeAnswerVoice = () => {
   const getVisualizerState = () => {
     if (recorderState === 'permission_error') return 'permission';
     if (recorderState === 'device_error') return 'error';
-    if (recorderState === 'recording' && audioLevel > 0.05) return 'active';
+    if (recorderState === 'recording' && audioLevel > 0.02) return 'active';
     if (recorderState === 'paused') return 'paused';
     return 'idle';
   };
@@ -250,38 +250,48 @@ const PracticeAnswerVoice = () => {
           <h2 className="text-center text-lg font-semibold text-[var(--gray-900)]">{question.title}</h2>
         </div>
 
-        {/* Audio Visualizer - 주파수 밴드에 따른 파장 막대 (오디오 입력 크기에 따라 막대 높이 변함) */}
+        {/* Audio Visualizer - 처음엔 원 1개, 소리 감지 시 바깥 원이 생기는 모션 */}
         <div className="relative mb-12 w-44 h-44 flex items-center justify-center">
-          <div className="absolute inset-0 pointer-events-none">
-            {(audioBands || Array(12).fill(0)).map((band, i) => {
-              const angle = (i / 12) * 360 - 90
-              const isActive = visualizerState === 'active' && recorderState === 'recording'
-              const height = isActive ? Math.round(8 + band * 28) : 8
-              return (
-                <div
-                  key={i}
-                  className="absolute rounded-full"
-                  style={{
-                    left: '50%',
-                    bottom: '50%',
-                    width: 6,
-                    height,
-                    marginLeft: -3,
-                    transformOrigin: 'center 100%',
-                    transform: `rotate(${angle}deg)`,
-                    background: 'linear-gradient(to top, var(--primary-500), var(--primary-400))',
-                  }}
-                />
-              )
-            })}
+          <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+            {(() => {
+              const isRecording = recorderState === 'recording'
+              const rawLevel = audioLevel ?? 0
+              const level = isRecording ? Math.min(rawLevel * 5, 1) : 0 // 민감도 5배
+              const circles = [
+                { size: 55, threshold: 0 },
+                { size: 70, threshold: 0.08 },
+                { size: 85, threshold: 0.18 },
+                { size: 100, threshold: 0.3 },
+                { size: 115, threshold: 0.45 },
+                { size: 130, threshold: 0.6 },
+                { size: 145, threshold: 0.75 },
+                { size: 160, threshold: 0.88 },
+              ]
+              return circles.map(({ size, threshold }, i) => {
+                const isBase = i === 0
+                const intensity = level >= threshold ? (level - threshold) / (1 - threshold || 1) : 0
+                const scale = isBase ? 0.9 + level * 0.12 : intensity > 0 ? 0.85 + intensity * 0.25 : 0.7
+                const opacity = isBase ? (level > 0 ? 0.22 : 0.15) : intensity > 0 ? 0.07 + intensity * 0.2 : 0
+                const borderWidth = 1 + i * 0.5 // 안쪽 1px → 바깥 4.5px
+                return (
+                  <div
+                    key={i}
+                    className="absolute left-1/2 top-1/2 rounded-full border border-[var(--primary-400)] transition-all duration-100"
+                    style={{
+                      width: size,
+                      height: size,
+                      transform: `translate(-50%, -50%) scale(${scale})`,
+                      opacity,
+                      borderWidth,
+                    }}
+                  />
+                )
+              })
+            })()}
           </div>
           {/* 중앙 마이크 아이콘 */}
           <Motion.div
-            className={`relative z-10 w-28 h-28 rounded-full flex items-center justify-center ${
-              visualizerState === 'paused'
-                ? 'bg-white/90 shadow-md border border-[var(--primary-200)]'
-                : 'bg-white shadow-md border border-[var(--primary-200)]/60'
-            }`}
+            className="relative z-10 flex items-center justify-center"
             animate={
               visualizerState === 'idle' && recorderState === 'idle'
                 ? { scale: [1, 1.02, 1] }
@@ -293,36 +303,32 @@ const PracticeAnswerVoice = () => {
                 : {}
             }
           >
-            <div className="w-20 h-20 rounded-full bg-[var(--primary-50)] flex items-center justify-center">
-              <div className="w-14 h-14 rounded-full bg-[var(--primary-100)] flex items-center justify-center">
-                {isUploading ? (
-                  <Loader2 className="w-8 h-8 text-[var(--primary-600)] animate-spin" />
-                ) : visualizerState === 'paused' ? (
-                  <svg
-                    className="w-8 h-8 text-[var(--primary-600)]"
-                    fill="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <rect x="6" y="4" width="4" height="16" />
-                    <rect x="14" y="4" width="4" height="16" />
-                  </svg>
-                ) : (
-                  <svg
-                    className="w-10 h-10 text-[var(--primary-500)]"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"
-                    />
-                  </svg>
-                )}
-              </div>
-            </div>
+            {isUploading ? (
+              <Loader2 className="w-10 h-10 text-[var(--primary-600)] animate-spin" />
+            ) : visualizerState === 'paused' ? (
+              <svg
+                className="w-10 h-10 text-[var(--primary-600)]"
+                fill="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <rect x="6" y="4" width="4" height="16" />
+                <rect x="14" y="4" width="4" height="16" />
+              </svg>
+            ) : (
+              <svg
+                className="w-12 h-12 text-[var(--primary-500)]"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"
+                />
+              </svg>
+            )}
           </Motion.div>
         </div>
 
