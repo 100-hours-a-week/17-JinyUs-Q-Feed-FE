@@ -14,14 +14,11 @@ import {
     getQuestionCategoryLabel,
     getQuestionTypeLabel,
 } from '@/app/constants/questionCategoryMeta';
+import { INTERVIEW_TYPES, INTERVIEW_TYPE_LABELS } from '@/app/constants/interviewTaxonomy';
 
-const ANSWER_TYPE_LABELS = {
-    PRACTICE_INTERVIEW: '연습',
-    REAL_INTERVIEW: '실전',
-    PORTFOLIO_INTERVIEW: '포트폴리오',
-};
+const ANSWER_TYPE_LABELS = INTERVIEW_TYPE_LABELS;
 
-const MODE_OPTIONS = [{ value: 'PRACTICE_INTERVIEW', label: '연습' }];
+const MODE_OPTIONS = [{ value: INTERVIEW_TYPES.PRACTICE, label: INTERVIEW_TYPE_LABELS[INTERVIEW_TYPES.PRACTICE] }];
 const SERVICE_LAUNCH_DATE = '2026-02-04';
 const EMPTY_CATEGORY_MAP = Object.freeze({});
 const ALL_FILTER_VALUE = 'ALL';
