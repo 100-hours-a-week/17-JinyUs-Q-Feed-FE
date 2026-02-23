@@ -17,6 +17,7 @@ import {
     requestInterviewSessionFeedback,
     submitRealInterviewAnswer,
 } from '@/api/interviewApi';
+import { useAudioSttPipeline } from '@/app/hooks/useAudioSttPipeline';
 import { useQuestionTtsPlayer } from '@/app/hooks/useQuestionTtsPlayer';
 import { SESSION_STORAGE_KEYS } from '@/app/constants/storageKeys';
 import { useAuth } from '@/context/AuthContext';
@@ -148,8 +149,6 @@ const START_GATE_PERMISSION_TARGET = {
     CAMERA: 'camera',
     MIC: 'microphone',
 };
-
-const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const safeGetSessionItem = (key) => {
     try {
@@ -560,14 +559,14 @@ const extractBadCaseFeedback = (response, payload) => {
 const getRecorderOptions = () => {
     if (typeof MediaRecorder === 'undefined') return {};
 
-    if (MediaRecorder.isTypeSupported('video/mp4')) {
-        return { mimeType: 'video/mp4' };
+    if (MediaRecorder.isTypeSupported('audio/mp4')) {
+        return { mimeType: 'audio/mp4' };
     }
-    if (MediaRecorder.isTypeSupported('video/webm;codecs=vp9,opus')) {
-        return { mimeType: 'video/webm;codecs=vp9,opus' };
+    if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
+        return { mimeType: 'audio/webm;codecs=opus' };
     }
-    if (MediaRecorder.isTypeSupported('video/webm')) {
-        return { mimeType: 'video/webm' };
+    if (MediaRecorder.isTypeSupported('audio/webm')) {
+        return { mimeType: 'audio/webm' };
     }
     return {};
 };
@@ -581,7 +580,9 @@ const RealInterviewSession = () => {
     const { accessToken } = useAuth();
     const videoRef = useRef(null);
     const streamRef = useRef(null);
+    const recordingStreamRef = useRef(null);
     const mediaRecorderRef = useRef(null);
+    const recordedChunksRef = useRef([]);
     const timerRef = useRef(null);
     const storedSessionRef = useRef(null);
 
@@ -622,6 +623,7 @@ const RealInterviewSession = () => {
     const [interviewEntries, setInterviewEntries] = useState([]);
     const [questionTrail, setQuestionTrail] = useState([]);
     const [currentQuestion, setCurrentQuestion] = useState(INITIAL_QUESTION);
+    const { uploadAudioBlob, transcribeAudioUrl } = useAudioSttPipeline();
 
     const isRecording = phase === PHASE.RECORDING;
     const isProcessing =
@@ -908,6 +910,13 @@ const RealInterviewSession = () => {
         }
     }, []);
 
+    const stopRecordingStream = useCallback(() => {
+        if (recordingStreamRef.current) {
+            recordingStreamRef.current.getTracks().forEach((track) => track.stop());
+            recordingStreamRef.current = null;
+        }
+    }, []);
+
     const attachStreamToVideo = useCallback(async (stream) => {
         if (!videoRef.current) return;
         videoRef.current.srcObject = stream;
@@ -953,29 +962,20 @@ const RealInterviewSession = () => {
     }, [attachStreamToVideo]);
 
     const ensureRecordingStream = useCallback(async () => {
-        const currentStream = streamRef.current;
-        if (currentStream && currentStream.getAudioTracks().length > 0) {
-            return currentStream;
+        const currentRecordingStream = recordingStreamRef.current;
+        if (currentRecordingStream && currentRecordingStream.getAudioTracks().length > 0) {
+            return currentRecordingStream;
         }
 
         try {
-            const streamWithAudio = await navigator.mediaDevices.getUserMedia({
-                video: {
-                    width: { ideal: 1280 },
-                    height: { ideal: 720 },
-                    facingMode: 'user',
-                },
+            const audioStream = await navigator.mediaDevices.getUserMedia({
                 audio: true,
+                video: false,
             });
 
-            if (currentStream) {
-                currentStream.getTracks().forEach((track) => track.stop());
-            }
-
-            streamRef.current = streamWithAudio;
-            await attachStreamToVideo(streamWithAudio);
+            recordingStreamRef.current = audioStream;
             setPermissionHint('');
-            return streamWithAudio;
+            return audioStream;
         } catch (error) {
             if (error?.name === 'NotAllowedError') {
                 setPermissionHint(COPY.micPermissionRequired);
@@ -984,21 +984,68 @@ const RealInterviewSession = () => {
             }
             return null;
         }
-    }, [attachStreamToVideo]);
+    }, []);
 
-    const runPostRecordingPipeline = useCallback(
-        async () => {
+    const runPostRecordingPipeline = useCallback(async (audioChunks, mimeType = '') => {
+        if (!Array.isArray(audioChunks) || audioChunks.length === 0) {
+            setTranscriptDraft('');
+            setIsReviewPanelOpen(true);
+            setPhase(PHASE.REVIEW);
+            toast.error(COPY.micConnectionFailed);
+            return;
+        }
+        if (!realSessionId) {
+            setTranscriptDraft('');
+            setIsReviewPanelOpen(true);
+            setPhase(PHASE.REVIEW);
+            toast.error(COPY.sessionNotFound);
+            return;
+        }
+
+        let resolvedMimeType = typeof mimeType === 'string' && mimeType ? mimeType : 'audio/webm';
+        if (!resolvedMimeType || resolvedMimeType === 'application/octet-stream') {
+            const firstChunkType = toTrimmedString(audioChunks[0]?.type);
+            if (firstChunkType) {
+                resolvedMimeType = firstChunkType;
+            }
+        }
+
+        const audioBlob = new Blob(audioChunks, { type: resolvedMimeType });
+
+        if (!audioBlob.size) {
+            setTranscriptDraft('');
+            setIsReviewPanelOpen(true);
+            setPhase(PHASE.REVIEW);
+            toast.error(COPY.micConnectionFailed);
+            return;
+        }
+
+        try {
             setPhase(PHASE.UPLOADING);
-            await wait(1300);
+            const uploadResult = await uploadAudioBlob({
+                audioBlob,
+                fileNamePrefix: `real_answer_${realSessionId}`,
+            });
 
             setPhase(PHASE.STT);
-            await wait(1400);
+            const sttResult = await transcribeAudioUrl({
+                userId: realUserId,
+                sessionId: realSessionId,
+                audioUrl: uploadResult.audioUrl,
+            });
+            const sttText = toTrimmedString(sttResult?.text);
 
+            setTranscriptDraft(sttText);
+            setBadCaseNotice('');
+        } catch (error) {
             setTranscriptDraft('');
+            toast.error(error?.message || COPY.micConnectionFailed);
+        } finally {
+            setSeconds(0);
+            setIsReviewPanelOpen(true);
             setPhase(PHASE.REVIEW);
-        },
-        []
-    );
+        }
+    }, [realSessionId, realUserId, transcribeAudioUrl, uploadAudioBlob]);
 
     const startRecording = useCallback(async () => {
         if (!canStartRecording) return;
@@ -1020,9 +1067,18 @@ const RealInterviewSession = () => {
 
             const recorder = new MediaRecorder(stream, options);
             mediaRecorderRef.current = recorder;
+            recordedChunksRef.current = [];
+
+            recorder.ondataavailable = (event) => {
+                if (event.data.size > 0) {
+                    recordedChunksRef.current.push(event.data);
+                }
+            };
 
             recorder.onstop = () => {
-                runPostRecordingPipeline();
+                const chunks = recordedChunksRef.current;
+                recordedChunksRef.current = [];
+                runPostRecordingPipeline(chunks, recorder.mimeType);
             };
 
             setSeconds(0);
@@ -1335,10 +1391,11 @@ const RealInterviewSession = () => {
             mediaRecorderRef.current.onstop = null;
             mediaRecorderRef.current.stop();
         }
+        stopRecordingStream();
         stopStream();
         safeRemoveSessionItem(REAL_SESSION_STORAGE_KEY);
         navigate(-1);
-    }, [navigate, stopQuestionTtsPlayback, stopStream, stopTimer]);
+    }, [navigate, stopQuestionTtsPlayback, stopRecordingStream, stopStream, stopTimer]);
 
     const handleExitCancel = useCallback(() => {
         setIsExitDialogOpen(false);
@@ -1499,11 +1556,13 @@ const RealInterviewSession = () => {
             stopQuestionTtsPlayback();
             stopTimer();
             if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+                mediaRecorderRef.current.onstop = null;
                 mediaRecorderRef.current.stop();
             }
+            stopRecordingStream();
             stopStream();
         };
-    }, [initializeCamera, isInterviewStarted, stopQuestionTtsPlayback, stopStream, stopTimer]);
+    }, [initializeCamera, isInterviewStarted, stopQuestionTtsPlayback, stopRecordingStream, stopStream, stopTimer]);
 
     useEffect(() => {
         if (!isStartGateOpen || isInterviewStarted || isInterviewFinished) {
