@@ -111,7 +111,7 @@ const PracticeAnswerText = () => {
                 <Button
                     onClick={handleSubmit}
                     disabled={!answer.trim() || isSubmitting || answer.length > MAX_ANSWER_LENGTH}
-                    className="w-full rounded-xl h-12"
+                    className="w-full rounded-md h-12"
                 >
                     {isSubmitting ? TEXT_SUBMITTING : TEXT_SUBMIT_BUTTON}
                 </Button>

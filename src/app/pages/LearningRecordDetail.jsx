@@ -8,6 +8,7 @@ import { RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, Responsi
 import { useAnswerDetail } from '@/app/hooks/useAnswerDetail'
 import { useQuestionCategories } from '@/app/hooks/useQuestionCategories'
 import { useQuestionTypes } from '@/app/hooks/useQuestionTypes'
+import { getQuestionCategoryLabel, getQuestionTypeLabel } from '@/app/constants/questionCategoryMeta'
 
 const TEXT_PAGE_TITLE = '학습 기록 상세'
 const TEXT_HEADER_DESC = '제출한 답변과 AI 피드백을 확인해보세요'
@@ -90,7 +91,8 @@ const LearningRecordDetail = () => {
   const navigate = useNavigate()
   const { answerId } = useParams()
   const { data, isLoading, error } = useAnswerDetail(answerId)
-  const { data: CATEGORY_LABELS = {} } = useQuestionCategories()
+  const { data: categoryData } = useQuestionCategories()
+  const CATEGORY_LABELS = categoryData?.flat ?? {}
   const { data: QUESTION_TYPE_LABELS = {} } = useQuestionTypes()
 
   const answerDetail = data?.data ?? data ?? {}
@@ -125,10 +127,12 @@ const LearningRecordDetail = () => {
   const mergedImprovementsText = hasRadarChart
     ? improvementsText
     : [strengthsText, improvementsText].filter(Boolean).join('\n')
-  const questionTypeLabel = question?.type ? QUESTION_TYPE_LABELS[question.type] || question.type : null
+  const questionTypeLabel = question?.type
+    ? getQuestionTypeLabel(question.type, QUESTION_TYPE_LABELS)
+    : null
   const questionCategory = question?.category ? (
     <Badge variant="secondary" className="bg-rose-100 text-rose-700">
-      {CATEGORY_LABELS[question.category] || question.category}
+      {getQuestionCategoryLabel(question.category, CATEGORY_LABELS)}
     </Badge>
   ) : null
 

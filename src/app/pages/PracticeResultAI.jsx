@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Button } from '@/app/components/ui/button';
 import { Card } from '@/app/components/ui/card';
-import { ThumbsUp, AlertCircle, Home } from 'lucide-react';
+import { ThumbsUp, AlertCircle, Home, Target } from 'lucide-react';
 import { AppHeader } from '@/app/components/AppHeader';
 import { RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, ResponsiveContainer } from 'recharts';
 import { usePracticeQuestionLoader } from '@/app/hooks/usePracticeQuestionLoader';
@@ -19,7 +19,6 @@ const TEXT_HOME_BUTTON = '홈으로 이동';
 const TEXT_AI_FEEDBACK_TITLE = 'AI 피드백';
 const TEXT_BAD_CASE_STRENGTHS = '더 잘 할 수 있어요. 지금의 시도가 충분히 의미 있습니다.';
 const TEXT_BAD_CASE_IMPROVEMENTS = '조금만 더 자세히 설명해도 충분히 좋아질 수 있어요.';
-const TEXT_HEADER_EMOJI = '🎯';
 const TEXT_RADAR_LABEL = '평가';
 const FEEDBACK_SECTION_DELIMITER = '\n\n';
 const FEEDBACK_SPLIT_DELIMITER = '●';
@@ -92,19 +91,24 @@ const PracticeResultAI = () => {
 
     return (
         <div className="min-h-screen bg-background">
-            <div className="bg-gradient-to-r from-pink-500 to-rose-500 text-white">
-                <AppHeader
-                    title={TEXT_AI_FEEDBACK_TITLE}
-                    onBack={() => navigate('/practice')}
-                    showNotifications={false}
-                    tone="dark"
-                />
+            <AppHeader
+                title={TEXT_AI_FEEDBACK_TITLE}
+                onBack={() => navigate('/practice')}
+                showNotifications={false}
+                tone="light"
+            />
 
-                <div className="text-center pb-6 px-6">
-                    <div className="text-5xl mb-2">{TEXT_HEADER_EMOJI}</div>
-                    <h2 className="text-2xl mb-1 text-white">{TEXT_COMPLETE_TITLE}</h2>
-                    <p className="text-white/80 text-sm">{TEXT_COMPLETE_DESC}</p>
+            <div
+                className="text-center pb-6 px-6 pt-2"
+                style={{
+                    background: 'linear-gradient(165deg, var(--primary-50) 0%, var(--primary-100) 50%, var(--primary-50) 100%)',
+                }}
+            >
+                <div className="mb-2 flex justify-center">
+                    <Target className="w-14 h-14 text-primary-500" />
                 </div>
+                <h2 className="text-2xl mb-1 font-semibold text-[var(--gray-900)]">{TEXT_COMPLETE_TITLE}</h2>
+                <p className="text-[var(--gray-600)] text-sm">{TEXT_COMPLETE_DESC}</p>
             </div>
 
             <div className="p-6 max-w-lg mx-auto space-y-4 -mt-4">
@@ -170,8 +174,7 @@ const PracticeResultAI = () => {
                         clearSelectedQuestion();
                         navigate('/');
                     }}
-                    className="w-full rounded-xl h-12 gap-2"
-                    variant="default"
+                    className="w-full rounded-md h-12 gap-2"
                 >
                     <Home className="w-5 h-5" />
                     {TEXT_HOME_BUTTON}
