@@ -37,7 +37,11 @@ const PracticeAnswerEdit = () => {
     const [showConfirm, setShowConfirm] = useState(false);
     const [showLengthWarning, setShowLengthWarning] = useState(false);
     const { submitAnswer, isSubmitting } = usePracticeAnswerSubmit();
-    const [answer, setAnswer] = useState(state?.transcribedText);
+    const [answer, setAnswer] = useState(() => {
+        if (typeof state?.transcribedText === 'string') return state.transcribedText;
+        if (typeof state?.prefillAnswerText === 'string') return state.prefillAnswerText;
+        return '';
+    });
     const { question, isLoading, errorMessage } = usePracticeQuestionLoader(questionId);
 
     const handleToggleEdit = () => {
@@ -54,7 +58,7 @@ const PracticeAnswerEdit = () => {
     };
 
     const handleSubmit = () => {
-        if (!answer.trim()) return;
+        if (!(answer || '').trim()) return;
         setShowConfirm(true);
     };
 

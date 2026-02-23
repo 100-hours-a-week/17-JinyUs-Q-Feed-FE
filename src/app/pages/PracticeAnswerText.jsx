@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Button } from '@/app/components/ui/button';
 import { Textarea } from '@/app/components/ui/textarea';
 import { Card } from '@/app/components/ui/card';
@@ -37,7 +37,10 @@ const MAX_ANSWER_LENGTH = 1500;
 const PracticeAnswerText = () => {
     const navigate = useNavigate();
     const { questionId } = useParams();
-    const [answer, setAnswer] = useState('');
+    const { state } = useLocation();
+    const [answer, setAnswer] = useState(() => (
+        typeof state?.prefillAnswerText === 'string' ? state.prefillAnswerText : ''
+    ));
     const [showConfirm, setShowConfirm] = useState(false);
     const [showLengthWarning, setShowLengthWarning] = useState(false);
     const { submitAnswer, isSubmitting } = usePracticeAnswerSubmit();
