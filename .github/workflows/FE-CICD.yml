@@ -7,10 +7,11 @@ on:
   push:               # main 또는 dev 브랜치에 직접 push될 때 실행
     branches:
       - main
-      - dev      
-  pull_request:       # main 브랜치로의 PR이 생성되거나 업데이트될 때 실행
+      - dev
+  pull_request:       # main 또는 dev 브랜치로의 PR이 생성/업데이트될 때 실행
     branches:
       - main
+      - dev
 
 # OIDC를 통한 AWS 인증을 위한 권한 설정
 permissions:
