@@ -39,16 +39,18 @@ export function useAudioRecorder() {
     const average = dataArray.reduce((a, b) => a + b, 0) / dataArray.length
     setAudioLevel(average / 255)
 
-    // 주파수 대역별 값 (0~1) - 비주얼라이저 막대 높이에 사용
+    // 주파수 대역별 값 (0~1) - 비주얼라이저 막대 높이에 사용, 민감도 향상(gain 1.8)
     const len = dataArray.length
     const bandSize = Math.floor(len / BAND_COUNT)
+    const gain = 1.8
     const bands = []
     for (let i = 0; i < BAND_COUNT; i++) {
       const start = i * bandSize
       const end = i === BAND_COUNT - 1 ? len : start + bandSize
       let sum = 0
       for (let j = start; j < end; j++) sum += dataArray[j]
-      bands.push(Math.min((sum / (end - start)) / 255, 1))
+      const raw = (sum / (end - start)) / 255
+      bands.push(Math.min(raw * gain, 1))
     }
     setAudioBands(bands)
 
@@ -95,7 +97,8 @@ export function useAudioRecorder() {
       audioContextRef.current = new AudioContext()
       const source = audioContextRef.current.createMediaStreamSource(stream)
       analyserRef.current = audioContextRef.current.createAnalyser()
-      analyserRef.current.fftSize = 256
+      analyserRef.current.fftSize = 512
+      analyserRef.current.smoothingTimeConstant = 0.2
       source.connect(analyserRef.current)
 
       // MediaRecorder 설정 (mp4 우선 - Safari AAC/m4a 호환)
