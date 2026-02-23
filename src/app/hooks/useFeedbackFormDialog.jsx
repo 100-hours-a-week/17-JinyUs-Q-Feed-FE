@@ -18,9 +18,9 @@ const TEXT_DESC = [
     '베타 단계라 의견을 빠르게 반영하고 있어요.',
 ];
 const FEEDBACK_POINTS = [
-    { Icon: ThumbsUp, label: '좋았던 점' },
-    { Icon: Wrench, label: '불편했던 점' },
-    { Icon: Sprout, label: '바라는 점' },
+    { icon: ThumbsUp, label: '좋았던 점' },
+    { icon: Wrench, label: '불편했던 점' },
+    { icon: Sprout, label: '바라는 점' },
 ];
 const TEXT_FOOTER_LINES = [
     '총 5문항 · 약 1분.',
@@ -57,9 +57,9 @@ export const useFeedbackFormDialog = () => {
                                 </div>
                             </div>
                             <ul className="space-y-1.5">
-                                {FEEDBACK_POINTS.map(({ Icon, label }) => (
+                                {FEEDBACK_POINTS.map(({ icon, label }) => (
                                     <li key={label} className="leading-snug flex items-center gap-2">
-                                        <Icon className="w-4 h-4 shrink-0 text-muted-foreground" />
+                                        <icon className="w-4 h-4 shrink-0 text-muted-foreground" />
                                         {label}
                                     </li>
                                 ))}
