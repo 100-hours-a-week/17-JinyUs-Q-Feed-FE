@@ -24,6 +24,7 @@ import LearningRecordDetail from '@/app/pages/LearningRecordDetail';
 import SettingMain from '@/app/pages/SettingMain';
 import RealInterview from '@/app/pages/RealInterview';
 import RealInterviewSession from '@/app/pages/RealInterviewSession';
+import RealInterviewResultAI from '@/app/pages/RealInterviewResultAI';
 import OAuthCallback from '@/app/pages/OAuthCallback';
 
 const SPLASH_SHOWN_KEY = 'qfeed_splash_shown';
@@ -76,6 +77,7 @@ function AppRoutes() {
                             <>
                                 <Route path="/real-interview" element={<RealInterview />} />
                                 <Route path="/real-interview/session" element={<RealInterviewSession />} />
+                                <Route path="/real-interview/result-ai" element={<RealInterviewResultAI />} />
                             </>
                         )}
 

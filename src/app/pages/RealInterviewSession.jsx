@@ -1337,14 +1337,20 @@ const RealInterviewSession = () => {
         setAnalysisNotice('');
 
         try {
-            await requestInterviewSessionFeedback({ sessionId: realSessionId });
+            const feedbackResponse = await requestInterviewSessionFeedback({ sessionId: realSessionId });
             setAnalysisState('success');
             setAnalysisNotice(COPY.analysisRequestAccepted);
+            navigate('/real-interview/result-ai', {
+                state: {
+                    feedbackResponse,
+                    interviewEntries,
+                },
+            });
         } catch (error) {
             setAnalysisState('error');
             setAnalysisNotice(error?.message || COPY.analysisRequestRetry);
         }
-    }, [analysisState, interviewEntries.length, realSessionId]);
+    }, [analysisState, interviewEntries, navigate, realSessionId]);
 
     const processingLabel = useMemo(() => {
         if (phase === PHASE.UPLOADING || phase === PHASE.STT) {
