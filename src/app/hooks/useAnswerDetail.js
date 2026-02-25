@@ -4,10 +4,7 @@ import { fetchAnswerDetail } from '@/api/answerApi'
 export function useAnswerDetail(answerId) {
   return useQuery({
     queryKey: ['answerDetail', answerId],
-    queryFn: () =>
-      fetchAnswerDetail(answerId, {
-        expand: ['question', 'feedback', 'immediate_feedback'],
-      }),
+    queryFn: () => fetchAnswerDetail(answerId),
     enabled: Boolean(answerId),
     staleTime: 5 * 60 * 1000,
     gcTime: 10 * 60 * 1000,
