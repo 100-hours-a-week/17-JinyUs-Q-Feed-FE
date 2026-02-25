@@ -45,21 +45,14 @@ export async function fetchAnswers({
  * 답변 상세 조회 API
  * @param {number|string} answerId - 답변 ID
  * @param {Object} [params]
- * @param {string|string[]} [params.expand] - 확장 필드
  * @param {AbortSignal} [params.signal] - AbortController signal
  * @returns {Promise<Object>} 답변 상세 정보
  */
 export async function fetchAnswerDetail(
   answerId,
-  { expand = ['question', 'feedback', 'immediate_feedback'], signal } = {}
+  { signal } = {}
 ) {
-  const queryParams = new URLSearchParams()
-  const expandValue = Array.isArray(expand) ? expand.join(',') : expand
-
-  if (expandValue) queryParams.append('expand', expandValue)
-
-  const queryString = queryParams.toString()
-  const url = `/api/answers/${answerId}${queryString ? `?${queryString}` : ''}`
+  const url = `/api/answers/${answerId}`
 
   const response = await api.get(url, { signal })
   return handleResponse(response)

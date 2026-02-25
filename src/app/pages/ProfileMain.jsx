@@ -18,10 +18,14 @@ import { INTERVIEW_TYPES, INTERVIEW_TYPE_LABELS } from '@/app/constants/intervie
 
 const ANSWER_TYPE_LABELS = INTERVIEW_TYPE_LABELS;
 
-const MODE_OPTIONS = [{ value: INTERVIEW_TYPES.PRACTICE, label: INTERVIEW_TYPE_LABELS[INTERVIEW_TYPES.PRACTICE] }];
+const ALL_FILTER_VALUE = 'ALL';
+const MODE_OPTIONS = [
+    { value: ALL_FILTER_VALUE, label: '전체' },
+    { value: INTERVIEW_TYPES.PRACTICE, label: INTERVIEW_TYPE_LABELS[INTERVIEW_TYPES.PRACTICE] },
+    { value: INTERVIEW_TYPES.REAL, label: INTERVIEW_TYPE_LABELS[INTERVIEW_TYPES.REAL] },
+];
 const SERVICE_LAUNCH_DATE = '2026-02-04';
 const EMPTY_CATEGORY_MAP = Object.freeze({});
-const ALL_FILTER_VALUE = 'ALL';
 
 const toDateInputValue = (date) => {
     const year = date.getFullYear();
@@ -155,6 +159,7 @@ const ProfileMain = () => {
     const categoriesByType = categoryData?.byType ?? EMPTY_CATEGORY_MAP;
 
     const observerRef = useRef(null);
+    const modeDropdownRef = useRef(null);
     const typeDropdownRef = useRef(null);
     const categoryDropdownRef = useRef(null);
     const filterModalContentRef = useRef(null);
@@ -169,14 +174,16 @@ const ProfileMain = () => {
         dateFrom,
         dateTo,
     });
-    const modeFilter = MODE_OPTIONS[0].value;
+    const [modeFilter, setModeFilter] = useState(ALL_FILTER_VALUE);
     const [questionTypeFilter, setQuestionTypeFilter] = useState(ALL_FILTER_VALUE);
     const [categoryFilter, setCategoryFilter] = useState(ALL_FILTER_VALUE);
+    const [isModeOpen, setIsModeOpen] = useState(false);
     const [isTypeOpen, setIsTypeOpen] = useState(false);
     const [isCategoryOpen, setIsCategoryOpen] = useState(false);
     const [showFilterModal, setShowFilterModal] = useState(false);
     const { open: openFeedbackDialog, dialog: feedbackDialog } = useFeedbackFormDialog();
 
+    const modeValue = modeFilter === ALL_FILTER_VALUE ? undefined : modeFilter;
     const questionTypeValue =
         questionTypeFilter === ALL_FILTER_VALUE ? undefined : questionTypeFilter;
     const categoryValue = categoryFilter === ALL_FILTER_VALUE ? undefined : categoryFilter;
@@ -212,6 +219,9 @@ const ProfileMain = () => {
 
     useEffect(() => {
         const handleClickOutside = (event) => {
+            if (modeDropdownRef.current && !modeDropdownRef.current.contains(event.target)) {
+                setIsModeOpen(false);
+            }
             if (typeDropdownRef.current && !typeDropdownRef.current.contains(event.target)) {
                 setIsTypeOpen(false);
             }
@@ -292,7 +302,7 @@ const ProfileMain = () => {
         hasNextPage,
         fetchNextPage
     } = useAnswersInfinite({
-        type: modeFilter,
+        type: modeValue,
         questionType: questionTypeValue,
         category: categoryValue,
         dateFrom: debouncedDateRange.dateFrom,
@@ -302,6 +312,12 @@ const ProfileMain = () => {
     const recentActivities = useMemo(
         () => data?.pages?.flatMap((p) => p.records) ?? [],
         [data]
+    );
+    const visibleActivities = useMemo(
+        () => recentActivities.filter((activity) =>
+            activity?.type === INTERVIEW_TYPES.PRACTICE || activity?.type === INTERVIEW_TYPES.REAL
+        ),
+        [recentActivities]
     );
 
     const loading = isLoading || isFetchingNextPage;
@@ -467,14 +483,38 @@ const ProfileMain = () => {
                                 <div className="grid grid-cols-[0.8fr_1.2fr] gap-3">
                                     <div className="space-y-2">
                                         <p className="text-xs text-muted-foreground">모드</p>
-                                        <div className="relative">
+                                        <div className="relative" ref={modeDropdownRef}>
                                             <button
                                                 type="button"
                                                 className="filter-select-btn"
-                                                disabled
+                                                onClick={() => {
+                                                    setIsTypeOpen(false);
+                                                    setIsCategoryOpen(false);
+                                                    setIsModeOpen((prev) => !prev);
+                                                }}
                                             >
-                                                {MODE_OPTIONS.find((option) => option.value === modeFilter)?.label ?? '연습'}
+                                                {MODE_OPTIONS.find((option) => option.value === modeFilter)?.label ?? '전체'}
+                                                <span className={`filter-arrow ${isModeOpen ? 'open' : ''}`}>▼</span>
                                             </button>
+
+                                            {isModeOpen && (
+                                                <div className="filter-dropdown">
+                                                    {MODE_OPTIONS.map((option) => (
+                                                        <button
+                                                            key={option.value}
+                                                            type="button"
+                                                            className={`filter-dropdown-item ${option.value === modeFilter ? 'active' : ''}`}
+                                                            onClick={() => {
+                                                                requestScrollRestore();
+                                                                setModeFilter(option.value);
+                                                                setIsModeOpen(false);
+                                                            }}
+                                                        >
+                                                            {option.label}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
 
@@ -485,6 +525,7 @@ const ProfileMain = () => {
                                                 type="button"
                                                 className="filter-select-btn"
                                                 onClick={() => {
+                                                    setIsModeOpen(false);
                                                     setIsCategoryOpen(false);
                                                     setIsTypeOpen((prev) => !prev);
                                                 }}
@@ -504,6 +545,7 @@ const ProfileMain = () => {
                                                                 requestScrollRestore();
                                                                 setQuestionTypeFilter(option.value);
                                                                 setCategoryFilter(ALL_FILTER_VALUE);
+                                                                setIsModeOpen(false);
                                                                 setIsTypeOpen(false);
                                                                 setIsCategoryOpen(false);
                                                             }}
@@ -525,6 +567,7 @@ const ProfileMain = () => {
                                                 className="filter-select-btn"
                                                 onClick={() => {
                                                     if (questionTypeFilter === ALL_FILTER_VALUE) return;
+                                                    setIsModeOpen(false);
                                                     setIsTypeOpen(false);
                                                     setIsCategoryOpen((prev) => !prev);
                                                 }}
@@ -603,7 +646,12 @@ const ProfileMain = () => {
                             </div>
                             <button
                                 className="filter-close-btn"
-                                onClick={() => setShowFilterModal(false)}
+                                onClick={() => {
+                                    setIsModeOpen(false);
+                                    setIsTypeOpen(false);
+                                    setIsCategoryOpen(false);
+                                    setShowFilterModal(false);
+                                }}
                             >
                                 적용
                             </button>
@@ -613,6 +661,21 @@ const ProfileMain = () => {
 
                 {/* 필터 칩 */}
                 <div className="space-y-2">
+                    <div className="filter-chips">
+                        {MODE_OPTIONS.map((option) => (
+                            <button
+                                key={option.value}
+                                className={`filter-chip ${modeFilter === option.value ? 'active' : ''}`}
+                                onClick={() => {
+                                    requestScrollRestore();
+                                    setModeFilter(option.value);
+                                }}
+                            >
+                                {option.label}
+                            </button>
+                        ))}
+                    </div>
+
                     <div className="filter-chips">
                         {questionTypeOptions.map((option) => (
                             <button
@@ -655,7 +718,7 @@ const ProfileMain = () => {
 
                 {/* 학습 기록 리스트 */}
                 <div className="history-list">
-                    {recentActivities.map((activity) => {
+                    {visibleActivities.map((activity) => {
                         const categoryKey = activity.question?.category;
                         const categoryLabel = categoryKey
                             ? getQuestionCategoryLabel(categoryKey, categoryMap)
@@ -673,7 +736,11 @@ const ProfileMain = () => {
                                 title={activity.question?.content || '질문 정보 없음'}
                                 date={formatDate(activity.createdAt)}
                                 feedbackAvailable={activity.feedback?.feedbackAvailable}
-                                onClick={() => navigate(`/profile/records/${activity.answerId}`)}
+                                onClick={() => navigate(
+                                    activity.type === INTERVIEW_TYPES.REAL
+                                        ? `/profile/records/real/${activity.answerId}`
+                                        : `/profile/records/${activity.answerId}`
+                                )}
                             />
                         );
                     })}
@@ -684,13 +751,13 @@ const ProfileMain = () => {
                         </div>
                     )}
 
-                    {!loading && !error && recentActivities.length === 0 && (
+                    {!loading && !error && visibleActivities.length === 0 && (
                         <div className="empty-state">
                             아직 학습 기록이 없습니다.
                         </div>
                     )}
 
-                    {!hasNextPage && recentActivities.length > 0 && (
+                    {!hasNextPage && visibleActivities.length > 0 && (
                         <p className="end-message">
                             모든 학습 기록을 불러왔습니다.
                         </p>
