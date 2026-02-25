@@ -21,6 +21,7 @@ import PracticeResultKeyword from '@/app/pages/PracticeResultKeyword';
 import PracticeResultAI from '@/app/pages/PracticeResultAI';
 import ProfileMain from '@/app/pages/ProfileMain';
 import LearningRecordDetail from '@/app/pages/LearningRecordDetail';
+import RealLearningRecordDetail from '@/app/pages/RealLearningRecordDetail';
 import SettingMain from '@/app/pages/SettingMain';
 import RealInterview from '@/app/pages/RealInterview';
 import RealInterviewSession from '@/app/pages/RealInterviewSession';
@@ -83,6 +84,7 @@ function AppRoutes() {
 
                         {/* Profile */}
                         <Route path="/profile" element={<ProfileMain />} />
+                        <Route path="/profile/records/real/:answerId" element={<RealLearningRecordDetail />} />
                         <Route path="/profile/records/:answerId" element={<LearningRecordDetail />} />
                         <Route path="/settings" element={<SettingMain />} />
 
