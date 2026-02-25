@@ -46,6 +46,35 @@ const resolveAudioMeta = (rawType = '') => {
   return { extension: 'webm', mimeType: 'audio/webm' };
 };
 
+const formatTimestampPrefix = (date = new Date()) => {
+  const year = String(date.getFullYear());
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  const seconds = String(date.getSeconds()).padStart(2, '0');
+  return `${year}-${month}-${day}_${hours}:${minutes}:${seconds}`;
+};
+
+const normalizeModeToken = (mode) => {
+  const normalized = toTrimmedString(mode).toUpperCase();
+
+  if (normalized === 'REAL' || normalized === 'REAL_INTERVIEW') {
+    return 'REAL';
+  }
+  if (normalized === 'PRACTICE' || normalized === 'PRACTICE_INTERVIEW') {
+    return 'PRACTICE';
+  }
+  return 'UNKNOWN';
+};
+
+const createUuid = () => {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return `${Date.now()}-${Math.random().toString(16).slice(2, 10)}`;
+};
+
 export function useAudioSttPipeline(options = {}) {
   const { category = 'AUDIO' } = options;
   const [stage, setStage] = useState(STT_PIPELINE_STAGE.IDLE);
@@ -56,7 +85,7 @@ export function useAudioSttPipeline(options = {}) {
     setError(null);
   }, []);
 
-  const uploadAudioBlob = useCallback(async ({ audioBlob, fileNamePrefix = 'voice' }) => {
+  const uploadAudioBlob = useCallback(async ({ audioBlob, mode = 'UNKNOWN' }) => {
     if (!audioBlob || typeof audioBlob.size !== 'number' || audioBlob.size <= 0) {
       const invalidAudioError = new Error('녹음된 음성이 없습니다.');
       setError(invalidAudioError);
@@ -73,9 +102,11 @@ export function useAudioSttPipeline(options = {}) {
       const uploadBlob = audioBlob.type === mimeType
         ? audioBlob
         : new Blob([audioBlob], { type: mimeType });
-
+      const timestampPrefix = formatTimestampPrefix();
+      const modeToken = normalizeModeToken(mode);
+      const uuid = createUuid();
       const presignedResult = await getPresignedUrl({
-        fileName: `${fileNamePrefix}_${Date.now()}.${extension}`,
+        fileName: `${timestampPrefix}_${modeToken}_STT_${uuid}.${extension}`,
         fileSize: uploadBlob.size,
         mimeType,
         category,
@@ -153,11 +184,11 @@ export function useAudioSttPipeline(options = {}) {
     audioBlob,
     userId,
     sessionId,
-    fileNamePrefix = 'voice',
+    mode = 'UNKNOWN',
   }) => {
     const uploadResult = await uploadAudioBlob({
       audioBlob,
-      fileNamePrefix,
+      mode,
     });
     const transcribeResult = await transcribeAudioUrl({
       userId,

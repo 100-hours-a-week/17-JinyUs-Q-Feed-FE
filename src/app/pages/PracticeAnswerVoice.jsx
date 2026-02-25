@@ -100,7 +100,7 @@ const PracticeAnswerVoice = () => {
       try {
         const { audioUrl } = await uploadAudioBlob({
           audioBlob,
-          fileNamePrefix: `voice_${questionId}`,
+          mode: 'PRACTICE',
         });
 
         // 4. STT 페이지로 이동 (S3 URL과 questionId 전달)
