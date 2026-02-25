@@ -1024,7 +1024,7 @@ const RealInterviewSession = () => {
             setPhase(PHASE.UPLOADING);
             const uploadResult = await uploadAudioBlob({
                 audioBlob,
-                fileNamePrefix: `real_answer_${realSessionId}`,
+                mode: 'REAL',
             });
 
             setPhase(PHASE.STT);
