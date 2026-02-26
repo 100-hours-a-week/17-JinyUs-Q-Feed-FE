@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import BottomNav from '@/app/components/BottomNav';
-import { Settings, Calendar, Target, MessageSquare, Filter, TrendingUp, Loader2 } from 'lucide-react';
+import { Settings, Calendar, Target, MessageSquare, TrendingUp, Loader2 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useAnswersInfinite } from '@/app/hooks/useAnswersInfinite';
 import { useUserStats } from '@/app/hooks/useUserStats.js';
@@ -162,7 +162,6 @@ const ProfileMain = () => {
     const modeDropdownRef = useRef(null);
     const typeDropdownRef = useRef(null);
     const categoryDropdownRef = useRef(null);
-    const filterModalContentRef = useRef(null);
     const scrollPositionRef = useRef(0);
     const shouldRestoreScrollRef = useRef(false);
 
@@ -180,7 +179,6 @@ const ProfileMain = () => {
     const [isModeOpen, setIsModeOpen] = useState(false);
     const [isTypeOpen, setIsTypeOpen] = useState(false);
     const [isCategoryOpen, setIsCategoryOpen] = useState(false);
-    const [showFilterModal, setShowFilterModal] = useState(false);
     const { open: openFeedbackDialog, dialog: feedbackDialog } = useFeedbackFormDialog();
 
     const modeValue = modeFilter === ALL_FILTER_VALUE ? undefined : modeFilter;
@@ -238,30 +236,6 @@ const ProfileMain = () => {
             document.removeEventListener('touchstart', handleClickOutside);
         };
     }, []);
-
-    useEffect(() => {
-        if (!showFilterModal) return;
-        const originalOverflow = document.body.style.overflow;
-        const originalTouchAction = document.body.style.touchAction;
-        const originalOverscroll = document.body.style.overscrollBehavior;
-        document.body.style.overflow = 'hidden';
-        document.body.style.touchAction = 'none';
-        document.body.style.overscrollBehavior = 'none';
-
-        const preventScroll = (event) => {
-            const content = filterModalContentRef.current;
-            if (content && content.contains(event.target)) return;
-            event.preventDefault();
-        };
-
-        document.addEventListener('touchmove', preventScroll, { passive: false });
-        return () => {
-            document.body.style.overflow = originalOverflow;
-            document.body.style.touchAction = originalTouchAction;
-            document.body.style.overscrollBehavior = originalOverscroll;
-            document.removeEventListener('touchmove', preventScroll);
-        };
-    }, [showFilterModal]);
 
     const handleDateFromChange = (value) => {
         const launchClampedFrom = value < SERVICE_LAUNCH_DATE ? SERVICE_LAUNCH_DATE : value;
@@ -455,259 +429,168 @@ const ProfileMain = () => {
             <section className="history-section">
                 <div className="section-header">
                     <h3 className="section-title">최근 학습 기록</h3>
-                    <button 
-                        className="filter-btn"
-                        onClick={() => setShowFilterModal(!showFilterModal)}
-                    >
-                        <Filter size={16} />
-                        필터
-                    </button>
                 </div>
-
-                {/* 필터 모달 */}
-                {showFilterModal && (
-                    <div 
-                        className="filter-modal"
-                        onClick={(e) => {
-                            if (e.target === e.currentTarget) {
-                                setShowFilterModal(false);
-                            }
-                        }}
-                    >
-                        <div
-                            className="filter-modal-content"
-                            ref={filterModalContentRef}
-                            onClick={(e) => e.stopPropagation()}
-                        >
-                            <div className="space-y-3 mb-4">
-                                <div className="grid grid-cols-[0.8fr_1.2fr] gap-3">
-                                    <div className="space-y-2">
-                                        <p className="text-xs text-muted-foreground">모드</p>
-                                        <div className="relative" ref={modeDropdownRef}>
-                                            <button
-                                                type="button"
-                                                className="filter-select-btn"
-                                                onClick={() => {
-                                                    setIsTypeOpen(false);
-                                                    setIsCategoryOpen(false);
-                                                    setIsModeOpen((prev) => !prev);
-                                                }}
-                                            >
-                                                {MODE_OPTIONS.find((option) => option.value === modeFilter)?.label ?? '전체'}
-                                                <span className={`filter-arrow ${isModeOpen ? 'open' : ''}`}>▼</span>
-                                            </button>
-
-                                            {isModeOpen && (
-                                                <div className="filter-dropdown">
-                                                    {MODE_OPTIONS.map((option) => (
-                                                        <button
-                                                            key={option.value}
-                                                            type="button"
-                                                            className={`filter-dropdown-item ${option.value === modeFilter ? 'active' : ''}`}
-                                                            onClick={() => {
-                                                                requestScrollRestore();
-                                                                setModeFilter(option.value);
-                                                                setIsModeOpen(false);
-                                                            }}
-                                                        >
-                                                            {option.label}
-                                                        </button>
-                                                    ))}
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-
-                                    <div className="space-y-2">
-                                        <p className="text-xs text-muted-foreground">질문 타입</p>
-                                        <div className="relative" ref={typeDropdownRef}>
-                                            <button
-                                                type="button"
-                                                className="filter-select-btn"
-                                                onClick={() => {
-                                                    setIsModeOpen(false);
-                                                    setIsCategoryOpen(false);
-                                                    setIsTypeOpen((prev) => !prev);
-                                                }}
-                                            >
-                                                {questionTypeOptions.find((option) => option.value === questionTypeFilter)?.label ?? '전체'}
-                                                <span className={`filter-arrow ${isTypeOpen ? 'open' : ''}`}>▼</span>
-                                            </button>
-
-                                            {isTypeOpen && (
-                                                <div className="filter-dropdown">
-                                                    {questionTypeOptions.map((option) => (
-                                                        <button
-                                                            key={option.value}
-                                                            type="button"
-                                                            className={`filter-dropdown-item ${option.value === questionTypeFilter ? 'active' : ''}`}
-                                                            onClick={() => {
-                                                                requestScrollRestore();
-                                                                setQuestionTypeFilter(option.value);
-                                                                setCategoryFilter(ALL_FILTER_VALUE);
-                                                                setIsModeOpen(false);
-                                                                setIsTypeOpen(false);
-                                                                setIsCategoryOpen(false);
-                                                            }}
-                                                        >
-                                                            {option.label}
-                                                        </button>
-                                                    ))}
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div className="space-y-2">
-                                        <p className="text-xs text-muted-foreground">질문 카테고리</p>
-                                        <div className="relative" ref={categoryDropdownRef}>
-                                            <button
-                                                type="button"
-                                                className="filter-select-btn"
-                                                onClick={() => {
-                                                    if (questionTypeFilter === ALL_FILTER_VALUE) return;
-                                                    setIsModeOpen(false);
-                                                    setIsTypeOpen(false);
-                                                    setIsCategoryOpen((prev) => !prev);
-                                                }}
-                                                disabled={questionTypeFilter === ALL_FILTER_VALUE}
-                                            >
-                                                {questionTypeFilter === ALL_FILTER_VALUE
-                                                    ? '타입을 선택해주세요'
-                                                    : (categoryOptions.find((option) => option.value === categoryFilter)?.label ?? '전체')}
-                                                <span className={`filter-arrow ${isCategoryOpen ? 'open' : ''}`}>▼</span>
-                                            </button>
-
-                                            {isCategoryOpen && (
-                                                <div className="filter-dropdown">
-                                                    {categoryOptions.map((option) => (
-                                                        <button
-                                                            key={option.value}
-                                                            type="button"
-                                                            className={`filter-dropdown-item ${option.value === categoryFilter ? 'active' : ''}`}
-                                                            onClick={() => {
-                                                                requestScrollRestore();
-                                                                setCategoryFilter(option.value);
-                                                                setIsCategoryOpen(false);
-                                                            }}
-                                                        >
-                                                            {option.label}
-                                                        </button>
-                                                    ))}
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-
-                                <div className="space-y-2">
-                                    <p className="text-xs text-muted-foreground">기간</p>
-                                    <div className="grid grid-cols-2 gap-2">
-                                        <div className="relative">
-                                            <input
-                                                type="text"
-                                                value={formatDateDisplay(dateFromFilter)}
-                                                readOnly
-                                                className="filter-date-input"
-                                            />
-                                            <Calendar className="filter-date-icon" size={16} />
-                                            <input
-                                                type="date"
-                                                value={dateFromFilter}
-                                                onChange={(event) => handleDateFromChange(event.target.value)}
-                                                onClick={(event) => event.currentTarget.showPicker?.()}
-                                                min={SERVICE_LAUNCH_DATE}
-                                                max={dateToFilter > accessDate ? accessDate : dateToFilter}
-                                                className="filter-date-picker"
-                                                aria-label="시작일"
-                                            />
-                                        </div>
-                                        <div className="relative">
-                                            <input
-                                                type="text"
-                                                value={formatDateDisplay(dateToFilter)}
-                                                readOnly
-                                                className="filter-date-input"
-                                            />
-                                            <Calendar className="filter-date-icon" size={16} />
-                                            <input
-                                                type="date"
-                                                value={dateToFilter}
-                                                onChange={(event) => handleDateToChange(event.target.value)}
-                                                onClick={(event) => event.currentTarget.showPicker?.()}
-                                                min={dateFromFilter < SERVICE_LAUNCH_DATE ? SERVICE_LAUNCH_DATE : dateFromFilter}
-                                                max={accessDate}
-                                                className="filter-date-picker"
-                                                aria-label="종료일"
-                                            />
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <button
-                                className="filter-close-btn"
-                                onClick={() => {
-                                    setIsModeOpen(false);
-                                    setIsTypeOpen(false);
-                                    setIsCategoryOpen(false);
-                                    setShowFilterModal(false);
-                                }}
-                            >
-                                적용
-                            </button>
-                        </div>
-                    </div>
-                )}
-
-                {/* 필터 칩 */}
-                <div className="space-y-2">
-                    <div className="filter-chips">
-                        {MODE_OPTIONS.map((option) => (
-                            <button
-                                key={option.value}
-                                className={`filter-chip ${modeFilter === option.value ? 'active' : ''}`}
-                                onClick={() => {
-                                    requestScrollRestore();
-                                    setModeFilter(option.value);
-                                }}
-                            >
-                                {option.label}
-                            </button>
-                        ))}
-                    </div>
-
-                    <div className="filter-chips">
-                        {questionTypeOptions.map((option) => (
-                            <button
-                                key={option.value}
-                                className={`filter-chip ${questionTypeFilter === option.value ? 'active' : ''}`}
-                                onClick={() => {
-                                    requestScrollRestore();
-                                    setQuestionTypeFilter(option.value);
-                                    setCategoryFilter(ALL_FILTER_VALUE);
-                                }}
-                            >
-                                {option.label}
-                            </button>
-                        ))}
-                    </div>
-
-                    {questionTypeFilter !== ALL_FILTER_VALUE && (
-                        <div className="filter-chips">
-                            {categoryOptions.map((option) => (
+                <div className="history-filters-panel">
+                    <div className="history-filter-row">
+                        <div className="history-filter-item">
+                            <p className="history-filter-label">모드</p>
+                            <div className="relative" ref={modeDropdownRef}>
                                 <button
-                                    key={option.value}
-                                    className={`filter-chip ${categoryFilter === option.value ? 'active' : ''}`}
+                                    type="button"
+                                    className="filter-select-btn"
                                     onClick={() => {
-                                        requestScrollRestore();
-                                        setCategoryFilter(option.value);
+                                        setIsTypeOpen(false);
+                                        setIsCategoryOpen(false);
+                                        setIsModeOpen((prev) => !prev);
                                     }}
                                 >
-                                    {option.label}
+                                    {MODE_OPTIONS.find((option) => option.value === modeFilter)?.label ?? '전체'}
+                                    <span className={`filter-arrow ${isModeOpen ? 'open' : ''}`}>▼</span>
                                 </button>
-                            ))}
+
+                                {isModeOpen && (
+                                    <div className="filter-dropdown">
+                                        {MODE_OPTIONS.map((option) => (
+                                            <button
+                                                key={option.value}
+                                                type="button"
+                                                className={`filter-dropdown-item ${option.value === modeFilter ? 'active' : ''}`}
+                                                onClick={() => {
+                                                    requestScrollRestore();
+                                                    setModeFilter(option.value);
+                                                    setIsModeOpen(false);
+                                                }}
+                                            >
+                                                {option.label}
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
                         </div>
-                    )}
+
+                        <div className="history-filter-item">
+                            <p className="history-filter-label">타입</p>
+                            <div className="relative" ref={typeDropdownRef}>
+                                <button
+                                    type="button"
+                                    className="filter-select-btn"
+                                    onClick={() => {
+                                        setIsModeOpen(false);
+                                        setIsCategoryOpen(false);
+                                        setIsTypeOpen((prev) => !prev);
+                                    }}
+                                >
+                                    {questionTypeOptions.find((option) => option.value === questionTypeFilter)?.label ?? '전체'}
+                                    <span className={`filter-arrow ${isTypeOpen ? 'open' : ''}`}>▼</span>
+                                </button>
+
+                                {isTypeOpen && (
+                                    <div className="filter-dropdown">
+                                        {questionTypeOptions.map((option) => (
+                                            <button
+                                                key={option.value}
+                                                type="button"
+                                                className={`filter-dropdown-item ${option.value === questionTypeFilter ? 'active' : ''}`}
+                                                onClick={() => {
+                                                    requestScrollRestore();
+                                                    setQuestionTypeFilter(option.value);
+                                                    setCategoryFilter(ALL_FILTER_VALUE);
+                                                    setIsModeOpen(false);
+                                                    setIsTypeOpen(false);
+                                                    setIsCategoryOpen(false);
+                                                }}
+                                            >
+                                                {option.label}
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="history-filter-item">
+                            <p className="history-filter-label">카테고리</p>
+                            <div className="relative" ref={categoryDropdownRef}>
+                                <button
+                                    type="button"
+                                    className="filter-select-btn"
+                                    onClick={() => {
+                                        if (questionTypeFilter === ALL_FILTER_VALUE) return;
+                                        setIsModeOpen(false);
+                                        setIsTypeOpen(false);
+                                        setIsCategoryOpen((prev) => !prev);
+                                    }}
+                                    disabled={questionTypeFilter === ALL_FILTER_VALUE}
+                                >
+                                    {questionTypeFilter === ALL_FILTER_VALUE
+                                        ? '타입 선택'
+                                        : (categoryOptions.find((option) => option.value === categoryFilter)?.label ?? '전체')}
+                                    <span className={`filter-arrow ${isCategoryOpen ? 'open' : ''}`}>▼</span>
+                                </button>
+
+                                {isCategoryOpen && (
+                                    <div className="filter-dropdown">
+                                        {categoryOptions.map((option) => (
+                                            <button
+                                                key={option.value}
+                                                type="button"
+                                                className={`filter-dropdown-item ${option.value === categoryFilter ? 'active' : ''}`}
+                                                onClick={() => {
+                                                    requestScrollRestore();
+                                                    setCategoryFilter(option.value);
+                                                    setIsCategoryOpen(false);
+                                                }}
+                                            >
+                                                {option.label}
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="history-date-row">
+                        <div className="relative">
+                            <input
+                                type="text"
+                                value={formatDateDisplay(dateFromFilter)}
+                                readOnly
+                                className="filter-date-input"
+                            />
+                            <Calendar className="filter-date-icon" size={16} />
+                            <input
+                                type="date"
+                                value={dateFromFilter}
+                                onChange={(event) => handleDateFromChange(event.target.value)}
+                                onClick={(event) => event.currentTarget.showPicker?.()}
+                                min={SERVICE_LAUNCH_DATE}
+                                max={dateToFilter > accessDate ? accessDate : dateToFilter}
+                                className="filter-date-picker"
+                                aria-label="시작일"
+                            />
+                        </div>
+                        <div className="relative">
+                            <input
+                                type="text"
+                                value={formatDateDisplay(dateToFilter)}
+                                readOnly
+                                className="filter-date-input"
+                            />
+                            <Calendar className="filter-date-icon" size={16} />
+                            <input
+                                type="date"
+                                value={dateToFilter}
+                                onChange={(event) => handleDateToChange(event.target.value)}
+                                onClick={(event) => event.currentTarget.showPicker?.()}
+                                min={dateFromFilter < SERVICE_LAUNCH_DATE ? SERVICE_LAUNCH_DATE : dateFromFilter}
+                                max={accessDate}
+                                className="filter-date-picker"
+                                aria-label="종료일"
+                            />
+                        </div>
+                    </div>
                 </div>
 
                 {error && (
