@@ -64,7 +64,7 @@ jobs:
       - name: 프로젝트 빌드
         env:
           VITE_API_BASE_URL: ${{ steps.api-url.outputs.url }}
-          VITE_SHOW_REAL_INTERVIEW: false
+          VITE_SHOW_REAL_INTERVIEW: true
           VITE_SHOW_PORTFOLIO_INTERVIEW: false
           VITE_SHOW_NOTIFICATIONS: false
         run: npm run build
@@ -154,9 +154,9 @@ jobs:
       - name: S3에 배포
         run: |
           # 기존 파일 삭제
-          aws s3 rm s3://qfeed-prod-s3-frontend --recursive
+          aws s3 rm s3://qfeed-prod-s3-static --recursive
           # 새 파일 업로드 (dist 폴더의 내용을 버킷 루트에 업로드)
-          aws s3 cp dist/ s3://qfeed-prod-s3-frontend --recursive
+          aws s3 cp dist/ s3://qfeed-prod-s3-static --recursive
 
       # CloudFront 캐시 무효화
       - name: CloudFront 캐시 무효화 (Prod)
@@ -179,7 +179,7 @@ jobs:
                 "color": 5763719,
                 "fields": [
                   {"name": "환경", "value": "**PROD**", "inline": true},
-                  {"name": "버킷", "value": "`qfeed-prod-s3-frontend`", "inline": true},
+                  {"name": "버킷", "value": "`qfeed-prod-s3-static`", "inline": true},
                   {"name": "브랜치", "value": "'"${{ github.ref_name }}"'", "inline": true},
                   {"name": "커밋", "value": "`'"${{ github.sha }}"'`", "inline": false}
                 ],
