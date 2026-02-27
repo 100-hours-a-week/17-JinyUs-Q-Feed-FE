@@ -28,7 +28,6 @@ const TEXT_AI_FEEDBACK_TITLE = 'AI 피드백';
 const TEXT_BAD_CASE_STRENGTHS = '더 잘 할 수 있어요. 지금의 시도가 충분히 의미 있습니다.';
 const TEXT_BAD_CASE_IMPROVEMENTS = '조금만 더 자세히 설명해도 충분히 좋아질 수 있어요.';
 const TEXT_RADAR_LABEL = '평가';
-
 const FEEDBACK_SPLIT_DELIMITER = '●';
 const FEEDBACK_BULLET = '•';
 const FEEDBACK_DASH = '-';
