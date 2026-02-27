@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useMemo, useState } from 'react';
+import { SESSION_STORAGE_KEYS } from '@/app/constants/storageKeys';
 
-const STORAGE_KEY = 'qfeed_selected_practice_question';
+const STORAGE_KEY = SESSION_STORAGE_KEYS.SELECTED_PRACTICE_QUESTION;
 
 const PracticeQuestionContext = createContext(null);
 

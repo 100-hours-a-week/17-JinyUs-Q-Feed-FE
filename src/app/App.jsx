@@ -21,9 +21,14 @@ import PracticeResultKeyword from '@/app/pages/PracticeResultKeyword';
 import PracticeResultAI from '@/app/pages/PracticeResultAI';
 import ProfileMain from '@/app/pages/ProfileMain';
 import LearningRecordDetail from '@/app/pages/LearningRecordDetail';
+import RealLearningRecordDetail from '@/app/pages/RealLearningRecordDetail';
 import SettingMain from '@/app/pages/SettingMain';
 import RealInterview from '@/app/pages/RealInterview';
+import RealInterviewSession from '@/app/pages/RealInterviewSession';
+import RealInterviewResultAI from '@/app/pages/RealInterviewResultAI';
 import OAuthCallback from '@/app/pages/OAuthCallback';
+
+const SPLASH_SHOWN_KEY = 'qfeed_splash_shown';
 
 function AppRoutes() {
     const { isAuthenticated, isLoading } = useAuth();
@@ -34,6 +39,14 @@ function AppRoutes() {
     }, [location.pathname]);
 
     if (isLoading) return null;
+
+    // 앱 실행 시(루트 또는 로그인 화면 진입 시) 스플래시를 한 번 보여준다.
+    const shouldShowSplash = (location.pathname === '/' || location.pathname === '/login')
+        && typeof sessionStorage !== 'undefined'
+        && !sessionStorage.getItem(SPLASH_SHOWN_KEY);
+    if (shouldShowSplash) {
+        return <Navigate to="/splash" replace />;
+    }
 
     const SHOW_REAL_INTERVIEW = import.meta.env.VITE_SHOW_REAL_INTERVIEW === 'true';
 
@@ -62,11 +75,16 @@ function AppRoutes() {
 
                         {/* Real Interview */}
                         {(SHOW_REAL_INTERVIEW &&
-                            <Route path="/real-interview" element={<RealInterview />} />
+                            <>
+                                <Route path="/real-interview" element={<RealInterview />} />
+                                <Route path="/real-interview/session" element={<RealInterviewSession />} />
+                                <Route path="/real-interview/result-ai" element={<RealInterviewResultAI />} />
+                            </>
                         )}
 
                         {/* Profile */}
                         <Route path="/profile" element={<ProfileMain />} />
+                        <Route path="/profile/records/real/:answerId" element={<RealLearningRecordDetail />} />
                         <Route path="/profile/records/:answerId" element={<LearningRecordDetail />} />
                         <Route path="/settings" element={<SettingMain />} />
 

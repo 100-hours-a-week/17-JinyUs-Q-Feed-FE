@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { Card } from '@/app/components/ui/card';
 import { Input } from '@/app/components/ui/input';
 import { Badge } from '@/app/components/ui/badge';
-import { Button } from '@/app/components/ui/button';
 import BottomNav from '@/app/components/BottomNav';
 import { Search, Filter } from 'lucide-react';
 import debounce from 'lodash/debounce';
@@ -11,10 +10,13 @@ import { usePracticeQuestion } from '@/context/practiceQuestionContext.jsx';
 import { useQuestionsInfinite } from '@/app/hooks/useQuestionsInfinite';
 import { useQuestionCategories } from '@/app/hooks/useQuestionCategories';
 import { useQuestionTypes } from '@/app/hooks/useQuestionTypes';
+import {
+    getQuestionCategoryLabel,
+    getQuestionCategoryColor,
+    getQuestionTypeLabel,
+} from '@/app/constants/questionCategoryMeta';
 
-import { AppHeader } from '@/app/components/AppHeader';
 
-const SHOW_REAL_INTERVIEW = import.meta.env.VITE_SHOW_REAL_INTERVIEW === 'true';
 const INITIAL_SEARCH_QUERY = '';
 const ALL_FILTER_VALUE = 'ALL';
 const ALL_FILTER_LABEL = '전체';
@@ -23,6 +25,7 @@ const TEXT_LOADING = '질문을 불러오는 중...';
 const TEXT_LOADING_MORE = '더 불러오는 중...';
 const TEXT_EMPTY = '검색 결과가 없습니다';
 const TEXT_ERROR_FALLBACK = '질문 목록을 불러오지 못했습니다.';
+const EMPTY_MAP = Object.freeze({});
 
 const PracticeMain = () => {
     const navigate = useNavigate();
@@ -32,15 +35,12 @@ const PracticeMain = () => {
     const [selectedType, setSelectedType] = useState(ALL_FILTER_VALUE);
     const [selectedCategory, setSelectedCategory] = useState(ALL_FILTER_VALUE);
     const observerRef = useRef(null);
-    const prevTypeRef = useRef(ALL_FILTER_VALUE);
 
     useEffect(() => {
         setSelectedQuestion(ALL_FILTER_VALUE);
     }, [setSelectedQuestion]);
 
     const handleTypeChange = useCallback((nextType) => {
-        if (prevTypeRef.current === nextType) return;
-        prevTypeRef.current = nextType;
         setSelectedType(nextType);
         setSelectedCategory(ALL_FILTER_VALUE);
     }, []);
@@ -55,39 +55,26 @@ const PracticeMain = () => {
         return () => debouncedSetQuery.cancel();
     }, [searchQuery, debouncedSetQuery]);
 
-    const { data: categoryMap = {} } = useQuestionCategories();
+    const { data: categoryData } = useQuestionCategories();
     const { data: typeMap = {} } = useQuestionTypes();
+    const categoryMap = categoryData?.flat ?? EMPTY_MAP;
+    const categoriesByType = categoryData?.byType ?? EMPTY_MAP;
 
-    const typeOptions = useMemo(
-        () => Object.entries(typeMap).map(([value, label]) => ({ value, label })),
-        [typeMap]
-    );
-    const categoryOptions = useMemo(
-        () => Object.entries(categoryMap).map(([value, label]) => ({ value, label })),
-        [categoryMap]
-    );
+    const typeOptions = Object.keys(categoriesByType).map((typeKey) => ({
+        value: typeKey,
+        label: getQuestionTypeLabel(typeKey, typeMap),
+    }));
 
-    const visibleTypeOptions = useMemo(
-        () =>
-            typeOptions.filter((option) => {
-                if (option.value === 'PORTFOLIO') return false;
-                if (option.value === 'SYSTEM_DESIGN' && !SHOW_REAL_INTERVIEW) return false;
-                return option.value === 'CS' || option.value === 'SYSTEM_DESIGN';
-            }),
-        [typeOptions]
-    );
+    const selectedTypeCategories =
+        selectedType === ALL_FILTER_VALUE ? null : categoriesByType[selectedType];
 
-    const type = useMemo(
-        () => (selectedType === ALL_FILTER_VALUE ? undefined : selectedType),
-        [selectedType]
-    );
-
-    const category = useMemo(() => {
-        if (selectedType === 'CS' && selectedCategory !== ALL_FILTER_VALUE) {
-            return selectedCategory;
-        }
-        return undefined;
-    }, [selectedType, selectedCategory]);
+    const categoryOptions =
+        selectedTypeCategories && typeof selectedTypeCategories === 'object'
+            ? Object.entries(selectedTypeCategories).map(([value, label]) => ({
+                  value,
+                  label: typeof label === 'string' ? label : value,
+              }))
+            : [];
 
     const {
         data,
@@ -96,7 +83,11 @@ const PracticeMain = () => {
         error,
         hasNextPage,
         fetchNextPage,
-    } = useQuestionsInfinite({ query: debouncedQuery, type, category });
+    } = useQuestionsInfinite({
+        query: debouncedQuery,
+        type: selectedType === ALL_FILTER_VALUE ? undefined : selectedType,
+        category: selectedCategory === ALL_FILTER_VALUE ? undefined : selectedCategory,
+    });
 
     const questions = useMemo(
         () => data?.pages?.flatMap((p) => p.records) ?? [],
@@ -135,27 +126,27 @@ const PracticeMain = () => {
         navigate(`/practice/answer/${question.id}`);
     };
 
+    const showCategoryRow = selectedType !== ALL_FILTER_VALUE && categoryOptions.length > 0;
+
     return (
         <div className="min-h-screen bg-[#FAFAFA] pb-20">
-            {/* Header */}
-            <AppHeader title="연습 모드" showBack={false} align="left" />
-
-            <div className="bg-white sticky top-[56px] z-10 border-b">
+            {/* 상단 검색/필터 - 고정 (BottomNav처럼 스크롤해도 유지) */}
+            <div className="fixed top-0 left-1/2 -translate-x-1/2 w-full max-w-lg z-[100] bg-white border-b border-gray-100">
                 {/* Search */}
-                <div className="px-4 py-4 max-w-lg mx-auto">
+                <div className="px-4 py-4">
                     <div className="relative">
                         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                         <Input
                             placeholder="질문 검색..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="pl-10 rounded-xl bg-gray-50"
+                            className="pl-10 rounded-lg bg-gray-50"
                         />
                     </div>
                 </div>
 
                 {/* Categories */}
-                <div className="px-4 pb-3 max-w-lg mx-auto">
+                <div className="px-4 pb-3">
                     <div className="flex items-center gap-2 overflow-x-auto pb-2">
                         <Filter className="w-4 h-4 text-muted-foreground flex-shrink-0" />
                         <button
@@ -167,7 +158,7 @@ const PracticeMain = () => {
                         >
                             {ALL_FILTER_LABEL}
                         </button>
-                        {visibleTypeOptions.map((option) => (
+                        {typeOptions.map((option) => (
                             <button
                                 key={option.value}
                                 type="button"
@@ -181,23 +172,18 @@ const PracticeMain = () => {
                         ))}
                     </div>
                 </div>
-                {selectedType === 'CS' && categoryOptions.length > 0 && (
-                    <div className="px-4 pb-4 max-w-lg mx-auto">
+                {selectedType !== ALL_FILTER_VALUE && categoryOptions.length > 0 && (
+                    <div className="px-4 pb-4">
                         <div className="flex items-center gap-2 overflow-x-auto pb-2">
-                            <button
-                                type="button"
-                                onClick={() => setSelectedCategory(ALL_FILTER_VALUE)}
-                                className={`filter-chip ${
-                                    selectedCategory === ALL_FILTER_VALUE ? 'active' : ''
-                                }`}
-                            >
-                                {ALL_FILTER_LABEL}
-                            </button>
                             {categoryOptions.map((option) => (
                                 <button
                                     key={option.value}
                                     type="button"
-                                    onClick={() => setSelectedCategory(option.value)}
+                                    onClick={() =>
+                                        setSelectedCategory((prev) =>
+                                            prev === option.value ? ALL_FILTER_VALUE : option.value
+                                        )
+                                    }
                                     className={`filter-chip ${
                                         selectedCategory === option.value ? 'active' : ''
                                     }`}
@@ -210,8 +196,12 @@ const PracticeMain = () => {
                 )}
             </div>
 
-            {/* Question List */}
-            <div className="p-4 space-y-3 max-w-lg mx-auto">
+            {/* Question List - 고정 바 높이에 맞춰 padding (전체: 작게, 타입 선택 시 카드가 밀리며 확장) */}
+            <div
+                className={`p-4 space-y-3 max-w-lg mx-auto transition-[padding-top] duration-200 ease-out ${
+                    showCategoryRow ? 'pt-[192px]' : 'pt-[136px]'
+                }`}
+            >
                 {isLoading && questions.length === 0 ? (
                     <div className="text-center py-12 text-muted-foreground">
                         <p>{TEXT_LOADING}</p>
@@ -226,15 +216,24 @@ const PracticeMain = () => {
                     </div>
                 ) : (
                     <>
-                        {questions.map((question) => (
+                        {questions.map((question) => {
+                            const categoryColor = getQuestionCategoryColor(question.category);
+                            return (
                             <Card
                                 key={question.id}
                                 className="p-4 hover:shadow-md transition-shadow cursor-pointer"
                                 onClick={() => handleSelectQuestion(question)}
                             >
                                 <div className="flex items-start justify-between mb-2">
-                                    <Badge variant="secondary" className="bg-rose-100 text-rose-700">
-                                        {categoryMap[question.category] || question.category}
+                                    <Badge
+                                        variant="secondary"
+                                        className="border-0"
+                                        style={{
+                                            backgroundColor: categoryColor.bg,
+                                            color: categoryColor.text,
+                                        }}
+                                    >
+                                        {getQuestionCategoryLabel(question.category, categoryMap)}
                                     </Badge>
                                 </div>
 
@@ -243,7 +242,8 @@ const PracticeMain = () => {
                                     {question.description}
                                 </p>
                             </Card>
-                        ))}
+                            );
+                        })}
                         {isFetchingNextPage && (
                             <div className="text-center py-6 text-muted-foreground">
                                 <p>{TEXT_LOADING_MORE}</p>

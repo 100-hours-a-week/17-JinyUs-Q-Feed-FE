@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { Button } from '@/app/components/ui/button';
 import { Card } from '@/app/components/ui/card';
 import { Checkbox } from '@/app/components/ui/checkbox';
-import { Mic, Keyboard } from 'lucide-react';
+import { Mic, Keyboard, Lightbulb } from 'lucide-react';
 import { AppHeader } from '@/app/components/AppHeader';
 import { usePracticeQuestionLoader } from '@/app/hooks/usePracticeQuestionLoader';
 
@@ -85,14 +85,17 @@ const PracticeAnswer = () => {
                         </div>
                     </div>
 
-                    <Button onClick={handleStart} className="w-full rounded-xl h-12">
+                    <Button onClick={handleStart} className="w-full rounded-md h-12">
                         답변 시작
                     </Button>
                 </Card>
 
                 <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
                     <p className="text-sm text-amber-800">
-                        <span className="font-semibold">💡 Tip:</span>
+                        <span className="font-semibold inline-flex items-center gap-1.5">
+                            <Lightbulb className="w-4 h-4 shrink-0" />
+                            Tip:
+                        </span>
                         {TEXT_ANSWER_TIP_LINES.map((line) => (
                             <span key={line} className="block pl-5">
                                 {line}

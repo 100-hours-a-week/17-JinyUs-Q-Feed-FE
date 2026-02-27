@@ -2,8 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { motion as Motion } from 'motion/react';
 import { Loader2 } from 'lucide-react';
-import { AppHeader } from '@/app/components/AppHeader';
-import { requestSTT } from '@/api/sttApi';
+import { useAudioSttPipeline } from '@/app/hooks/useAudioSttPipeline';
 import { toast } from 'sonner';
 
 // TODO: 인증 연동 후 실제 사용자 ID로 교체
@@ -16,6 +15,7 @@ const PracticeSTT = () => {
     const audioUrl = state?.audioUrl;
 
     const [statusMessage, setStatusMessage] = useState('음성을 분석하고 있어요');
+    const { transcribeAudioUrl } = useAudioSttPipeline();
 
     useEffect(() => {
         if (!audioUrl) {
@@ -28,15 +28,17 @@ const PracticeSTT = () => {
             try {
                 setStatusMessage('답변을 텍스트로 변환 중입니다...');
 
-                const sessionId = Number(questionId);
-                console.log(audioUrl);
-                // 백엔드 스키마(user_id, session_id, audio_url)에 맞춰 전달
-                const result = await requestSTT({
+                const sessionId = typeof questionId === 'string' ? questionId.trim() : '';
+                if (!sessionId) {
+                    throw new Error('세션 정보를 확인할 수 없습니다');
+                }
+                // 백엔드 스키마(user_id, session_id, audio_url)에 맞춰 전달 (session_id string)
+                const result = await transcribeAudioUrl({
                     userId: DEFAULT_USER_ID,
-                    sessionId: Number.isNaN(sessionId) ? questionId : sessionId,
+                    sessionId,
                     audioUrl,
                 });
-                const { text } = result.data;
+                const text = result?.text || '';
 
                 navigate(`/practice/answer-edit/${questionId}`, {
                     state: { transcribedText: text },
@@ -48,37 +50,28 @@ const PracticeSTT = () => {
         };
 
         processSTT();
-    }, [audioUrl, questionId, navigate]);
+    }, [audioUrl, navigate, questionId, transcribeAudioUrl]);
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-rose-400 to-pink-500 flex flex-col">
-            <AppHeader
-                title="음성 분석"
-                onBack={() => navigate(`/practice/answer/${questionId}`)}
-                showNotifications={false}
-                tone="dark"
-            />
-
-            <div className="flex-1 flex flex-col items-center justify-center p-6">
+        <div className="min-h-screen bg-gradient-to-br from-rose-50/80 via-white to-pink-50/80 flex flex-col items-center justify-center p-6">
+            <Motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                className="text-center"
+            >
                 <Motion.div
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    className="text-white text-center"
+                    animate={{ rotate: 360 }}
+                    transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
+                    className="mb-6 inline-block"
                 >
-                    <Motion.div
-                        animate={{ rotate: 360 }}
-                        transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
-                        className="mb-6 inline-block"
-                    >
-                        <Loader2 className="w-16 h-16" />
-                    </Motion.div>
-
-                    <h2 className="text-2xl mb-3 text-white">{statusMessage}</h2>
-                    <p className="text-white/80">
-                        잠시만 기다려주세요
-                    </p>
+                    <Loader2 className="w-16 h-16 text-rose-300" />
                 </Motion.div>
-            </div>
+
+                <h2 className="text-2xl font-medium text-gray-600 mb-3">{statusMessage}</h2>
+                <p className="text-gray-500 text-sm">
+                    잠시만 기다려주세요
+                </p>
+            </Motion.div>
         </div>
     );
 };

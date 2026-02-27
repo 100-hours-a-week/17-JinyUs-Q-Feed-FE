@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Button } from '@/app/components/ui/button';
 import { motion as Motion } from 'motion/react';
 import { AppHeader } from '@/app/components/AppHeader';
 import { useAudioRecorder } from '@/app/hooks/useAudioRecorder';
-import { getPresignedUrl, uploadToS3, confirmFileUpload } from '@/api/fileApi';
+import { useAudioSttPipeline } from '@/app/hooks/useAudioSttPipeline';
 import { toast } from 'sonner';
 import { Loader2 } from 'lucide-react';
 import { usePracticeQuestionLoader } from '@/app/hooks/usePracticeQuestionLoader';
@@ -26,6 +26,7 @@ const TEXT_NOT_FOUND = '질문을 찾을 수 없습니다';
 const PracticeAnswerVoice = () => {
   const navigate = useNavigate();
   const { questionId } = useParams();
+  const { state } = useLocation();
   const [seconds, setSeconds] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
   const [showBackModal, setShowBackModal] = useState(false);
@@ -47,6 +48,19 @@ const PracticeAnswerVoice = () => {
     error: recorderError,
     resetAudioBlob,
   } = useAudioRecorder();
+  const { uploadAudioBlob } = useAudioSttPipeline();
+
+  const prefillAnswerText =
+    typeof state?.prefillAnswerText === 'string' ? state.prefillAnswerText : '';
+
+  useEffect(() => {
+    if (!prefillAnswerText.trim()) return;
+
+    navigate(`/practice/answer-edit/${questionId}`, {
+      replace: true,
+      state: { transcribedText: prefillAnswerText },
+    });
+  }, [navigate, prefillAnswerText, questionId]);
 
   // 녹음 타이머 (recording 상태일 때만 동작)
   useEffect(() => {
@@ -84,41 +98,14 @@ const PracticeAnswerVoice = () => {
     const processAudio = async () => {
       setIsUploading(true);
       try {
-        // mp3를 기본값으로 두고, 명확한 타입이면 그 타입을 사용한다.
-        const rawType = audioBlob.type || '';
-        let extension = 'mp3';
-        let mimeType = 'audio/mpeg';
-        if (rawType.includes('wav')) {
-          extension = 'wav';
-          mimeType = 'audio/wav';
-        } else if (rawType.includes('mp4') || rawType.includes('m4a')) {
-          extension = 'm4a';
-          mimeType = 'audio/mp4';
-        } else if (rawType.includes('mpeg') || rawType.includes('mp3')) {
-          extension = 'mp3';
-          mimeType = 'audio/mpeg';
-        }
-
-        // 1. Presigned URL 획득
-        const presignedResult = await getPresignedUrl({
-          fileName: `voice_${questionId}_${Date.now()}.${extension}`,
-          fileSize: audioBlob.size,
-          mimeType,
-          category: 'AUDIO',
+        const { audioUrl } = await uploadAudioBlob({
+          audioBlob,
+          mode: 'PRACTICE',
         });
-
-        const { fileId, presignedUrl } = presignedResult.data;
-
-        // 2. S3 업로드
-        await uploadToS3(presignedUrl, audioBlob, mimeType);
-
-        // 3. 업로드 확인 및 S3 URL 획득
-        const confirmResult = await confirmFileUpload(fileId);
-        const { fileUrl } = confirmResult.data;
 
         // 4. STT 페이지로 이동 (S3 URL과 questionId 전달)
         navigate(`/practice/stt/${questionId}`, {
-          state: { audioUrl: fileUrl },
+          state: { audioUrl },
         });
       } catch (err) {
         toast.error(err.message || '업로드에 실패했습니다');
@@ -129,7 +116,7 @@ const PracticeAnswerVoice = () => {
     };
 
     processAudio();
-  }, [audioBlob, questionId, navigate, resetAudioBlob]);
+  }, [audioBlob, navigate, questionId, resetAudioBlob, uploadAudioBlob]);
 
   const formatTime = (secs) => {
     const mins = Math.floor(secs / 60);
@@ -201,7 +188,7 @@ const PracticeAnswerVoice = () => {
   const getVisualizerState = () => {
     if (recorderState === 'permission_error') return 'permission';
     if (recorderState === 'device_error') return 'error';
-    if (recorderState === 'recording' && audioLevel > 0.05) return 'active';
+    if (recorderState === 'recording' && audioLevel > 0.02) return 'active';
     if (recorderState === 'paused') return 'paused';
     return 'idle';
   };
@@ -230,62 +217,115 @@ const PracticeAnswerVoice = () => {
   if (!question) return <div>{TEXT_NOT_FOUND}</div>;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-rose-400 to-pink-500 text-white flex flex-col">
+    <div
+      className="min-h-screen flex flex-col"
+      style={{
+        background: 'linear-gradient(165deg, var(--primary-50) 0%, var(--primary-100) 40%, var(--primary-50) 100%)',
+      }}
+    >
       <AppHeader
         title="음성 답변"
         onBack={handleBackClick}
         showNotifications={false}
-        tone="dark"
+        tone="light"
       />
 
       <div className="flex-1 flex flex-col items-center justify-center px-6 py-12">
-        <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 mb-8 w-full max-w-lg">
-          <p className="text-center text-white/90 text-sm mb-2">질문</p>
-          <h2 className="text-center text-lg text-white">{question.title}</h2>
+        <div className="bg-white rounded-2xl p-6 mb-8 w-full max-w-lg shadow-sm border border-white/80">
+          <p className="text-center text-[var(--gray-600)] text-sm mb-2">질문</p>
+          <h2 className="text-center text-lg font-semibold text-[var(--gray-900)]">{question.title}</h2>
         </div>
 
-        {/* Audio Visualizer */}
-        <div className="relative mb-12">
+        {/* Audio Visualizer - 처음엔 원 1개, 소리 감지 시 바깥 원이 생기는 모션 */}
+        <div className="relative mb-12 w-44 h-44 flex items-center justify-center">
+          <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+            {(() => {
+              const isRecording = recorderState === 'recording'
+              const rawLevel = audioLevel ?? 0
+              const level = isRecording ? Math.min(rawLevel * 5, 1) : 0 // 민감도 5배
+              const circles = [
+                { size: 55, threshold: 0 },
+                { size: 70, threshold: 0.08 },
+                { size: 85, threshold: 0.18 },
+                { size: 100, threshold: 0.3 },
+                { size: 115, threshold: 0.45 },
+                { size: 130, threshold: 0.6 },
+                { size: 145, threshold: 0.75 },
+                { size: 160, threshold: 0.88 },
+              ]
+              return circles.map(({ size, threshold }, i) => {
+                const isBase = i === 0
+                const intensity = level >= threshold ? (level - threshold) / (1 - threshold || 1) : 0
+                const scale = isBase ? 0.9 + level * 0.12 : intensity > 0 ? 0.85 + intensity * 0.25 : 0.7
+                const opacity = isBase ? (level > 0 ? 0.22 : 0.15) : intensity > 0 ? 0.07 + intensity * 0.2 : 0
+                const borderWidth = 1 + i * 0.5 // 안쪽 1px → 바깥 4.5px
+                return (
+                  <div
+                    key={i}
+                    className="absolute left-1/2 top-1/2 rounded-full border border-[var(--primary-400)] transition-all duration-100"
+                    style={{
+                      width: size,
+                      height: size,
+                      transform: `translate(-50%, -50%) scale(${scale})`,
+                      opacity,
+                      borderWidth,
+                    }}
+                  />
+                )
+              })
+            })()}
+          </div>
+          {/* 중앙 마이크 아이콘 */}
           <Motion.div
-            className={`w-40 h-40 rounded-full backdrop-blur-sm flex items-center justify-center ${visualizerState === 'paused' ? 'bg-white/30' : 'bg-white/20'
-              }`}
-            animate={{
-              scale: visualizerState === 'active'
-                ? [1, 1 + audioLevel * 0.3, 1]
-                : visualizerState === 'idle' && recorderState === 'idle'
-                  ? [1, 1.02, 1]
-                  : 1,
-            }}
-            transition={{
-              duration: visualizerState === 'active' ? 0.3 : 2,
-              repeat: visualizerState === 'active' || (visualizerState === 'idle' && recorderState === 'idle') ? Infinity : 0,
-            }}
+            className="relative z-10 flex items-center justify-center"
+            animate={
+              visualizerState === 'idle' && recorderState === 'idle'
+                ? { scale: [1, 1.02, 1] }
+                : {}
+            }
+            transition={
+              visualizerState === 'idle' && recorderState === 'idle'
+                ? { duration: 2, repeat: Infinity }
+                : {}
+            }
           >
-            <div className="w-32 h-32 rounded-full bg-white/30 backdrop-blur-sm flex items-center justify-center">
-              <div className="w-24 h-24 rounded-full bg-white/40 backdrop-blur-sm flex items-center justify-center">
-                {isUploading ? (
-                  <Loader2 className="w-12 h-12 text-white animate-spin" />
-                ) : visualizerState === 'paused' ? (
-                  <svg className="w-12 h-12 text-white" fill="currentColor" viewBox="0 0 24 24">
-                    <rect x="6" y="4" width="4" height="16" />
-                    <rect x="14" y="4" width="4" height="16" />
-                  </svg>
-                ) : (
-                  <svg className="w-16 h-16 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
-                  </svg>
-                )}
-              </div>
-            </div>
+            {isUploading ? (
+              <Loader2 className="w-10 h-10 text-[var(--primary-600)] animate-spin" />
+            ) : visualizerState === 'paused' ? (
+              <svg
+                className="w-10 h-10 text-[var(--primary-600)]"
+                fill="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <rect x="6" y="4" width="4" height="16" />
+                <rect x="14" y="4" width="4" height="16" />
+              </svg>
+            ) : (
+              <svg
+                className="w-12 h-12 text-[var(--primary-500)]"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"
+                />
+              </svg>
+            )}
           </Motion.div>
         </div>
 
         {/* Timer */}
         <div className="text-center mb-8">
-          <div className="text-5xl font-mono mb-2">{formatTime(seconds)}</div>
-          <p className="text-white/70 text-sm">{getStatusMessage()}</p>
+          <div className="text-5xl font-mono font-semibold text-[var(--gray-800)] mb-2">
+            {formatTime(seconds)}
+          </div>
+          <p className="text-[var(--gray-600)] text-sm">{getStatusMessage()}</p>
           {recorderState === 'recording' && (
-            <p className="text-white/50 text-xs mt-1">
+            <p className="text-[var(--gray-500)] text-xs mt-1">
               최대 {Math.floor(MAX_RECORDING_SECONDS / 60)}분까지 녹음 가능
             </p>
           )}
@@ -295,18 +335,17 @@ const PracticeAnswerVoice = () => {
         <Button
           onClick={handleToggleRecording}
           disabled={isUploading}
-          className={`w-48 h-14 rounded-full text-lg ${recorderState === 'recording' || recorderState === 'paused'
-              ? 'bg-red-500 hover:bg-red-600'
-              : 'bg-white text-pink-600 hover:bg-white/90'
-            } disabled:opacity-50`}
+          className={`w-48 h-14 rounded-full text-lg font-semibold ${
+            recorderState === 'recording' || recorderState === 'paused'
+              ? 'bg-red-500 hover:bg-red-600 text-white'
+              : 'bg-white text-[var(--primary-600)] hover:bg-[var(--primary-50)] border border-[var(--primary-200)] shadow-sm'
+          } disabled:opacity-50`}
         >
           {getButtonText()}
         </Button>
 
         {recorderState === 'recording' && (
-          <p className="text-white/60 text-sm mt-4">
-            편안하게 답변해주세요
-          </p>
+          <p className="text-[var(--gray-600)] text-sm mt-4">충분히 답변 후 종료 버튼을 눌러주세요.</p>
         )}
       </div>
 

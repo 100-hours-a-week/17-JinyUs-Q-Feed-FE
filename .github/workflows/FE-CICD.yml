@@ -7,10 +7,16 @@ on:
   push:               # main 또는 dev 브랜치에 직접 push될 때 실행
     branches:
       - main
-      - dev      
-  pull_request:       # main 브랜치로의 PR이 생성되거나 업데이트될 때 실행
+      - dev
+  pull_request:       # main 또는 dev 브랜치로의 PR이 생성/업데이트될 때 실행
     branches:
       - main
+      - dev
+
+# OIDC를 통한 AWS 인증을 위한 권한 설정
+permissions:
+  id-token: write   # OIDC 토큰 발급 권한
+  contents: read    # 리포지토리 읽기 권한
 
 jobs:
   build-and-test:
@@ -41,12 +47,24 @@ jobs:
         run: npm test
         # 테스트 스크립트가 없을 경우에도 워크플로우가 중단되지 않도록 설정
         continue-on-error: true
+
+      # 5-1. 브랜치별 API Base URL 설정 (dev → dev.q-feed.com, main → q-feed.com)
+      - name: API Base URL 설정
+        id: api-url
+        run: |
+          if [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            echo "url=https://q-feed.com" >> $GITHUB_OUTPUT
+          elif [ "${{ github.ref }}" = "refs/heads/dev" ]; then
+            echo "url=https://dev.q-feed.com" >> $GITHUB_OUTPUT
+          else
+            echo "url=https://q-feed.com" >> $GITHUB_OUTPUT
+          fi
       
       # 6. 프로젝트 빌드 (dist 디렉토리 생성)
       - name: 프로젝트 빌드
         env:
-          VITE_API_BASE_URL: https://q-feed.com
-          VITE_SHOW_REAL_INTERVIEW: false
+          VITE_API_BASE_URL: ${{ steps.api-url.outputs.url }}
+          VITE_SHOW_REAL_INTERVIEW: true
           VITE_SHOW_PORTFOLIO_INTERVIEW: false
           VITE_SHOW_NOTIFICATIONS: false
         run: npm run build
@@ -98,7 +116,7 @@ jobs:
             }'
             
   deploy-prod:
-    name: Deploy to Production (EC2)
+    name: Deploy to Production (S3)
     runs-on: ubuntu-latest
     needs: build-and-test
 
@@ -120,49 +138,57 @@ jobs:
         with:
           name: fe-v${{ steps.package-version.outputs.version }}
 
-      # 서버로 산출물을 전송한 뒤, 서버 내부 deploy.sh로 교체/백업 처리
-      - name: SSH 키 설정
+      # tar.gz 압축 해제하여 dist 폴더 추출
+      - name: 압축 해제
         run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.QFEED_EC2_SSH_KEY }}" > ~/.ssh/deploy_key
-          chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan -H ${{ secrets.QFEED_EC2_HOST }} >> ~/.ssh/known_hosts 2>/dev/null || true
+          tar -xzf fe-v${{ steps.package-version.outputs.version }}.tar.gz
 
-      - name: 서버 연결 테스트
-        run: |
-          ssh -i ~/.ssh/deploy_key \
-            -o StrictHostKeyChecking=no \
-            -o ConnectTimeout=30 \
-            -o ServerAliveInterval=10 \
-            ${{ secrets.QFEED_EC2_USER }}@${{ secrets.QFEED_EC2_HOST }} \
-            "echo 'Connection successful'"
-
-      - name: 서버로 파일 업로드 (SCP)
-        timeout-minutes: 5
-        run: |
-          scp -i ~/.ssh/deploy_key \
-            -o StrictHostKeyChecking=no \
-            -o ConnectTimeout=60 \
-            -o ServerAliveInterval=10 \
-            -o ServerAliveCountMax=3 \
-            fe-v${{ steps.package-version.outputs.version }}.tar.gz \
-            ${{ secrets.QFEED_EC2_USER }}@${{ secrets.QFEED_EC2_HOST }}:/tmp/
-
-      - name: 서버에서 배포 실행 (deploy-fe.sh)
-        timeout-minutes: 5
-        uses: appleboy/ssh-action@v1.0.3
+      # AWS 자격증명 설정 (OIDC 방식)
+      - name: AWS 자격증명 설정 (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
         with:
-          host: ${{ secrets.QFEED_EC2_HOST }}
-          username: ${{ secrets.QFEED_EC2_USER }}
-          key: ${{ secrets.QFEED_EC2_SSH_KEY }}
-          timeout: 60s
-          command_timeout: 5m
-          script: |
-            set -e
-            sudo /srv/qfeed/deploy-fe.sh /tmp/fe-v${{ steps.package-version.outputs.version }}.tar.gz
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          aws-region: ap-northeast-2
+
+      # S3 버킷에 파일 업로드 (기존 파일 삭제 후 새로 업로드)
+      - name: S3에 배포
+        run: |
+          # 기존 파일 삭제
+          aws s3 rm s3://qfeed-prod-s3-static --recursive
+          # 새 파일 업로드 (dist 폴더의 내용을 버킷 루트에 업로드)
+          aws s3 cp dist/ s3://qfeed-prod-s3-static --recursive
+
+      # CloudFront 캐시 무효화
+      - name: CloudFront 캐시 무효화 (Prod)
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID_PROD }} \
+            --paths "/*"
+
+      # Prod 배포 성공 알림
+      - name: Discord 알림 (Prod 배포 성공)
+        if: success()
+        continue-on-error: true
+        run: |
+          curl -sS -X POST "${{ secrets.DISCORD_WEBHOOK_URL }}" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "embeds": [{
+                "title": "🚀 FE 배포 성공 (Production)",
+                "description": "S3 버킷에 프론트엔드가 성공적으로 배포되었습니다.",
+                "color": 5763719,
+                "fields": [
+                  {"name": "환경", "value": "**PROD**", "inline": true},
+                  {"name": "버킷", "value": "`qfeed-prod-s3-static`", "inline": true},
+                  {"name": "브랜치", "value": "'"${{ github.ref_name }}"'", "inline": true},
+                  {"name": "커밋", "value": "`'"${{ github.sha }}"'`", "inline": false}
+                ],
+                "timestamp": "'"$(date -u +%Y-%m-%dT%H:%M:%SZ)"'"
+              }]
+            }'
 
   deploy-dev:
-    name: Deploy to Dev (EC2)
+    name: Deploy to Dev (S3)
     runs-on: ubuntu-latest
     needs: build-and-test
 
@@ -184,50 +210,58 @@ jobs:
         with:
           name: fe-v${{ steps.package-version.outputs.version }}
 
-      # 서버로 산출물을 전송한 뒤, 서버 내부 deploy.sh로 교체/백업 처리
-      - name: SSH 키 설정
+      # tar.gz 압축 해제하여 dist 폴더 추출
+      - name: 압축 해제
         run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.QFEED_EC2_SSH_KEY }}" > ~/.ssh/deploy_key
-          chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan -H ${{ secrets.QFEED_EC2_DEV_HOST }} >> ~/.ssh/known_hosts 2>/dev/null || true
+          tar -xzf fe-v${{ steps.package-version.outputs.version }}.tar.gz
 
-      - name: 서버 연결 테스트
-        run: |
-          ssh -i ~/.ssh/deploy_key \
-            -o StrictHostKeyChecking=no \
-            -o ConnectTimeout=30 \
-            -o ServerAliveInterval=10 \
-            ${{ secrets.QFEED_EC2_USER }}@${{ secrets.QFEED_EC2_DEV_HOST }} \
-            "echo 'Connection successful'"
-
-      - name: 서버로 파일 업로드 (SCP)
-        timeout-minutes: 5
-        run: |
-          scp -i ~/.ssh/deploy_key \
-            -o StrictHostKeyChecking=no \
-            -o ConnectTimeout=60 \
-            -o ServerAliveInterval=10 \
-            -o ServerAliveCountMax=3 \
-            fe-v${{ steps.package-version.outputs.version }}.tar.gz \
-            ${{ secrets.QFEED_EC2_USER }}@${{ secrets.QFEED_EC2_DEV_HOST }}:/tmp/
-
-      - name: 서버에서 배포 실행 (deploy-fe.sh)
-        timeout-minutes: 5
-        uses: appleboy/ssh-action@v1.0.3
+      # AWS 자격증명 설정 (OIDC 방식)
+      - name: AWS 자격증명 설정 (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
         with:
-          host: ${{ secrets.QFEED_EC2_DEV_HOST }}
-          username: ${{ secrets.QFEED_EC2_USER }}
-          key: ${{ secrets.QFEED_EC2_SSH_KEY }}
-          timeout: 60s
-          command_timeout: 5m
-          script: |
-            set -e
-            sudo /srv/qfeed/deploy-fe.sh /tmp/fe-v${{ steps.package-version.outputs.version }}.tar.gz
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          aws-region: ap-northeast-2
+
+      # S3 버킷에 파일 업로드 (기존 파일 삭제 후 새로 업로드)
+      - name: S3에 배포
+        run: |
+          # 기존 파일 삭제
+          aws s3 rm s3://qfeed-dev-s3-static --recursive
+          # 새 파일 업로드 (dist 폴더의 내용을 버킷 루트에 업로드)
+          aws s3 cp dist/ s3://qfeed-dev-s3-static --recursive
+
+      # CloudFront 캐시 무효화
+      - name: CloudFront 캐시 무효화 (Dev)
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID_DEV }} \
+            --paths "/*"
+
+      # Dev 배포 성공 알림
+      - name: Discord 알림 (Dev 배포 성공)
+        if: success()
+        continue-on-error: true
+        run: |
+          curl -sS -X POST "${{ secrets.DISCORD_WEBHOOK_URL }}" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "embeds": [{
+                "title": "🚀 FE 배포 성공 (Dev)",
+                "description": "S3 버킷에 프론트엔드가 성공적으로 배포되었습니다.",
+                "color": 3447003,
+                "fields": [
+                  {"name": "환경", "value": "**DEV**", "inline": true},
+                  {"name": "버킷", "value": "`qfeed-dev-s3-static`", "inline": true},
+                  {"name": "브랜치", "value": "'"${{ github.ref_name }}"'", "inline": true},
+                  {"name": "커밋", "value": "`'"${{ github.sha }}"'`", "inline": false}
+                ],
+                "timestamp": "'"$(date -u +%Y-%m-%dT%H:%M:%SZ)"'"
+              }]
+            }'
 
   # CI 실패 시 어떤 과정에서 실패했는지 Discord 알림
   discord-notify-failure:
-    name: Discord 알림 (CI 실패)
+    name: Discord 알림 (실패 상세)
     runs-on: ubuntu-latest
     needs: [build-and-test, deploy-prod, deploy-dev]
     if: always() && (needs.build-and-test.result == 'failure' || needs.deploy-prod.result == 'failure' || needs.deploy-dev.result == 'failure')
@@ -248,27 +282,96 @@ jobs:
           fi
           [ -z "$FAILED_JOB" ] && FAILED_JOB="(알 수 없음)"
           [ -z "$FAILED_STEP" ] && FAILED_STEP="(알 수 없음)"
+
+          # 어떤 job(단계)에서 실패했는지에 따라 Discord 메시지 내용을 다르게 구성
+          STAGE="unknown"
+          TITLE="❌ FE 워크플로우 실패"
+          TARGET="(알 수 없음)"
+
+          if [ "${{ needs.build-and-test.result }}" = "failure" ]; then
+            STAGE="build-and-test"
+            TITLE="❌ FE CI 실패 (빌드/테스트)"
+            TARGET="CI"
+          elif [ "${{ needs.deploy-prod.result }}" = "failure" ]; then
+            STAGE="deploy-prod"
+            TITLE="❌ FE 배포 실패 (Production)"
+            TARGET="PROD (S3: qfeed-prod-s3-frontend)"
+          elif [ "${{ needs.deploy-dev.result }}" = "failure" ]; then
+            STAGE="deploy-dev"
+            TITLE="❌ FE 배포 실패 (Dev)"
+            TARGET="DEV (S3: qfeed-dev-s3-static)"
+          fi
+
+          # 실패 Step 기반으로 바로 실행 가능한 점검 가이드 생성
+          GUIDE="Actions 로그에서 에러 스택/메시지를 확인하세요."
+          case "$FAILED_STEP" in
+            "의존성 설치"*)
+              GUIDE=$'의존성 설치 실패\n- package-lock.json 충돌/손상 여부 확인\n- 로컬에서: npm ci\n- Node 버전(20)과 패키지 호환성 확인'
+              ;;
+            "린트 검사 실행"*)
+              GUIDE=$'린트 실패\n- 로컬에서: npm run lint\n- 실패 파일/규칙 확인 후 수정'
+              ;;
+            "테스트 실행"*)
+              GUIDE=$'테스트 실패\n- 로컬에서: npm test\n- 테스트가 flaky면 원인(네트워크/타임아웃/환경 변수) 확인'
+              ;;
+            "프로젝트 빌드"*)
+              GUIDE=$'빌드 실패\n- 로컬에서: npm run build\n- VITE_* 환경 변수 주입/값 확인\n- (dev/main 분기) VITE_API_BASE_URL 값이 기대와 같은지 확인'
+              ;;
+            "SSH 키 설정"*)
+              GUIDE=$'SSH 키 설정 실패\n- secrets.QFEED_EC2_SSH_KEY 값이 PEM 형식인지 확인\n- 줄바꿈 포함 여부/권한(chmod 600) 확인'
+              ;;
+            "서버 연결 테스트"*)
+              GUIDE=$'서버 연결 실패\n- 대상 서버에서 22번 포트/보안그룹 허용 확인\n- host/user 시크릿 값 확인 (값 자체는 노출 금지)\n- 서버가 살아있는지(Ping/EC2 상태) 확인'
+              ;;
+            "서버로 파일 업로드 (SCP)"*)
+              GUIDE=$'SCP 업로드 실패\n- /tmp 디스크 용량/권한 확인\n- 네트워크/보안그룹/SSH 연결 안정성 확인'
+              ;;
+            "서버에서 배포 실행 (deploy-fe.sh)"*)
+              GUIDE=$'배포 스크립트 실행 실패\n- 서버에 /srv/qfeed/deploy-fe.sh 존재/실행권한 확인\n- sudo 권한 및 스크립트 내부 로그 확인\n- tar.gz 경로(/tmp/fe-vX.Y.Z.tar.gz) 확인'
+              ;;
+          esac
+
           echo "job=$FAILED_JOB" >> $GITHUB_OUTPUT
           echo "step=$FAILED_STEP" >> $GITHUB_OUTPUT
+          echo "stage=$STAGE" >> $GITHUB_OUTPUT
+          echo "title=$TITLE" >> $GITHUB_OUTPUT
+          echo "target=$TARGET" >> $GITHUB_OUTPUT
+          # multiline 지원을 위해 heredoc 형태로 output 작성
+          {
+            echo "guide<<'EOF'"
+            echo "$GUIDE"
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
 
-      - name: Discord 알림 (CI 실패)
+      - name: Discord 알림 (실패 상세)
         continue-on-error: true
         run: |
           PAYLOAD=$(jq -n \
             --arg job "${{ steps.failed.outputs.job }}" \
             --arg step "${{ steps.failed.outputs.step }}" \
+            --arg stage "${{ steps.failed.outputs.stage }}" \
+            --arg title "${{ steps.failed.outputs.title }}" \
+            --arg target "${{ steps.failed.outputs.target }}" \
+            --arg guide "${{ steps.failed.outputs.guide }}" \
             --arg ref "${{ github.ref_name }}" \
             --arg sha "${{ github.sha }}" \
             --arg url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
             --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
             '{
               embeds: [{
-                title: "❌ FE CI 실패",
-                description: ("**실패한 Job:** " + $job + "\n**실패한 Step:** " + $step),
+                title: $title,
+                description: (
+                  "**대상:** " + $target + "\n"
+                  + "**실패한 Job:** " + $job + "\n"
+                  + "**실패한 Step:** " + $step + "\n\n"
+                  + "**점검 가이드**\n" + $guide + "\n\n"
+                  + "_상세 로그는 Run 보기 링크에서 확인하세요._"
+                ),
                 color: 15158332,
                 fields: [
                   {name: "브랜치", value: $ref, inline: true},
                   {name: "커밋", value: ("`" + $sha + "`"), inline: true},
+                  {name: "Stage", value: $stage, inline: true},
                   {name: "워크플로우", value: ("[Run 보기](" + $url + ")"), inline: false}
                 ],
                 timestamp: $ts
