@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { AppHeader } from '@/app/components/AppHeader';
 import { Card } from '@/app/components/ui/card';
@@ -13,6 +13,7 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import { useAnswerDetail } from '@/app/hooks/useAnswerDetail';
+import { getFileReadPresignedUrl } from '@/api/fileApi';
 
 const TEXT_PAGE_TITLE = '실전 학습 기록 상세';
 const TEXT_HEADER_DESC = '실전 면접 결과와 AI 피드백을 확인해보세요';
@@ -36,6 +37,13 @@ const TEXT_MISSING = '누락 키워드';
 const TEXT_NONE = '없음';
 const TEXT_FEEDBACK_EMPTY = '피드백 정보가 없습니다.';
 const TEXT_RADAR_LABEL = '평가';
+const TEXT_INTERVIEW_VIDEO_TITLE = '질문별 답변 영상';
+const TEXT_INTERVIEW_VIDEO_EMPTY = '표시할 답변 영상이 없습니다.';
+const TEXT_TURN_LABEL = '주제';
+const TEXT_VIDEO_LABEL = '답변 영상';
+const TEXT_VIDEO_EXPIRES_LABEL = '영상 링크 만료 시 새로고침 해주세요.';
+const TEXT_VIDEO_MISSING_CARD = '영상이 없습니다.';
+const TEXT_VIDEO_LOADING = '영상 불러오는 중...';
 
 const FEEDBACK_SPLIT_DELIMITER = '●';
 const FEEDBACK_BULLET = '•';
@@ -102,6 +110,73 @@ const toCoveragePercent = (coverageRatio) => {
   return Math.round(normalized * 100);
 };
 
+const toTurnOrder = (value, fallbackOrder) => {
+  if (typeof value === 'number' && Number.isFinite(value)) return Math.trunc(value);
+  if (typeof value === 'string' && /^-?\d+$/.test(value.trim())) {
+    return Number.parseInt(value.trim(), 10);
+  }
+  return fallbackOrder;
+};
+
+const toFileId = (value) => {
+  if (typeof value === 'number' && Number.isFinite(value) && value > 0) {
+    return Math.trunc(value);
+  }
+  if (typeof value === 'string' && /^\d+$/.test(value.trim())) {
+    const parsed = Number.parseInt(value.trim(), 10);
+    return parsed > 0 ? parsed : null;
+  }
+  return null;
+};
+
+const buildTurnVideoKey = (turnOrder, index) => `${turnOrder}-${index}`;
+
+const parseAmzDateMs = (value) => {
+  const normalized = toTrimmedString(value);
+  const match = normalized.match(
+    /^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z$/
+  );
+  if (!match) return null;
+
+  const [, year, month, day, hour, minute, second] = match;
+  const timestamp = Date.UTC(
+    Number.parseInt(year, 10),
+    Number.parseInt(month, 10) - 1,
+    Number.parseInt(day, 10),
+    Number.parseInt(hour, 10),
+    Number.parseInt(minute, 10),
+    Number.parseInt(second, 10)
+  );
+  return Number.isFinite(timestamp) ? timestamp : null;
+};
+
+const isExpiredS3PresignedUrl = (resourceUrl) => {
+  const normalizedUrl = toTrimmedString(resourceUrl);
+  if (!normalizedUrl) return true;
+
+  let parsedUrl;
+  try {
+    parsedUrl = new URL(normalizedUrl);
+  } catch {
+    return false;
+  }
+
+  const amzDateRaw =
+    parsedUrl.searchParams.get('X-Amz-Date') ??
+    parsedUrl.searchParams.get('x-amz-date');
+  const expiresRaw =
+    parsedUrl.searchParams.get('X-Amz-Expires') ??
+    parsedUrl.searchParams.get('x-amz-expires');
+
+  const issuedAtMs = parseAmzDateMs(amzDateRaw);
+  if (issuedAtMs === null) return false;
+
+  const expiresSeconds = Number.parseInt(toTrimmedString(expiresRaw), 10);
+  if (!Number.isFinite(expiresSeconds) || expiresSeconds < 0) return false;
+
+  return Date.now() >= issuedAtMs + expiresSeconds * 1000;
+};
+
 const hasRealFeedbackShape = (candidate) => {
   if (!candidate || typeof candidate !== 'object') return false;
   return Boolean(
@@ -143,6 +218,12 @@ const RealLearningRecordDetail = () => {
   const navigate = useNavigate();
   const { answerId } = useParams();
   const { data, isLoading, error } = useAnswerDetail(answerId);
+  const [resolvedVideoSources, setResolvedVideoSources] = useState({});
+  const [videoLoadFailedMap, setVideoLoadFailedMap] = useState({});
+  const [videoReadyMap, setVideoReadyMap] = useState({});
+  const videoReadUrlCacheRef = useRef(new Map());
+  const inFlightVideoReadUrlRef = useRef(new Map());
+  const refreshingTurnVideoRef = useRef(new Set());
 
   const answerDetail = useMemo(() => {
     const resolved = data?.data ?? data;
@@ -194,11 +275,165 @@ const RealLearningRecordDetail = () => {
   );
   const hasKeywordSummary = coveredKeywords.length > 0 || missingKeywords.length > 0;
   const hasRadarData = radarData.length > 0;
+  const interviewHistory = useMemo(() => {
+    const rows = Array.isArray(feedbackData?.interview_history)
+      ? feedbackData.interview_history
+      : [];
+
+    return rows
+      .map((item, idx) => {
+        const videoPlayUrl = toTrimmedString(
+          item?.video_play_url ??
+            item?.videoPlayUrl ??
+            item?.video_url ??
+            item?.videoUrl ??
+            item?.play_url ??
+            item?.playUrl
+        );
+
+        return {
+          turnOrder: toTurnOrder(item?.turn_order ?? item?.turnOrder, idx),
+          turnType: toTrimmedString(item?.turn_type ?? item?.turnType),
+          question: toTrimmedString(item?.question),
+          answerText: toTrimmedString(item?.answer_text ?? item?.answerText),
+          category: toTrimmedString(item?.category),
+          videoPlayUrl,
+          videoPlayUrlExpired: isExpiredS3PresignedUrl(videoPlayUrl),
+          videoExpiresAt: toTrimmedString(
+            item?.video_url_expires_at ??
+              item?.videoUrlExpiresAt ??
+              item?.video_expires_at ??
+              item?.videoExpiresAt
+          ),
+          videoFileId: toFileId(item?.video_file_id ?? item?.videoFileId),
+        };
+      })
+      .sort((a, b) => a.turnOrder - b.turnOrder);
+  }, [feedbackData]);
+
+  const getTurnVideoReadUrl = useCallback(async (fileId, { forceRefresh = false } = {}) => {
+    const normalizedFileId = toFileId(fileId);
+    if (!normalizedFileId) return '';
+    const fileIdKey = String(normalizedFileId);
+
+    if (forceRefresh) {
+      videoReadUrlCacheRef.current.delete(fileIdKey);
+      inFlightVideoReadUrlRef.current.delete(fileIdKey);
+    } else {
+      const cachedUrl = toTrimmedString(videoReadUrlCacheRef.current.get(fileIdKey));
+      if (cachedUrl) return cachedUrl;
+    }
+
+    let readPromise = inFlightVideoReadUrlRef.current.get(fileIdKey);
+    if (!readPromise) {
+      readPromise = getFileReadPresignedUrl(normalizedFileId)
+        .then((readResult) => {
+          const readPayload = readResult?.data ?? readResult ?? {};
+          return toTrimmedString(readPayload.presignedUrl ?? readPayload.presigned_url);
+        })
+        .finally(() => {
+          inFlightVideoReadUrlRef.current.delete(fileIdKey);
+        });
+      inFlightVideoReadUrlRef.current.set(fileIdKey, readPromise);
+    }
+
+    const resolvedUrl = toTrimmedString(await readPromise);
+    if (resolvedUrl) {
+      videoReadUrlCacheRef.current.set(fileIdKey, resolvedUrl);
+    }
+    return resolvedUrl;
+  }, []);
+
+  const handleTurnVideoLoadError = useCallback(async (turn, turnIndex) => {
+    const turnKey = buildTurnVideoKey(turn?.turnOrder, turnIndex);
+
+    if (!turn?.videoFileId) {
+      setVideoLoadFailedMap((prev) => ({ ...prev, [turnKey]: true }));
+      return;
+    }
+    if (refreshingTurnVideoRef.current.has(turnKey)) {
+      return;
+    }
+
+    refreshingTurnVideoRef.current.add(turnKey);
+    try {
+      const refreshedUrl = await getTurnVideoReadUrl(turn.videoFileId, { forceRefresh: true });
+      if (!refreshedUrl) {
+        throw new Error('empty_video_url');
+      }
+
+      setResolvedVideoSources((prev) => ({
+        ...prev,
+        [turnKey]: refreshedUrl,
+      }));
+      setVideoLoadFailedMap((prev) => {
+        if (!prev[turnKey]) return prev;
+        const next = { ...prev };
+        delete next[turnKey];
+        return next;
+      });
+    } catch {
+      setVideoLoadFailedMap((prev) => ({ ...prev, [turnKey]: true }));
+    } finally {
+      refreshingTurnVideoRef.current.delete(turnKey);
+    }
+  }, [getTurnVideoReadUrl]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadTurnVideos = async () => {
+      const targets = interviewHistory
+        .map((turn, idx) => ({ turn, idx }))
+        .filter(
+          ({ turn }) =>
+            (!turn.videoPlayUrl || turn.videoPlayUrlExpired) &&
+            Boolean(turn.videoFileId)
+        );
+
+      if (targets.length === 0) {
+        if (!cancelled) setResolvedVideoSources({});
+        return;
+      }
+
+      const nextVideoSources = {};
+
+      for (let idx = 0; idx < targets.length; idx += 1) {
+        const turn = targets[idx]?.turn;
+        const originalIndex = targets[idx]?.idx ?? idx;
+        if (!turn) continue;
+
+        try {
+          const fallbackUrl = toTrimmedString(await getTurnVideoReadUrl(turn.videoFileId));
+          if (!fallbackUrl) continue;
+          nextVideoSources[buildTurnVideoKey(turn.turnOrder, originalIndex)] = fallbackUrl;
+        } catch {
+          // fallback URL 조회 실패 시 해당 턴은 텍스트만 표시
+        }
+      }
+
+      if (cancelled) return;
+      setResolvedVideoSources(nextVideoSources);
+    };
+
+    void loadTurnVideos();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [getTurnVideoReadUrl, interviewHistory]);
+
+  useEffect(() => {
+    setVideoLoadFailedMap({});
+  }, [interviewHistory, resolvedVideoSources]);
+
+  useEffect(() => {
+    setVideoReadyMap({});
+  }, [interviewHistory, resolvedVideoSources]);
 
   const questionText = toTrimmedString(
     answerDetail?.question?.content ?? answerDetail?.question?.title
   );
-  const answerText = toTrimmedString(answerDetail?.content ?? answerDetail?.answer_text);
 
   if (isLoading) {
     return (
@@ -273,22 +508,6 @@ const RealLearningRecordDetail = () => {
       </div>
 
       <div className="p-6 max-w-lg mx-auto space-y-4 -mt-4">
-        {questionText && (
-          <Card className="p-5 bg-white shadow-sm">
-            <p className="text-sm text-muted-foreground mb-2">{TEXT_QUESTION_LABEL}</p>
-            <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">{questionText}</p>
-          </Card>
-        )}
-
-        {answerText && (
-          <Card className="p-5">
-            <p className="text-sm text-muted-foreground mb-2">{TEXT_MY_ANSWER_LABEL}</p>
-            <div className="h-44 overflow-y-auto overscroll-contain pr-1">
-              <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">{answerText}</p>
-            </div>
-          </Card>
-        )}
-
         <Card className="p-5 bg-white shadow-lg">
           <div className="flex items-center gap-2 mb-4">
             <Sparkles className="w-5 h-5 text-pink-600" />
@@ -305,6 +524,98 @@ const RealLearningRecordDetail = () => {
             </ResponsiveContainer>
           ) : (
             <p className="text-sm text-muted-foreground">{TEXT_FEEDBACK_EMPTY}</p>
+          )}
+        </Card>
+
+        {questionText && (
+          <Card className="p-5 bg-white shadow-sm">
+            <p className="text-sm text-muted-foreground mb-2">{TEXT_QUESTION_LABEL}</p>
+            <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">{questionText}</p>
+          </Card>
+        )}
+
+        <Card className="p-5 bg-white shadow-sm space-y-4">
+          <div className="flex items-center gap-2">
+            <Sparkles className="w-5 h-5 text-pink-600" />
+            <h3>{TEXT_INTERVIEW_VIDEO_TITLE}</h3>
+          </div>
+          {interviewHistory.length > 0 ? (
+            <div className="space-y-4">
+              {interviewHistory.map((turn, idx) => {
+                const turnKey = buildTurnVideoKey(turn.turnOrder, idx);
+                const resolvedVideoUrl = toTrimmedString(
+                  resolvedVideoSources[turnKey] ?? turn.videoPlayUrl
+                );
+                const hasVideoLoadFailed = Boolean(videoLoadFailedMap[turnKey]);
+                const canRenderVideoPlayer = Boolean(resolvedVideoUrl) && !hasVideoLoadFailed;
+                const displayTopicOrder = Math.max(turn.turnOrder + 1, 1);
+
+                return (
+                  <div key={turnKey} className="rounded-xl border border-rose-100 bg-rose-50/50 p-4 space-y-3">
+                    <p className="text-sm font-semibold text-rose-700">
+                      {TEXT_TURN_LABEL} {displayTopicOrder}
+                      {turn.category ? ` · ${turn.category}` : ''}
+                    </p>
+                    {turn.question && (
+                      <div className="space-y-1">
+                        <p className="text-xs text-muted-foreground">{TEXT_QUESTION_LABEL}</p>
+                        <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">{turn.question}</p>
+                      </div>
+                    )}
+                    <div className="space-y-1">
+                      <p className="text-xs text-muted-foreground">{TEXT_VIDEO_LABEL}</p>
+                      {canRenderVideoPlayer ? (
+                        <div className="relative">
+                          <video
+                            controls
+                            preload="metadata"
+                            playsInline
+                            className="w-full aspect-video rounded-lg border border-gray-200 bg-black"
+                            src={resolvedVideoUrl}
+                            onError={() => {
+                              void handleTurnVideoLoadError(turn, idx);
+                            }}
+                            onLoadedData={() => {
+                              setVideoReadyMap((prev) => ({ ...prev, [turnKey]: true }));
+                              setVideoLoadFailedMap((prev) => {
+                                if (!prev[turnKey]) return prev;
+                                const next = { ...prev };
+                                delete next[turnKey];
+                                return next;
+                              });
+                            }}
+                          />
+                          {!videoReadyMap[turnKey] && (
+                            <div className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-lg bg-black/65">
+                              <p className="text-xs text-white/90">{TEXT_VIDEO_LOADING}</p>
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 px-4 py-5 text-center">
+                          <p className="text-sm font-medium text-gray-600">{TEXT_VIDEO_MISSING_CARD}</p>
+                        </div>
+                      )}
+                      {canRenderVideoPlayer && (
+                        <p className="text-xs text-muted-foreground">
+                          {turn.videoExpiresAt
+                            ? `${TEXT_VIDEO_EXPIRES_LABEL} (${turn.videoExpiresAt})`
+                            : TEXT_VIDEO_EXPIRES_LABEL}
+                        </p>
+                      )}
+                    </div>
+                    {turn.answerText && (
+                      <div className="space-y-1">
+                        <p className="text-xs text-muted-foreground">{TEXT_MY_ANSWER_LABEL}</p>
+                        <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">{turn.answerText}</p>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">{TEXT_INTERVIEW_VIDEO_EMPTY}</p>
           )}
         </Card>
 

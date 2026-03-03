@@ -15,15 +15,29 @@ export function useQuestionTtsPlayer({
     autoPlayEnabled = true,
     noSessionErrorMessage = '세션 정보를 찾을 수 없습니다.',
     onError,
+    onPlaybackEnded,
 }) {
     const audioRef = useRef(null);
     const audioUrlRef = useRef('');
+    const requestControllerRef = useRef(null);
+    const requestSequenceRef = useRef(0);
     const autoPlayedKeyRef = useRef('');
 
     const [isLoading, setIsLoading] = useState(false);
     const [isPlaying, setIsPlaying] = useState(false);
 
+    const isAbortError = useCallback((error) => {
+        const name = typeof error?.name === 'string' ? error.name : '';
+        const message = typeof error?.message === 'string' ? error.message : '';
+        return name === 'AbortError' || /abort/i.test(message);
+    }, []);
+
     const stop = useCallback(() => {
+        if (requestControllerRef.current) {
+            requestControllerRef.current.abort();
+            requestControllerRef.current = null;
+        }
+
         if (audioRef.current) {
             audioRef.current.onended = null;
             audioRef.current.onpause = null;
@@ -36,6 +50,7 @@ export function useQuestionTtsPlayer({
             audioUrlRef.current = '';
         }
 
+        setIsLoading(false);
         setIsPlaying(false);
     }, []);
 
@@ -57,37 +72,102 @@ export function useQuestionTtsPlayer({
             return false;
         }
 
-        setIsLoading(true);
-        try {
-            stop();
+        const requestSequence = requestSequenceRef.current + 1;
+        requestSequenceRef.current = requestSequence;
 
+        stop();
+        setIsLoading(true);
+
+        const controller = new AbortController();
+        requestControllerRef.current = controller;
+
+        try {
             const response = await requestTTS({
                 userId,
                 sessionId: normalizedSessionId,
                 text: normalizedText,
+                signal: controller.signal,
             });
+            if (requestSequenceRef.current !== requestSequence) {
+                return false;
+            }
+
+            if (import.meta.env.DEV) {
+                console.info('[TTS] play payload', {
+                    blobSize: response?.audioBlob?.size ?? 0,
+                    blobType: response?.audioBlob?.type ?? '',
+                    silent,
+                });
+            }
 
             const objectUrl = URL.createObjectURL(response.audioBlob);
             audioUrlRef.current = objectUrl;
 
             const audio = new Audio(objectUrl);
+            audio.preload = 'auto';
             audioRef.current = audio;
-            audio.onended = () => setIsPlaying(false);
-            audio.onpause = () => setIsPlaying(false);
+            audio.onended = () => {
+                if (requestSequenceRef.current === requestSequence) {
+                    setIsPlaying(false);
+                    onPlaybackEnded?.({
+                        text: normalizedText,
+                        sessionId: normalizedSessionId,
+                    });
+                }
+            };
+            audio.onpause = () => {
+                if (requestSequenceRef.current === requestSequence) {
+                    setIsPlaying(false);
+                }
+            };
+
+            try {
+                audio.currentTime = 0;
+            } catch {
+                // noop
+            }
 
             await audio.play();
+            if (requestSequenceRef.current !== requestSequence) {
+                audio.pause();
+                return false;
+            }
             setIsPlaying(true);
             return true;
         } catch (error) {
+            if (isAbortError(error)) {
+                return false;
+            }
+            if (import.meta.env.DEV) {
+                console.error('[TTS] play failed', {
+                    name: error?.name,
+                    message: error?.message,
+                    silent,
+                });
+            }
             stop();
             if (!silent) {
                 onError?.(error);
             }
             return false;
         } finally {
-            setIsLoading(false);
+            if (requestControllerRef.current === controller) {
+                requestControllerRef.current = null;
+            }
+            if (requestSequenceRef.current === requestSequence) {
+                setIsLoading(false);
+            }
         }
-    }, [finishedQuestionText, noSessionErrorMessage, onError, sessionId, stop, userId]);
+    }, [
+        finishedQuestionText,
+        isAbortError,
+        noSessionErrorMessage,
+        onError,
+        onPlaybackEnded,
+        sessionId,
+        stop,
+        userId,
+    ]);
 
     const play = useCallback(async ({ silent = false } = {}) => {
         const normalizedQuestion = toTrimmedString(questionText);
@@ -104,8 +184,6 @@ export function useQuestionTtsPlayer({
     }, [isLoading, isPlaying, play, stop]);
 
     useEffect(() => {
-        stop();
-
         const normalizedQuestion = toTrimmedString(questionText);
         const normalizedSessionId = toTrimmedString(sessionId);
         const normalizedFinishedText = toTrimmedString(finishedQuestionText);
@@ -119,6 +197,10 @@ export function useQuestionTtsPlayer({
         if (!shouldAutoPlay) {
             return;
         }
+
+        // 자동 재생이 실제로 필요한 경우에만 기존 재생/요청을 정리한다.
+        // 그렇지 않으면(예: 마지막 턴 전환) 수동 재생 요청이 abort될 수 있다.
+        stop();
 
         const autoPlayKey = `${normalizedSessionId}:${normalizedQuestion}`;
         if (autoPlayedKeyRef.current === autoPlayKey) {
