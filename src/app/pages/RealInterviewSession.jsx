@@ -57,6 +57,9 @@ const COPY = {
     micConnectionFailed: '마이크 연결을 확인한 후 다시 시도해주세요.',
     recordingUnsupported: '현재 브라우저에서 녹화 기능을 지원하지 않습니다.',
     recordingStartFailed: '녹화를 시작하지 못했습니다. 브라우저 권한 또는 장치를 확인해주세요.',
+    recordingFileMissing: '녹화 파일 정보가 누락되었습니다. 다시 답변을 녹화해주세요.',
+    recordingVideoMissing: '답변 영상을 확인하지 못했습니다. 다시 녹화해주세요.',
+    recordingAudioMissing: '답변 음성을 확인하지 못했습니다. 다시 녹화해주세요.',
     interviewFinishedQuestion: '모든 면접 질문이 종료되었습니다. AI 분석 요청으로 종합 피드백을 받아보세요.',
     analysisRequestFailed: 'AI 분석 요청을 전송하지 못했습니다.',
     analysisRequestAccepted: 'AI 분석 요청이 접수되었습니다. 결과가 준비되면 확인할 수 있어요.',
@@ -69,6 +72,7 @@ const COPY = {
     questionTtsStop: '재생 중지',
     questionTtsLoading: '생성 중...',
     questionTtsFailed: '질문 음성 재생에 실패했습니다.',
+    questionTtsCompletionRequired: '질문 음성 재생이 끝나야 답변을 제출할 수 있습니다.',
     badCaseDetected: '답변이 기준을 충족하지 못해 다시 녹화가 필요합니다.',
     badCaseFeedbackFallback: '답변을 보완해 다시 시도해주세요.',
     badCaseRetryPrompt: '피드백을 반영해 다시 답변해주세요.',
@@ -268,8 +272,20 @@ const isSessionEndTurnType = (value) => {
     return normalizeTurnType(value, 'follow_up') === 'session_end';
 };
 
+const getTrailTypeLabel = (turnType, turnOrder, fallbackFollowUpOrder = 1) => {
+    if (isSessionEndTurnType(turnType)) {
+        return '면접 종료';
+    }
+    if (isTopicTurnType(turnType)) {
+        return ORIGIN_QUESTION_TYPE;
+    }
+    return `${COPY.followUpQuestionPrefix} ${Math.max(normalizeTurnOrder(turnOrder, fallbackFollowUpOrder), 1)}`;
+};
+
 const normalizeHistoryItem = (item, index) => {
     const fallbackOrder = index;
+    const audioFileId = toIntegerOrNull(item?.audio_file_id ?? item?.audioFileId);
+    const videoFileId = toIntegerOrNull(item?.video_file_id ?? item?.videoFileId);
     return {
         question: toTrimmedString(item?.question),
         answer_text: toTrimmedString(item?.answer_text ?? item?.answerText),
@@ -277,6 +293,8 @@ const normalizeHistoryItem = (item, index) => {
         turn_order: normalizeTurnOrder(item?.turn_order ?? item?.turnOrder, fallbackOrder),
         topic_id: toIntegerOrNull(item?.topic_id ?? item?.topicId),
         category: toTrimmedString(item?.category),
+        audio_file_id: audioFileId,
+        video_file_id: videoFileId,
     };
 };
 
@@ -556,7 +574,7 @@ const extractBadCaseFeedback = (response, payload) => {
     };
 };
 
-const getRecorderOptions = () => {
+const getAudioRecorderOptions = () => {
     if (typeof MediaRecorder === 'undefined') return {};
 
     if (MediaRecorder.isTypeSupported('audio/mp4')) {
@@ -571,6 +589,24 @@ const getRecorderOptions = () => {
     return {};
 };
 
+const getVideoRecorderOptions = () => {
+    if (typeof MediaRecorder === 'undefined') return {};
+
+    if (MediaRecorder.isTypeSupported('video/webm;codecs=vp9,opus')) {
+        return { mimeType: 'video/webm;codecs=vp9,opus' };
+    }
+    if (MediaRecorder.isTypeSupported('video/webm;codecs=vp8,opus')) {
+        return { mimeType: 'video/webm;codecs=vp8,opus' };
+    }
+    if (MediaRecorder.isTypeSupported('video/webm')) {
+        return { mimeType: 'video/webm' };
+    }
+    if (MediaRecorder.isTypeSupported('video/mp4')) {
+        return { mimeType: 'video/mp4' };
+    }
+    return {};
+};
+
 const BUBBLE_BASE =
     'bg-[linear-gradient(145deg,rgba(255,255,255,0.07)_0%,rgba(255,255,255,0.035)_46%,rgba(255,255,255,0.015)_100%)] border border-white/[0.14] shadow-[inset_0_1px_0_rgba(255,255,255,0.16),inset_0_-1px_0_rgba(255,255,255,0.015),0_6px_12px_rgba(12,7,12,0.08)] backdrop-blur-[18px] backdrop-saturate-150';
 const HUD_TEXT_SHADOW = 'drop-shadow-[0_1px_8px_rgba(0,0,0,0.72)]';
@@ -581,8 +617,15 @@ const RealInterviewSession = () => {
     const videoRef = useRef(null);
     const streamRef = useRef(null);
     const recordingStreamRef = useRef(null);
+    const videoCaptureStreamRef = useRef(null);
     const mediaRecorderRef = useRef(null);
+    const videoRecorderRef = useRef(null);
     const recordedChunksRef = useRef([]);
+    const videoRecordedChunksRef = useRef([]);
+    const pendingStopResultRef = useRef({
+        audio: null,
+        video: null,
+    });
     const timerRef = useRef(null);
     const storedSessionRef = useRef(null);
 
@@ -623,7 +666,12 @@ const RealInterviewSession = () => {
     const [interviewEntries, setInterviewEntries] = useState([]);
     const [questionTrail, setQuestionTrail] = useState([]);
     const [currentQuestion, setCurrentQuestion] = useState(INITIAL_QUESTION);
-    const { uploadAudioBlob, transcribeAudioUrl } = useAudioSttPipeline();
+    const [recordedFileIds, setRecordedFileIds] = useState({
+        audioFileId: null,
+        videoFileId: null,
+    });
+    const [hasQuestionTtsCompleted, setHasQuestionTtsCompleted] = useState(false);
+    const { uploadAudioBlob, uploadVideoBlobMultipart, transcribeAudioUrl } = useAudioSttPipeline();
 
     const isRecording = phase === PHASE.RECORDING;
     const isProcessing =
@@ -872,6 +920,16 @@ const RealInterviewSession = () => {
     const handleQuestionTtsError = useCallback((error) => {
         toast.error(error?.message || COPY.questionTtsFailed);
     }, []);
+    const handleQuestionTtsEnded = useCallback(({ text }) => {
+        if (!realSessionId) return;
+
+        const normalizedPlayedText = toTrimmedString(text);
+        const normalizedCurrentQuestion = toTrimmedString(currentQuestion);
+        if (!normalizedPlayedText || !normalizedCurrentQuestion) return;
+        if (normalizedPlayedText !== normalizedCurrentQuestion) return;
+
+        setHasQuestionTtsCompleted(true);
+    }, [currentQuestion, realSessionId]);
 
     const {
         isLoading: isQuestionTtsLoading,
@@ -887,7 +945,14 @@ const RealInterviewSession = () => {
         autoPlayEnabled: isInterviewStarted && isSessionReady && !isInterviewFinished,
         noSessionErrorMessage: COPY.sessionNotFound,
         onError: handleQuestionTtsError,
+        onPlaybackEnded: handleQuestionTtsEnded,
     });
+    const isReviewSubmitDisabled =
+        !transcriptDraft.trim() ||
+        !hasQuestionTtsCompleted ||
+        isQuestionTtsLoading ||
+        isQuestionPlaying;
+    const shouldShowTtsCompletionNotice = phase === PHASE.REVIEW && !hasQuestionTtsCompleted;
 
     const stopTimer = useCallback(() => {
         if (timerRef.current) {
@@ -914,6 +979,13 @@ const RealInterviewSession = () => {
         if (recordingStreamRef.current) {
             recordingStreamRef.current.getTracks().forEach((track) => track.stop());
             recordingStreamRef.current = null;
+        }
+    }, []);
+
+    const stopVideoCaptureStream = useCallback(() => {
+        if (videoCaptureStreamRef.current) {
+            videoCaptureStreamRef.current.getTracks().forEach((track) => track.stop());
+            videoCaptureStreamRef.current = null;
         }
     }, []);
 
@@ -986,52 +1058,89 @@ const RealInterviewSession = () => {
         }
     }, []);
 
-    const runPostRecordingPipeline = useCallback(async (audioChunks, mimeType = '') => {
+    const runPostRecordingPipeline = useCallback(async (
+        audioChunks,
+        audioMimeType = '',
+        videoChunks = [],
+        videoMimeType = ''
+    ) => {
         if (!Array.isArray(audioChunks) || audioChunks.length === 0) {
             setTranscriptDraft('');
+            setRecordedFileIds({ audioFileId: null, videoFileId: null });
             setIsReviewPanelOpen(true);
             setPhase(PHASE.REVIEW);
-            toast.error(COPY.micConnectionFailed);
+            toast.error(COPY.recordingAudioMissing);
+            return;
+        }
+        if (!Array.isArray(videoChunks) || videoChunks.length === 0) {
+            setTranscriptDraft('');
+            setRecordedFileIds({ audioFileId: null, videoFileId: null });
+            setIsReviewPanelOpen(true);
+            setPhase(PHASE.REVIEW);
+            toast.error(COPY.recordingVideoMissing);
             return;
         }
         if (!realSessionId) {
             setTranscriptDraft('');
+            setRecordedFileIds({ audioFileId: null, videoFileId: null });
             setIsReviewPanelOpen(true);
             setPhase(PHASE.REVIEW);
             toast.error(COPY.sessionNotFound);
             return;
         }
 
-        let resolvedMimeType = typeof mimeType === 'string' && mimeType ? mimeType : 'audio/webm';
-        if (!resolvedMimeType || resolvedMimeType === 'application/octet-stream') {
+        let resolvedAudioMimeType =
+            typeof audioMimeType === 'string' && audioMimeType ? audioMimeType : 'audio/webm';
+        if (!resolvedAudioMimeType || resolvedAudioMimeType === 'application/octet-stream') {
             const firstChunkType = toTrimmedString(audioChunks[0]?.type);
             if (firstChunkType) {
-                resolvedMimeType = firstChunkType;
+                resolvedAudioMimeType = firstChunkType;
             }
         }
 
-        const audioBlob = new Blob(audioChunks, { type: resolvedMimeType });
+        let resolvedVideoMimeType =
+            typeof videoMimeType === 'string' && videoMimeType ? videoMimeType : 'video/webm';
+        if (!resolvedVideoMimeType || resolvedVideoMimeType === 'application/octet-stream') {
+            const firstVideoChunkType = toTrimmedString(videoChunks[0]?.type);
+            if (firstVideoChunkType) {
+                resolvedVideoMimeType = firstVideoChunkType;
+            }
+        }
 
-        if (!audioBlob.size) {
+        const audioBlob = new Blob(audioChunks, { type: resolvedAudioMimeType });
+        const videoBlob = new Blob(videoChunks, { type: resolvedVideoMimeType });
+
+        if (!audioBlob.size || !videoBlob.size) {
             setTranscriptDraft('');
+            setRecordedFileIds({ audioFileId: null, videoFileId: null });
             setIsReviewPanelOpen(true);
             setPhase(PHASE.REVIEW);
-            toast.error(COPY.micConnectionFailed);
+            toast.error(COPY.recordingFileMissing);
             return;
         }
 
         try {
             setPhase(PHASE.UPLOADING);
-            const uploadResult = await uploadAudioBlob({
-                audioBlob,
-                mode: 'REAL',
+            const [audioUploadResult, videoUploadResult] = await Promise.all([
+                uploadAudioBlob({
+                    audioBlob,
+                    mode: 'REAL',
+                }),
+                uploadVideoBlobMultipart({
+                    videoBlob,
+                }),
+            ]);
+
+            setRecordedFileIds({
+                audioFileId: audioUploadResult?.fileId ?? null,
+                videoFileId: videoUploadResult?.fileId ?? null,
             });
 
             setPhase(PHASE.STT);
             const sttResult = await transcribeAudioUrl({
                 userId: realUserId,
                 sessionId: realSessionId,
-                audioUrl: uploadResult.audioUrl,
+                audioUrl: audioUploadResult?.audioUrl ?? '',
             });
             const sttText = toTrimmedString(sttResult?.text);
 
@@ -1039,13 +1148,34 @@ const RealInterviewSession = () => {
             setBadCaseNotice('');
         } catch (error) {
             setTranscriptDraft('');
+            setRecordedFileIds({ audioFileId: null, videoFileId: null });
             toast.error(error?.message || COPY.micConnectionFailed);
         } finally {
             setSeconds(0);
             setIsReviewPanelOpen(true);
             setPhase(PHASE.REVIEW);
         }
-    }, [realSessionId, realUserId, transcribeAudioUrl, uploadAudioBlob]);
+    }, [realSessionId, realUserId, transcribeAudioUrl, uploadAudioBlob, uploadVideoBlobMultipart]);
+
+    const tryRunPostRecordingPipeline = useCallback(() => {
+        const pending = pendingStopResultRef.current;
+        if (!pending.audio || !pending.video) return;
+
+        const audioResult = pending.audio;
+        const videoResult = pending.video;
+
+        pendingStopResultRef.current = {
+            audio: null,
+            video: null,
+        };
+
+        void runPostRecordingPipeline(
+            audioResult.chunks,
+            audioResult.mimeType,
+            videoResult.chunks,
+            videoResult.mimeType
+        );
+    }, [runPostRecordingPipeline]);
 
     const startRecording = useCallback(async () => {
         if (!canStartRecording) return;
@@ -1054,41 +1184,86 @@ const RealInterviewSession = () => {
             return;
         }
 
-        let stream = streamRef.current;
-        if (!stream) {
-            stream = await initializeCamera();
-            if (!stream) return;
+        let cameraStream = streamRef.current;
+        if (!cameraStream) {
+            cameraStream = await initializeCamera();
+            if (!cameraStream) return;
         }
-        stream = await ensureRecordingStream();
-        if (!stream) return;
+
+        const audioStream = await ensureRecordingStream();
+        if (!audioStream) return;
+
+        const videoTrack = cameraStream.getVideoTracks()[0];
+        const micTrack = audioStream.getAudioTracks()[0];
+
+        if (!videoTrack || !micTrack) {
+            setPermissionHint(COPY.micConnectionFailed);
+            return;
+        }
 
         try {
-            const options = getRecorderOptions();
-
-            const recorder = new MediaRecorder(stream, options);
-            mediaRecorderRef.current = recorder;
+            const audioOptions = getAudioRecorderOptions();
+            const audioRecorder = new MediaRecorder(audioStream, audioOptions);
+            mediaRecorderRef.current = audioRecorder;
             recordedChunksRef.current = [];
 
-            recorder.ondataavailable = (event) => {
+            const videoCaptureStream = new MediaStream([
+                videoTrack.clone(),
+                micTrack.clone(),
+            ]);
+            videoCaptureStreamRef.current = videoCaptureStream;
+
+            const videoOptions = getVideoRecorderOptions();
+            const videoRecorder = new MediaRecorder(videoCaptureStream, videoOptions);
+            videoRecorderRef.current = videoRecorder;
+            videoRecordedChunksRef.current = [];
+            pendingStopResultRef.current = { audio: null, video: null };
+
+            audioRecorder.ondataavailable = (event) => {
                 if (event.data.size > 0) {
                     recordedChunksRef.current.push(event.data);
                 }
             };
 
-            recorder.onstop = () => {
+            videoRecorder.ondataavailable = (event) => {
+                if (event.data.size > 0) {
+                    videoRecordedChunksRef.current.push(event.data);
+                }
+            };
+
+            audioRecorder.onstop = () => {
                 const chunks = recordedChunksRef.current;
                 recordedChunksRef.current = [];
-                runPostRecordingPipeline(chunks, recorder.mimeType);
+                pendingStopResultRef.current.audio = {
+                    chunks,
+                    mimeType: audioRecorder.mimeType,
+                };
+                tryRunPostRecordingPipeline();
+            };
+
+            videoRecorder.onstop = () => {
+                const chunks = videoRecordedChunksRef.current;
+                videoRecordedChunksRef.current = [];
+                pendingStopResultRef.current.video = {
+                    chunks,
+                    mimeType: videoRecorder.mimeType,
+                };
+                stopVideoCaptureStream();
+                tryRunPostRecordingPipeline();
             };
 
             setSeconds(0);
             setAutoStopNotice('');
             setBadCaseNotice('');
             setAnalysisNotice('');
+            setTranscriptDraft('');
+            setRecordedFileIds({ audioFileId: null, videoFileId: null });
             setPhase(PHASE.RECORDING);
             startTimer();
-            recorder.start(250);
+            audioRecorder.start(250);
+            videoRecorder.start(250);
         } catch {
+            stopVideoCaptureStream();
             setCameraError(COPY.recordingStartFailed);
             setPhase(PHASE.READY);
             stopTimer();
@@ -1097,22 +1272,50 @@ const RealInterviewSession = () => {
         canStartRecording,
         ensureRecordingStream,
         initializeCamera,
-        runPostRecordingPipeline,
         startTimer,
         stopTimer,
+        stopVideoCaptureStream,
+        tryRunPostRecordingPipeline,
     ]);
 
     const stopRecordingAndSubmit = useCallback(() => {
-        if (!mediaRecorderRef.current) return;
-        if (mediaRecorderRef.current.state === 'inactive') return;
+        const audioRecorder = mediaRecorderRef.current;
+        const videoRecorder = videoRecorderRef.current;
+
+        const isAudioRecording = Boolean(audioRecorder && audioRecorder.state !== 'inactive');
+        const isVideoRecording = Boolean(videoRecorder && videoRecorder.state !== 'inactive');
+        if (!isAudioRecording && !isVideoRecording) return;
 
         stopTimer();
         setPhase(PHASE.UPLOADING);
-        mediaRecorderRef.current.stop();
-    }, [stopTimer]);
+
+        if (isVideoRecording) {
+            videoRecorder.stop();
+        } else {
+            pendingStopResultRef.current.video = {
+                chunks: videoRecordedChunksRef.current,
+                mimeType: '',
+            };
+            videoRecordedChunksRef.current = [];
+            stopVideoCaptureStream();
+        }
+
+        if (isAudioRecording) {
+            audioRecorder.stop();
+        } else {
+            pendingStopResultRef.current.audio = {
+                chunks: recordedChunksRef.current,
+                mimeType: '',
+            };
+            recordedChunksRef.current = [];
+        }
+
+        tryRunPostRecordingPipeline();
+    }, [stopTimer, stopVideoCaptureStream, tryRunPostRecordingPipeline]);
 
     const resetToReady = useCallback(() => {
         setTranscriptDraft('');
+        setRecordedFileIds({ audioFileId: null, videoFileId: null });
         setSeconds(0);
         setAutoStopNotice('');
         setBadCaseNotice('');
@@ -1134,6 +1337,13 @@ const RealInterviewSession = () => {
             return;
         }
 
+        const audioFileId = recordedFileIds.audioFileId;
+        const videoFileId = recordedFileIds.videoFileId;
+        if (!audioFileId || !videoFileId) {
+            toast.error(COPY.recordingFileMissing);
+            return;
+        }
+
         const normalizedCurrentQuestion = toTrimmedString(currentQuestion);
         const historyTurnOrder = (activeSession.interview_history || []).length;
         const historyEntry = {
@@ -1143,6 +1353,8 @@ const RealInterviewSession = () => {
             turn_order: historyTurnOrder,
             topic_id: currentTopicId,
             category: currentCategory,
+            audio_file_id: audioFileId,
+            video_file_id: videoFileId,
         };
 
         const nextInterviewHistory = [...(activeSession.interview_history || []), historyEntry];
@@ -1151,6 +1363,8 @@ const RealInterviewSession = () => {
             question_type: activeSession.question_type || realQuestionType,
             question: normalizedCurrentQuestion,
             answer_text: answerText,
+            audio_file_id: audioFileId,
+            video_file_id: videoFileId,
         };
 
         const submittedAt = new Date().toISOString();
@@ -1197,6 +1411,7 @@ const RealInterviewSession = () => {
 
                 setPhase(PHASE.READY);
                 setTranscriptDraft('');
+                setRecordedFileIds({ audioFileId: null, videoFileId: null });
                 setSeconds(0);
                 setAutoStopNotice('');
                 setBadCaseNotice(noticeMessage);
@@ -1215,6 +1430,8 @@ const RealInterviewSession = () => {
 
             if (isFinished) {
                 const finishedMessage = nextQuestion?.text || COPY.interviewFinishedQuestion;
+                const finishedTurnType = normalizeTurnType(nextQuestion?.turnType, 'session_end');
+                const finishedTurnOrder = normalizeTurnOrder(nextQuestion?.turnOrder, nextInterviewHistory.length);
                 const hasFinishedTtsTarget = Boolean(nextQuestion?.text);
                 const finishedSession = {
                     ...activeSession,
@@ -1228,11 +1445,28 @@ const RealInterviewSession = () => {
 
                 setIsInterviewFinished(true);
                 setCurrentQuestion(finishedMessage);
-                setCurrentTurnType('session_end');
-                setCurrentTurnOrder(nextInterviewHistory.length);
+                setCurrentTurnType(finishedTurnType);
+                setCurrentTurnOrder(finishedTurnOrder);
                 setCurrentTopicId(null);
                 setCurrentCategory('');
+                setQuestionTrail((prev) => {
+                    const nextItem = {
+                        id: `session-end-${finishedTurnOrder}`,
+                        type: getTrailTypeLabel(finishedTurnType, finishedTurnOrder, finishedTurnOrder),
+                        text: finishedMessage,
+                    };
+                    const lastItem = prev[prev.length - 1];
+                    if (
+                        lastItem &&
+                        toTrimmedString(lastItem.text) === nextItem.text &&
+                        toTrimmedString(lastItem.type) === nextItem.type
+                    ) {
+                        return prev;
+                    }
+                    return [...prev, nextItem];
+                });
                 setTranscriptDraft('');
+                setRecordedFileIds({ audioFileId: null, videoFileId: null });
                 setPhase(PHASE.READY);
                 if (hasFinishedTtsTarget) {
                     stopQuestionTtsPlayback();
@@ -1260,7 +1494,24 @@ const RealInterviewSession = () => {
                 setCurrentTurnOrder(nextInterviewHistory.length);
                 setCurrentTopicId(null);
                 setCurrentCategory('');
+                setQuestionTrail((prev) => {
+                    const nextItem = {
+                        id: `session-end-${nextInterviewHistory.length}`,
+                        type: getTrailTypeLabel('session_end', nextInterviewHistory.length, nextInterviewHistory.length),
+                        text: COPY.interviewFinishedQuestion,
+                    };
+                    const lastItem = prev[prev.length - 1];
+                    if (
+                        lastItem &&
+                        toTrimmedString(lastItem.text) === nextItem.text &&
+                        toTrimmedString(lastItem.type) === nextItem.type
+                    ) {
+                        return prev;
+                    }
+                    return [...prev, nextItem];
+                });
                 setTranscriptDraft('');
+                setRecordedFileIds({ audioFileId: null, videoFileId: null });
                 setPhase(PHASE.READY);
                 toast.error(COPY.nextQuestionMissing);
                 return;
@@ -1299,11 +1550,12 @@ const RealInterviewSession = () => {
                 ...prev,
                 {
                     id: `follow-up-${nextRound}`,
-                    type: `${COPY.followUpQuestionPrefix} ${nextRound - 1}`,
+                    type: getTrailTypeLabel(nextTurnType, nextTurnOrder, nextRound - 1),
                     text: nextQuestionText,
                 },
             ]);
             setTranscriptDraft('');
+            setRecordedFileIds({ audioFileId: null, videoFileId: null });
             setSeconds(0);
             setAutoStopNotice('');
             setPhase(PHASE.READY);
@@ -1320,6 +1572,7 @@ const RealInterviewSession = () => {
         playQuestionTtsText,
         realQuestionType,
         realSessionId,
+        recordedFileIds,
         seconds,
         stopQuestionTtsPlayback,
         transcriptDraft,
@@ -1397,11 +1650,16 @@ const RealInterviewSession = () => {
             mediaRecorderRef.current.onstop = null;
             mediaRecorderRef.current.stop();
         }
+        if (videoRecorderRef.current && videoRecorderRef.current.state !== 'inactive') {
+            videoRecorderRef.current.onstop = null;
+            videoRecorderRef.current.stop();
+        }
+        stopVideoCaptureStream();
         stopRecordingStream();
         stopStream();
         safeRemoveSessionItem(REAL_SESSION_STORAGE_KEY);
         navigate(-1);
-    }, [navigate, stopQuestionTtsPlayback, stopRecordingStream, stopStream, stopTimer]);
+    }, [navigate, stopQuestionTtsPlayback, stopRecordingStream, stopStream, stopTimer, stopVideoCaptureStream]);
 
     const handleExitCancel = useCallback(() => {
         setIsExitDialogOpen(false);
@@ -1456,9 +1714,11 @@ const RealInterviewSession = () => {
                 setQuestionTrail([
                     {
                         id: `turn-${normalizeTurnOrder(currentQuestionFromStorage.turn_order, currentTurnOrderFallback)}`,
-                        type: isTopicTurnType(currentQuestionFromStorage.turn_type)
-                            ? ORIGIN_QUESTION_TYPE
-                            : `${COPY.followUpQuestionPrefix} ${Math.max(initialRound - 1, 1)}`,
+                        type: getTrailTypeLabel(
+                            currentQuestionFromStorage.turn_type,
+                            currentQuestionFromStorage.turn_order,
+                            Math.max(initialRound - 1, 1)
+                        ),
                         text: currentQuestionFromStorage.question,
                     },
                 ]);
@@ -1508,15 +1768,16 @@ const RealInterviewSession = () => {
                     setQuestionTrail([
                         {
                             id: `turn-${turnOrder}`,
-                            type: turnType === 'main'
-                                ? ORIGIN_QUESTION_TYPE
-                                : `${COPY.followUpQuestionPrefix} ${Math.max(turnOrder - 1, 1)}`,
+                            type: getTrailTypeLabel(turnType, turnOrder, Math.max(turnOrder - 1, 1)),
                             text: resolvedQuestion.text,
                         },
                     ]);
                 }
 
                 if (isFinished) {
+                    const finishedMessage = resolvedQuestion?.text || COPY.interviewFinishedQuestion;
+                    const finishedTurnType = normalizeTurnType(resolvedQuestion?.turnType, 'session_end');
+                    const finishedTurnOrder = normalizeTurnOrder(resolvedQuestion?.turnOrder, initialRound);
                     const finishedSession = {
                         ...normalizedSession,
                         current_question: null,
@@ -1526,11 +1787,27 @@ const RealInterviewSession = () => {
                     persistRealSession(finishedSession);
 
                     setIsInterviewFinished(true);
-                    setCurrentQuestion(COPY.interviewFinishedQuestion);
-                    setCurrentTurnType('follow_up');
-                    setCurrentTurnOrder(initialRound);
+                    setCurrentQuestion(finishedMessage);
+                    setCurrentTurnType(finishedTurnType);
+                    setCurrentTurnOrder(finishedTurnOrder);
                     setCurrentTopicId(null);
                     setCurrentCategory('');
+                    setQuestionTrail((prev) => {
+                        const nextItem = {
+                            id: `session-end-${finishedTurnOrder}`,
+                            type: getTrailTypeLabel(finishedTurnType, finishedTurnOrder, finishedTurnOrder),
+                            text: finishedMessage,
+                        };
+                        const lastItem = prev[prev.length - 1];
+                        if (
+                            lastItem &&
+                            toTrimmedString(lastItem.text) === nextItem.text &&
+                            toTrimmedString(lastItem.type) === nextItem.type
+                        ) {
+                            return prev;
+                        }
+                        return [...prev, nextItem];
+                    });
                     setIsInterviewStarted(true);
                     setIsStartGateOpen(false);
                 }
@@ -1565,10 +1842,23 @@ const RealInterviewSession = () => {
                 mediaRecorderRef.current.onstop = null;
                 mediaRecorderRef.current.stop();
             }
+            if (videoRecorderRef.current && videoRecorderRef.current.state !== 'inactive') {
+                videoRecorderRef.current.onstop = null;
+                videoRecorderRef.current.stop();
+            }
+            stopVideoCaptureStream();
             stopRecordingStream();
             stopStream();
         };
-    }, [initializeCamera, isInterviewStarted, stopQuestionTtsPlayback, stopRecordingStream, stopStream, stopTimer]);
+    }, [
+        initializeCamera,
+        isInterviewStarted,
+        stopQuestionTtsPlayback,
+        stopRecordingStream,
+        stopStream,
+        stopTimer,
+        stopVideoCaptureStream,
+    ]);
 
     useEffect(() => {
         if (!isStartGateOpen || isInterviewStarted || isInterviewFinished) {
@@ -1583,6 +1873,16 @@ const RealInterviewSession = () => {
         if (!streamRef.current) return;
         attachStreamToVideo(streamRef.current);
     }, [attachStreamToVideo, cameraState]);
+
+    useEffect(() => {
+        const normalizedQuestion = toTrimmedString(currentQuestion);
+        if (!realSessionId || !normalizedQuestion) {
+            setHasQuestionTtsCompleted(true);
+            return;
+        }
+
+        setHasQuestionTtsCompleted(false);
+    }, [currentQuestion, realSessionId]);
 
     useEffect(() => {
         if (phase === PHASE.REVIEW) {
@@ -1768,7 +2068,7 @@ const RealInterviewSession = () => {
                         </div>
                     )}
 
-                    {(isProcessing || permissionHint || autoStopNotice || badCaseNotice || analysisNotice || isTimeWarning) && (
+                    {(isProcessing || permissionHint || autoStopNotice || badCaseNotice || analysisNotice || isTimeWarning || shouldShowTtsCompletionNotice) && (
                         <div className="absolute left-3.5 right-3.5 top-[226px] z-[3] flex flex-col gap-2">
                             {isProcessing && (
                                 <div className={`${BUBBLE_BASE} flex items-center gap-2.5 rounded-xl px-3 py-2.5`}>
@@ -1801,6 +2101,11 @@ const RealInterviewSession = () => {
                                     <p className="m-0 text-xs font-medium text-white/95">{toRenderableText(analysisNotice)}</p>
                                 </div>
                             )}
+                            {shouldShowTtsCompletionNotice && (
+                                <div className={`${BUBBLE_BASE} border-[#ff6b8a]/90 flex items-center gap-2.5 rounded-xl px-3 py-2.5`}>
+                                    <p className="m-0 text-xs font-medium text-white/95">{COPY.questionTtsCompletionRequired}</p>
+                                </div>
+                            )}
                         </div>
                     )}
 
@@ -1817,7 +2122,7 @@ const RealInterviewSession = () => {
                                 <Button
                                     className="min-h-[50px] flex-1 rounded-[14px]"
                                     onClick={submitTranscript}
-                                    disabled={!transcriptDraft.trim()}
+                                    disabled={isReviewSubmitDisabled}
                                 >
                                     {COPY.submitAndNext}
                                 </Button>
