@@ -49,6 +49,10 @@ const PracticeAnswerVoice = () => {
     resetAudioBlob,
   } = useAudioRecorder();
   const { uploadAudioBlob } = useAudioSttPipeline();
+  const remainingSeconds = Math.max(MAX_RECORDING_SECONDS - seconds, 0);
+  const isTimeWarning =
+    remainingSeconds <= 60 &&
+    (recorderState === 'recording' || recorderState === 'paused');
 
   const prefillAnswerText =
     typeof state?.prefillAnswerText === 'string' ? state.prefillAnswerText : '';
@@ -232,8 +236,8 @@ const PracticeAnswerVoice = () => {
 
       <div className="flex-1 flex flex-col items-center justify-center px-6 py-12">
         <div className="bg-white rounded-2xl p-6 mb-8 w-full max-w-lg shadow-sm border border-white/80">
-          <p className="text-center text-[var(--gray-600)] text-sm mb-2">질문</p>
-          <h2 className="text-center text-lg font-semibold text-[var(--gray-900)]">{question.title}</h2>
+          <p className="text-center text-[var(--gray-500)] text-sm mb-2">질문</p>
+          <h2 className="text-center text-lg font-semibold text-[var(--gray-700)]">{question.title}</h2>
         </div>
 
         {/* Audio Visualizer - 처음엔 원 1개, 소리 감지 시 바깥 원이 생기는 모션 */}
@@ -320,12 +324,30 @@ const PracticeAnswerVoice = () => {
 
         {/* Timer */}
         <div className="text-center mb-8">
-          <div className="text-5xl font-mono font-semibold text-[var(--gray-800)] mb-2">
+          <Motion.div
+            className={`text-5xl font-mono font-semibold mb-2 ${
+              isTimeWarning ? 'text-[var(--primary-500)]' : 'text-[var(--gray-600)]'
+            }`}
+            animate={
+              isTimeWarning
+                ? { scale: [1, 1.04, 1], opacity: [1, 0.85, 1] }
+                : { scale: 1, opacity: 1 }
+            }
+            transition={
+              isTimeWarning
+                ? { duration: 0.9, repeat: Infinity, ease: 'easeInOut' }
+                : { duration: 0.2 }
+            }
+          >
             {formatTime(seconds)}
-          </div>
-          <p className="text-[var(--gray-600)] text-sm">{getStatusMessage()}</p>
-          {recorderState === 'recording' && (
-            <p className="text-[var(--gray-500)] text-xs mt-1">
+          </Motion.div>
+          <p className="text-[var(--gray-500)] text-sm">{getStatusMessage()}</p>
+          {isTimeWarning ? (
+            <p className="text-[var(--primary-500)] text-xs mt-1 font-semibold animate-pulse">
+              종료까지 {formatTime(remainingSeconds)} 남음
+            </p>
+          ) : recorderState === 'recording' && (
+            <p className="text-[var(--gray-400)] text-xs mt-1">
               최대 {Math.floor(MAX_RECORDING_SECONDS / 60)}분까지 녹음 가능
             </p>
           )}
@@ -337,7 +359,7 @@ const PracticeAnswerVoice = () => {
           disabled={isUploading}
           className={`w-48 h-14 rounded-full text-lg font-semibold ${
             recorderState === 'recording' || recorderState === 'paused'
-              ? 'bg-red-500 hover:bg-red-600 text-white'
+              ? 'bg-[var(--primary-400)] hover:bg-[var(--primary-500)] text-white border border-[var(--primary-300)] shadow-sm'
               : 'bg-white text-[var(--primary-600)] hover:bg-[var(--primary-50)] border border-[var(--primary-200)] shadow-sm'
           } disabled:opacity-50`}
         >

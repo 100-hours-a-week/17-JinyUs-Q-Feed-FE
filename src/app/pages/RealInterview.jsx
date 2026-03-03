@@ -103,14 +103,14 @@ const RealInterview = () => {
             title: 'CS 기초',
             description: '운영체제, 네트워크, 데이터베이스 등 핵심 전공 지식',
             questionType: QUESTION_TYPES.CS,
-            gradient: 'from-pink-500 to-rose-500',
+            gradient: 'from-primary-50 via-primary-100 to-secondary-100',
             onClick: () => handleStartRealInterview(QUESTION_TYPES.CS),
         },
         {
             title: '시스템 디자인',
             description: '대규모 아키텍처 및 분산 시스템 설계 연습',
             questionType: QUESTION_TYPES.SYSTEM_DESIGN,
-            gradient: 'from-rose-500 to-pink-600',
+            gradient: 'from-secondary-50 via-primary-100 to-primary-50',
             onClick: () => handleStartRealInterview(QUESTION_TYPES.SYSTEM_DESIGN),
         },
         ...(SHOW_PORTFOLIO_INTERVIEW
@@ -119,7 +119,7 @@ const RealInterview = () => {
                     title: '개별 포트폴리오',
                     description: '내 프로젝트 기반의 1:1 맞춤형 기술 면접',
                     questionType: QUESTION_TYPES.PORTFOLIO,
-                    gradient: 'from-pink-600 to-rose-600',
+                    gradient: 'from-primary-100 via-secondary-100 to-primary-200',
                     onClick: () => handleComingSoon('개별 포트폴리오'),
                 },
             ]
@@ -137,19 +137,19 @@ const RealInterview = () => {
                             key={index}
                             onClick={item.onClick}
                             disabled={isCreatingSession}
-                            className={`flex-1 relative overflow-hidden rounded-2xl p-5 flex flex-col justify-center text-left text-white transition-all active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed bg-gradient-to-br ${item.gradient} shadow-lg shadow-pink-200/50 min-h-[100px]`}
+                            className={`flex-1 relative overflow-hidden rounded-2xl p-5 flex flex-col justify-center text-left transition-all active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed bg-gradient-to-br ${item.gradient} border border-primary-200/80 shadow-[0_8px_22px_rgba(255,143,163,0.14)] min-h-[100px]`}
                         >
                             <div className="relative z-10">
-                                <h2 className="text-xl font-bold mb-1">{item.title}</h2>
-                                <p className="text-white/80 text-xs leading-relaxed max-w-[200px]">
+                                <h2 className="text-xl font-bold mb-1 text-gray-900">{item.title}</h2>
+                                <p className="text-gray-700 text-xs leading-relaxed max-w-[200px]">
                                     {item.description}
                                 </p>
                             </div>
 
-                            <div className="absolute -right-8 -bottom-8 w-24 h-24 bg-white/10 rounded-full blur-2xl" />
+                            <div className="absolute -right-8 -bottom-8 w-24 h-24 bg-primary-200/45 rounded-full blur-2xl" />
 
                             {item.title === '개별 포트폴리오' && (
-                                <div className="absolute top-2 right-4 text-[10px] font-medium bg-white/20 px-2 py-0.5 rounded-full backdrop-blur-sm">
+                                <div className="absolute top-2 right-4 text-[10px] font-medium text-primary-700 bg-white/75 border border-primary-200 px-2 py-0.5 rounded-full backdrop-blur-sm">
                                     Coming Soon
                                 </div>
                             )}
