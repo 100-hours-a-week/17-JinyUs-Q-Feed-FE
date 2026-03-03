@@ -15,6 +15,7 @@ import {
 import { usePracticeQuestionLoader } from '@/app/hooks/usePracticeQuestionLoader';
 import { usePracticeQuestion } from '@/context/practiceQuestionContext.jsx';
 import { SESSION_STORAGE_KEYS } from '@/app/constants/storageKeys';
+import { sortMetricsByDisplayOrder } from '@/app/utils/metricOrder';
 
 const TEXT_LOADING = '질문을 불러오는 중...';
 const TEXT_NOT_FOUND = '질문을 찾을 수 없습니다';
@@ -65,9 +66,11 @@ const PracticeResultAI = () => {
     const feedbackData = useMemo(() => feedbackResponse?.data ?? null, [feedbackResponse]);
 
     const metrics = useMemo(() => {
-        return Array.isArray(feedbackData?.metrics)
+        const normalizedMetrics = Array.isArray(feedbackData?.metrics)
             ? feedbackData.metrics.filter((metric) => metric && typeof metric === 'object')
             : [];
+
+        return sortMetricsByDisplayOrder(normalizedMetrics, (metric) => metric?.name);
     }, [feedbackData]);
 
     const radarData = useMemo(() => {
@@ -136,7 +139,7 @@ const PracticeResultAI = () => {
     if (!question) return <div>{TEXT_NOT_FOUND}</div>;
 
     return (
-        <div className="min-h-screen bg-background">
+        <div className="min-h-screen bg-gradient-to-b from-secondary-50 via-white to-secondary-50">
             <AppHeader
                 title={TEXT_AI_FEEDBACK_TITLE}
                 onBack={() => navigate('/practice')}
@@ -144,28 +147,25 @@ const PracticeResultAI = () => {
                 tone="light"
             />
 
-            <div
-                className="text-center pb-6 px-6 pt-2"
-                style={{
-                    background: 'linear-gradient(165deg, var(--primary-50) 0%, var(--primary-100) 50%, var(--primary-50) 100%)',
-                }}
-            >
+            <div className="border-b border-primary-100/80 text-center pb-7 px-6 pt-3 bg-gradient-to-br from-primary-50 via-white to-secondary-50">
                 <div className="mb-2 flex justify-center">
-                    <Target className="w-14 h-14 text-primary-500" />
+                    <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/90 border border-primary-100 shadow-sm">
+                        <Target className="w-8 h-8 text-primary-400" />
+                    </div>
                 </div>
                 <h2 className="text-2xl mb-1 font-semibold text-[var(--gray-900)]">{TEXT_COMPLETE_TITLE}</h2>
                 <p className="text-[var(--gray-600)] text-sm">{TEXT_COMPLETE_DESC}</p>
             </div>
 
-            <div className="p-6 max-w-lg mx-auto space-y-4 -mt-4">
-                <Card className="p-6 bg-white shadow-lg">
+            <div className="p-6 max-w-lg mx-auto space-y-4 -mt-3">
+                <Card className="p-6 bg-white rounded-2xl border border-gray-100 shadow-sm">
                     {isBadCase ? (
                         <div className="text-center space-y-2">
-                            <p className="text-sm text-rose-900 font-medium">
+                            <p className="text-sm text-gray-900 font-medium">
                                 {failedFeedbackMessage || badCaseFeedback?.message || TEXT_BAD_CASE_FALLBACK}
                             </p>
                             {(badCaseFeedback?.guidance || overallFeedback?.improvements) && (
-                                <p className="text-xs text-rose-700">
+                                <p className="text-xs text-gray-600">
                                     {badCaseFeedback?.guidance || overallFeedback?.improvements}
                                 </p>
                             )}
@@ -185,9 +185,9 @@ const PracticeResultAI = () => {
                                     <Radar
                                         name={TEXT_RADAR_LABEL}
                                         dataKey="value"
-                                        stroke="#ec4899"
-                                        fill="#ec4899"
-                                        fillOpacity={0.6}
+                                        stroke="#ff8fa3"
+                                        fill="#ffccd5"
+                                        fillOpacity={0.8}
                                     />
                                 </RadarChart>
                             </ResponsiveContainer>
@@ -195,26 +195,26 @@ const PracticeResultAI = () => {
                     )}
                 </Card>
 
-                <Card className="p-5 border-2 border-rose-200 bg-rose-50">
+                <Card className="p-5 rounded-2xl border border-emerald-100 bg-emerald-50/70 shadow-sm">
                     <div className="flex items-start gap-3">
-                        <div className="w-10 h-10 rounded-full bg-rose-100 flex items-center justify-center flex-shrink-0">
-                            <ThumbsUp className="w-5 h-5 text-pink-600" />
+                        <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0">
+                            <ThumbsUp className="w-5 h-5 text-emerald-600" />
                         </div>
                         <div className="flex-1">
-                            <h3 className="mb-2 text-rose-900">{TEXT_STRENGTHS_TITLE}</h3>
-                            {renderFeedbackText(strengthsText, 'text-sm text-rose-800')}
+                            <h3 className="mb-2 text-emerald-900">{TEXT_STRENGTHS_TITLE}</h3>
+                            {renderFeedbackText(strengthsText, 'text-sm text-gray-700')}
                         </div>
                     </div>
                 </Card>
 
-                <Card className="p-5 border-2 border-pink-200 bg-pink-50">
+                <Card className="p-5 rounded-2xl border border-amber-100 bg-amber-50/70 shadow-sm">
                     <div className="flex items-start gap-3">
-                        <div className="w-10 h-10 rounded-full bg-pink-100 flex items-center justify-center flex-shrink-0">
-                            <AlertCircle className="w-5 h-5 text-pink-600" />
+                        <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
+                            <AlertCircle className="w-5 h-5 text-amber-600" />
                         </div>
                         <div className="flex-1">
-                            <h3 className="mb-2 text-pink-900">{TEXT_IMPROVEMENTS_TITLE}</h3>
-                            {renderFeedbackText(improvementsText, 'text-sm text-pink-800')}
+                            <h3 className="mb-2 text-amber-900">{TEXT_IMPROVEMENTS_TITLE}</h3>
+                            {renderFeedbackText(improvementsText, 'text-sm text-gray-700')}
                         </div>
                     </div>
                 </Card>
@@ -224,7 +224,7 @@ const PracticeResultAI = () => {
                         clearSelectedQuestion();
                         navigate('/');
                     }}
-                    className="w-full rounded-md h-12 gap-2"
+                    className="w-full rounded-xl h-12 gap-2 shadow-sm"
                 >
                     <Home className="w-5 h-5" />
                     {TEXT_HOME_BUTTON}

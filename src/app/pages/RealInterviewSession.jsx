@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
+    CircleAlert,
     Camera,
     Circle,
     Clock3,
@@ -47,7 +48,7 @@ const COPY = {
     remainingPrefix: '남은',
     followUpQuestionPrefix: '꼬리 질문',
     processingAnswer: '답변을 정리하고 있습니다.',
-    processingFollowUp: '면접관의 다음 질문을 준비하고 있습니다.',
+    processingFollowUp: '답변 제출 및 다음 질문 생성 중',
     cameraInitializing: '카메라 초기화 중입니다.',
     cameraUnsupported: '현재 브라우저에서는 웹캠을 사용할 수 없습니다.',
     cameraPermissionRequired: '카메라 권한이 필요합니다. 브라우저 권한을 허용해주세요.',
@@ -73,6 +74,8 @@ const COPY = {
     questionTtsLoading: '생성 중...',
     questionTtsFailed: '질문 음성 재생에 실패했습니다.',
     questionTtsCompletionRequired: '질문 음성 재생이 끝나야 답변을 제출할 수 있습니다.',
+    questionTtsRemaining: '질문 재생 중',
+    questionTtsPending: '질문 음성 재생 대기 중',
     badCaseDetected: '답변이 기준을 충족하지 못해 다시 녹화가 필요합니다.',
     badCaseFeedbackFallback: '답변을 보완해 다시 시도해주세요.',
     badCaseRetryPrompt: '피드백을 반영해 다시 답변해주세요.',
@@ -82,7 +85,6 @@ const COPY = {
     reviewToggleOpen: '내 답변 열기',
     reviewTitle: '내 답변 확인',
     reviewDescription: '답변 텍스트를 확인한 뒤 다음 질문으로 진행하세요.',
-    reviewPanelClosed: '답변 확인 패널이 닫혀 있습니다. 필요하면 다시 열어 확인하세요.',
     timeWarning: '답변 시간이 곧 종료됩니다. 핵심 결론을 정리해주세요.',
     trailButtonLabel: '질문 내역',
     trailOpen: '보기',
@@ -648,6 +650,7 @@ const RealInterviewSession = () => {
     const [permissionHint, setPermissionHint] = useState('');
     const [isTrailOpen, setIsTrailOpen] = useState(false);
     const [isReviewPanelOpen, setIsReviewPanelOpen] = useState(true);
+    const [hasPendingReviewNotice, setHasPendingReviewNotice] = useState(false);
     const [isExitDialogOpen, setIsExitDialogOpen] = useState(false);
     const [autoStopNotice, setAutoStopNotice] = useState('');
     const [badCaseNotice, setBadCaseNotice] = useState('');
@@ -676,12 +679,20 @@ const RealInterviewSession = () => {
     const isRecording = phase === PHASE.RECORDING;
     const isProcessing =
         phase === PHASE.UPLOADING || phase === PHASE.STT || phase === PHASE.FOLLOW_UP;
+    const isStartBlockedByQuestionTts =
+        isInterviewStarted &&
+        isSessionReady &&
+        !isInterviewFinished &&
+        cameraState === CAMERA_STATE.READY &&
+        phase === PHASE.READY &&
+        !hasQuestionTtsCompleted;
     const canStartRecording =
         isInterviewStarted &&
         isSessionReady &&
         !isInterviewFinished &&
         cameraState === CAMERA_STATE.READY &&
-        phase === PHASE.READY;
+        phase === PHASE.READY &&
+        hasQuestionTtsCompleted;
     const isStartGatePermissionReady =
         startGateCameraPermission === START_GATE_PERMISSION_STATE.GRANTED &&
         startGateMicPermission === START_GATE_PERMISSION_STATE.GRANTED;
@@ -934,6 +945,7 @@ const RealInterviewSession = () => {
     const {
         isLoading: isQuestionTtsLoading,
         isPlaying: isQuestionPlaying,
+        remainingSeconds: questionTtsRemainingSeconds,
         playText: playQuestionTtsText,
         toggle: toggleQuestionTtsPlayback,
         stop: stopQuestionTtsPlayback,
@@ -949,10 +961,8 @@ const RealInterviewSession = () => {
     });
     const isReviewSubmitDisabled =
         !transcriptDraft.trim() ||
-        !hasQuestionTtsCompleted ||
         isQuestionTtsLoading ||
         isQuestionPlaying;
-    const shouldShowTtsCompletionNotice = phase === PHASE.REVIEW && !hasQuestionTtsCompleted;
 
     const stopTimer = useCallback(() => {
         if (timerRef.current) {
@@ -1067,6 +1077,7 @@ const RealInterviewSession = () => {
         if (!Array.isArray(audioChunks) || audioChunks.length === 0) {
             setTranscriptDraft('');
             setRecordedFileIds({ audioFileId: null, videoFileId: null });
+            setHasPendingReviewNotice(false);
             setIsReviewPanelOpen(true);
             setPhase(PHASE.REVIEW);
             toast.error(COPY.recordingAudioMissing);
@@ -1075,6 +1086,7 @@ const RealInterviewSession = () => {
         if (!Array.isArray(videoChunks) || videoChunks.length === 0) {
             setTranscriptDraft('');
             setRecordedFileIds({ audioFileId: null, videoFileId: null });
+            setHasPendingReviewNotice(false);
             setIsReviewPanelOpen(true);
             setPhase(PHASE.REVIEW);
             toast.error(COPY.recordingVideoMissing);
@@ -1083,6 +1095,7 @@ const RealInterviewSession = () => {
         if (!realSessionId) {
             setTranscriptDraft('');
             setRecordedFileIds({ audioFileId: null, videoFileId: null });
+            setHasPendingReviewNotice(false);
             setIsReviewPanelOpen(true);
             setPhase(PHASE.REVIEW);
             toast.error(COPY.sessionNotFound);
@@ -1113,6 +1126,7 @@ const RealInterviewSession = () => {
         if (!audioBlob.size || !videoBlob.size) {
             setTranscriptDraft('');
             setRecordedFileIds({ audioFileId: null, videoFileId: null });
+            setHasPendingReviewNotice(false);
             setIsReviewPanelOpen(true);
             setPhase(PHASE.REVIEW);
             toast.error(COPY.recordingFileMissing);
@@ -1146,13 +1160,15 @@ const RealInterviewSession = () => {
 
             setTranscriptDraft(sttText);
             setBadCaseNotice('');
+            setHasPendingReviewNotice(true);
         } catch (error) {
             setTranscriptDraft('');
             setRecordedFileIds({ audioFileId: null, videoFileId: null });
+            setHasPendingReviewNotice(false);
             toast.error(error?.message || COPY.micConnectionFailed);
         } finally {
             setSeconds(0);
-            setIsReviewPanelOpen(true);
+            setIsReviewPanelOpen(false);
             setPhase(PHASE.REVIEW);
         }
     }, [realSessionId, realUserId, transcribeAudioUrl, uploadAudioBlob, uploadVideoBlobMultipart]);
@@ -1258,6 +1274,7 @@ const RealInterviewSession = () => {
             setAnalysisNotice('');
             setTranscriptDraft('');
             setRecordedFileIds({ audioFileId: null, videoFileId: null });
+            setHasPendingReviewNotice(false);
             setPhase(PHASE.RECORDING);
             startTimer();
             audioRecorder.start(250);
@@ -1316,6 +1333,7 @@ const RealInterviewSession = () => {
     const resetToReady = useCallback(() => {
         setTranscriptDraft('');
         setRecordedFileIds({ audioFileId: null, videoFileId: null });
+        setHasPendingReviewNotice(false);
         setSeconds(0);
         setAutoStopNotice('');
         setBadCaseNotice('');
@@ -1326,6 +1344,10 @@ const RealInterviewSession = () => {
     const submitTranscript = useCallback(async () => {
         const answerText = transcriptDraft.trim();
         if (!answerText) return;
+        if (!hasQuestionTtsCompleted) {
+            toast.error(COPY.questionTtsCompletionRequired);
+            return;
+        }
         if (!realSessionId) {
             toast.error(COPY.sessionNotFound);
             return;
@@ -1574,6 +1596,7 @@ const RealInterviewSession = () => {
         realSessionId,
         recordedFileIds,
         seconds,
+        hasQuestionTtsCompleted,
         stopQuestionTtsPlayback,
         transcriptDraft,
     ]);
@@ -1612,6 +1635,18 @@ const RealInterviewSession = () => {
         if (phase === PHASE.FOLLOW_UP) return COPY.processingFollowUp;
         return '';
     }, [phase]);
+    const questionTtsRemainingLabel = useMemo(() => {
+        if (!isStartBlockedByQuestionTts) return '';
+        if (isQuestionTtsLoading) return COPY.questionTtsLoading;
+        if (typeof questionTtsRemainingSeconds === 'number') {
+            return `${COPY.questionTtsRemaining} ${formatTime(questionTtsRemainingSeconds)}`;
+        }
+        return COPY.questionTtsPending;
+    }, [
+        isQuestionTtsLoading,
+        isStartBlockedByQuestionTts,
+        questionTtsRemainingSeconds,
+    ]);
 
     const handleBackClick = useCallback(() => {
         setIsExitDialogOpen(true);
@@ -1885,10 +1920,16 @@ const RealInterviewSession = () => {
     }, [currentQuestion, realSessionId]);
 
     useEffect(() => {
-        if (phase === PHASE.REVIEW) {
-            setIsReviewPanelOpen(true);
+        if (phase !== PHASE.REVIEW) {
+            setHasPendingReviewNotice(false);
         }
     }, [phase]);
+
+    useEffect(() => {
+        if (phase === PHASE.REVIEW && isReviewPanelOpen) {
+            setHasPendingReviewNotice(false);
+        }
+    }, [isReviewPanelOpen, phase]);
 
     useEffect(() => {
         if (phase === PHASE.RECORDING && seconds >= MAX_RECORDING_SECONDS) {
@@ -1908,6 +1949,10 @@ const RealInterviewSession = () => {
         await toggleQuestionTtsPlayback();
     }, [isInterviewStarted, realSessionId, toggleQuestionTtsPlayback]);
 
+    const handleReviewPanelToggle = useCallback(() => {
+        setIsReviewPanelOpen((prev) => !prev);
+    }, []);
+
     return (
         <div className="min-h-screen flex flex-col bg-[#0e0a0f] text-white">
             <main className="h-screen">
@@ -1917,7 +1962,7 @@ const RealInterviewSession = () => {
                         showNotifications={false}
                         showSettings={false}
                         tone="dark"
-                        className="left-0 right-0"
+                        className="!absolute !top-0 left-0 right-0 !bg-transparent"
                         onBack={handleBackClick}
                     />
 
@@ -2041,10 +2086,16 @@ const RealInterviewSession = () => {
                     {phase === PHASE.REVIEW && (
                         <button
                             type="button"
-                            className={`${BUBBLE_BASE} absolute right-3.5 bottom-[calc(106px+env(safe-area-inset-bottom,0px))] z-[4] rounded-full px-3 py-2 text-xs font-medium text-white`}
-                            onClick={() => setIsReviewPanelOpen((prev) => !prev)}
+                            className={`${BUBBLE_BASE} absolute right-3.5 bottom-[calc(106px+env(safe-area-inset-bottom,0px))] z-[4] inline-flex items-center gap-1 rounded-full px-3 py-2 text-xs font-medium text-white`}
+                            onClick={handleReviewPanelToggle}
                         >
                             {isReviewPanelOpen ? COPY.reviewToggleClose : COPY.reviewToggleOpen}
+                            {!isReviewPanelOpen && hasPendingReviewNotice && (
+                                <>
+                                    <CircleAlert size={13} className="text-[#ff5f7f]" />
+                                    <span className="sr-only">새 내 답변 확인 필요</span>
+                                </>
+                            )}
                         </button>
                     )}
 
@@ -2062,14 +2113,8 @@ const RealInterviewSession = () => {
                         </div>
                     )}
 
-                    {phase === PHASE.REVIEW && !isReviewPanelOpen && (
-                        <div className={`${BUBBLE_BASE} absolute left-3.5 right-3.5 bottom-[calc(150px+env(safe-area-inset-bottom,0px))] z-[4] rounded-xl px-[11px] py-[9px] text-xs text-white/95`}>
-                            {COPY.reviewPanelClosed}
-                        </div>
-                    )}
-
-                    {(isProcessing || permissionHint || autoStopNotice || badCaseNotice || analysisNotice || isTimeWarning || shouldShowTtsCompletionNotice) && (
-                        <div className="absolute left-3.5 right-3.5 top-[226px] z-[3] flex flex-col gap-2">
+                    {(isProcessing || permissionHint || autoStopNotice || badCaseNotice || analysisNotice || isTimeWarning) && (
+                        <div className="absolute left-3.5 right-3.5 bottom-[calc(94px+env(safe-area-inset-bottom,0px))] z-[7] flex flex-col gap-2">
                             {isProcessing && (
                                 <div className={`${BUBBLE_BASE} flex items-center gap-2.5 rounded-xl px-3 py-2.5`}>
                                     <div className="h-[13px] w-[13px] rounded-full border-2 border-white/50 border-t-[#ff8fa3] animate-spin" />
@@ -2099,11 +2144,6 @@ const RealInterviewSession = () => {
                             {analysisNotice && (
                                 <div className={`${BUBBLE_BASE} ${analysisState === 'error' ? 'border-[#ff6b8a]/90' : ''} flex items-center gap-2.5 rounded-xl px-3 py-2.5`}>
                                     <p className="m-0 text-xs font-medium text-white/95">{toRenderableText(analysisNotice)}</p>
-                                </div>
-                            )}
-                            {shouldShowTtsCompletionNotice && (
-                                <div className={`${BUBBLE_BASE} border-[#ff6b8a]/90 flex items-center gap-2.5 rounded-xl px-3 py-2.5`}>
-                                    <p className="m-0 text-xs font-medium text-white/95">{COPY.questionTtsCompletionRequired}</p>
                                 </div>
                             )}
                         </div>
@@ -2154,7 +2194,18 @@ const RealInterviewSession = () => {
                                 onClick={isRecording ? stopRecordingAndSubmit : startRecording}
                                 disabled={!isRecording && !canStartRecording}
                             >
-                                {isRecording ? COPY.answerStopAndReview : COPY.answerStart}
+                                {isRecording ? (
+                                    COPY.answerStopAndReview
+                                ) : (
+                                    <span className="flex flex-col items-center gap-0.5 leading-tight">
+                                        <span>{COPY.answerStart}</span>
+                                        {isStartBlockedByQuestionTts && (
+                                            <span className="text-[11px] font-medium text-white/80">
+                                                {questionTtsRemainingLabel}
+                                            </span>
+                                        )}
+                                    </span>
+                                )}
                             </Button>
                         )}
                     </footer>
