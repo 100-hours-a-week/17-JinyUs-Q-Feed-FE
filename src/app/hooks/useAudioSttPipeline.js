@@ -1,5 +1,13 @@
 import { useCallback, useState } from 'react';
-import { getPresignedUrl, uploadToS3, confirmFileUpload } from '@/api/fileApi';
+import {
+  abortMultipartUpload,
+  completeMultipartUpload,
+  confirmFileUpload,
+  getMultipartPartPresignedUrl,
+  getPresignedUrl,
+  uploadPartToS3,
+  uploadToS3,
+} from '@/api/fileApi';
 import { requestSTT } from '@/api/sttApi';
 
 const STT_PIPELINE_STAGE = {
@@ -12,6 +20,8 @@ const STT_PIPELINE_STAGE = {
 
 const UPLOAD_FAILED_MESSAGE = '업로드에 실패했습니다';
 const STT_FAILED_MESSAGE = '음성 변환에 실패했습니다';
+const VIDEO_UPLOAD_FAILED_MESSAGE = '영상 업로드에 실패했습니다';
+const DEFAULT_VIDEO_PART_SIZE = 8 * 1024 * 1024;
 
 const toTrimmedString = (value) => {
   if (typeof value !== 'string') return '';
@@ -44,6 +54,19 @@ const resolveAudioMeta = (rawType = '') => {
   }
 
   return { extension: 'webm', mimeType: 'audio/webm' };
+};
+
+const resolveVideoMeta = (rawType = '') => {
+  const normalized = toTrimmedString(rawType).toLowerCase();
+
+  if (normalized.includes('mp4')) {
+    return { extension: 'mp4', mimeType: 'video/mp4' };
+  }
+  if (normalized.includes('webm')) {
+    return { extension: 'webm', mimeType: 'video/webm' };
+  }
+
+  return { extension: 'webm', mimeType: 'video/webm' };
 };
 
 const formatTimestampPrefix = (date = new Date()) => {
@@ -85,7 +108,10 @@ export function useAudioSttPipeline(options = {}) {
     setError(null);
   }, []);
 
-  const uploadAudioBlob = useCallback(async ({ audioBlob, mode = 'UNKNOWN' }) => {
+  const uploadAudioBlob = useCallback(async ({
+    audioBlob,
+    mode = 'UNKNOWN',
+  }) => {
     if (!audioBlob || typeof audioBlob.size !== 'number' || audioBlob.size <= 0) {
       const invalidAudioError = new Error('녹음된 음성이 없습니다.');
       setError(invalidAudioError);
@@ -110,6 +136,7 @@ export function useAudioSttPipeline(options = {}) {
         fileSize: uploadBlob.size,
         mimeType,
         category,
+        method: 'PUT',
       });
       const presignedPayload = presignedResult?.data ?? {};
       const fileId = presignedPayload.fileId ?? presignedPayload.file_id;
@@ -142,6 +169,100 @@ export function useAudioSttPipeline(options = {}) {
       throw normalizedError;
     }
   }, [category]);
+
+  const uploadVideoBlobMultipart = useCallback(async ({
+    videoBlob,
+  }) => {
+    if (!videoBlob || typeof videoBlob.size !== 'number' || videoBlob.size <= 0) {
+      const invalidVideoError = new Error('녹화된 영상이 없습니다.');
+      setError(invalidVideoError);
+      setStage(STT_PIPELINE_STAGE.ERROR);
+      throw invalidVideoError;
+    }
+
+    const { extension, mimeType } = resolveVideoMeta(videoBlob.type);
+    const uploadBlob = videoBlob.type === mimeType
+      ? videoBlob
+      : new Blob([videoBlob], { type: mimeType });
+
+    setError(null);
+    setStage(STT_PIPELINE_STAGE.UPLOADING);
+
+    let multipartFileId = null;
+    try {
+      const timestampPrefix = formatTimestampPrefix();
+      const uuid = createUuid();
+      const initResult = await getPresignedUrl({
+        fileName: `${timestampPrefix}_REAL_VIDEO_${uuid}.${extension}`,
+        fileSize: uploadBlob.size,
+        mimeType,
+        category: 'VIDEO',
+        method: 'PUT',
+      });
+
+      const initPayload = initResult?.data ?? {};
+      const fileId = initPayload.fileId ?? initPayload.file_id;
+      if (!fileId) {
+        throw new Error('영상 업로드 초기화에 실패했습니다.');
+      }
+      multipartFileId = fileId;
+      const uploadMode = toTrimmedString(
+        initPayload.uploadMode ?? initPayload.upload_mode
+      ).toUpperCase();
+      if (uploadMode && uploadMode !== 'MULTIPART') {
+        throw new Error('영상 업로드 모드가 올바르지 않습니다.');
+      }
+
+      const rawPartSize = Number(initPayload.partSize ?? initPayload.part_size);
+      const partSize =
+        Number.isFinite(rawPartSize) && rawPartSize > 0
+          ? Math.trunc(rawPartSize)
+          : DEFAULT_VIDEO_PART_SIZE;
+
+      const uploadedParts = [];
+      let partNumber = 1;
+      for (let start = 0; start < uploadBlob.size; start += partSize) {
+        const end = Math.min(start + partSize, uploadBlob.size);
+        const partBlob = uploadBlob.slice(start, end);
+
+        const partUrlResult = await getMultipartPartPresignedUrl(fileId, partNumber);
+        const partPayload = partUrlResult?.data ?? {};
+        const presignedUrl = partPayload.presignedUrl ?? partPayload.presigned_url;
+
+        if (!presignedUrl) {
+          throw new Error('영상 파트 업로드 URL을 받지 못했습니다.');
+        }
+
+        const etag = await uploadPartToS3(presignedUrl, partBlob);
+        uploadedParts.push({
+          part_number: partNumber,
+          etag,
+        });
+        partNumber += 1;
+      }
+
+      await completeMultipartUpload(fileId, { parts: uploadedParts });
+
+      setStage(STT_PIPELINE_STAGE.SUCCESS);
+      return {
+        fileId,
+        mimeType,
+        extension,
+      };
+    } catch (videoUploadError) {
+      if (multipartFileId) {
+        try {
+          await abortMultipartUpload(multipartFileId);
+        } catch {
+          // abort는 실패해도 원래 에러를 유지한다.
+        }
+      }
+      const normalizedError = toError(videoUploadError, VIDEO_UPLOAD_FAILED_MESSAGE);
+      setError(normalizedError);
+      setStage(STT_PIPELINE_STAGE.ERROR);
+      throw normalizedError;
+    }
+  }, []);
 
   const transcribeAudioUrl = useCallback(async ({ userId, sessionId, audioUrl }) => {
     const normalizedAudioUrl = toTrimmedString(audioUrl);
@@ -207,6 +328,7 @@ export function useAudioSttPipeline(options = {}) {
     error,
     reset,
     uploadAudioBlob,
+    uploadVideoBlobMultipart,
     transcribeAudioUrl,
     uploadAndTranscribe,
     STT_PIPELINE_STAGE,

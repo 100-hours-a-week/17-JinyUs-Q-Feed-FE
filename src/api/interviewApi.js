@@ -51,6 +51,8 @@ export async function submitPracticeInterviewAnswer({ sessionId, questionId, ans
  * @param {number} [params.turnOrder]
  * @param {number} [params.topicId]
  * @param {string} [params.category]
+ * @param {number|string} [params.audioFileId]
+ * @param {number|string} [params.videoFileId]
  */
 export async function submitRealInterviewAnswer(params = {}) {
   const {
@@ -65,6 +67,8 @@ export async function submitRealInterviewAnswer(params = {}) {
     turnOrder,
     topicId,
     category,
+    audioFileId,
+    videoFileId,
   } = params
 
   if (rawPayload && typeof rawPayload === 'object') {
@@ -104,6 +108,12 @@ export async function submitRealInterviewAnswer(params = {}) {
   }
   if (category !== undefined && category !== null && category !== '') {
     payload.category = category
+  }
+  if (audioFileId !== undefined && audioFileId !== null && audioFileId !== '') {
+    payload.audio_file_id = Number.isNaN(Number(audioFileId)) ? audioFileId : Number(audioFileId)
+  }
+  if (videoFileId !== undefined && videoFileId !== null && videoFileId !== '') {
+    payload.video_file_id = Number.isNaN(Number(videoFileId)) ? videoFileId : Number(videoFileId)
   }
 
   return api.post('/api/answers/real', payload, { parseResponse: true })
