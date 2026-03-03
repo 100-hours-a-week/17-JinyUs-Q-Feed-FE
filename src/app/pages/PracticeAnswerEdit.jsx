@@ -26,6 +26,7 @@ const TEXT_CHARACTER_SUFFIX = '자';
 const TEXT_LIMIT_TITLE = '답변 길이 초과';
 const TEXT_LIMIT_DESC = '답변은 1500자 이내로 작성해주세요.';
 const TEXT_LIMIT_OK = '확인';
+const TEXT_RETRY_INTERVIEW = '음성으로 다시 답변하기';
 const MAX_ANSWER_LENGTH = 1500;
 
 const PracticeAnswerEdit = () => {
@@ -62,6 +63,10 @@ const PracticeAnswerEdit = () => {
         setShowConfirm(true);
     };
 
+    const handleRetryInterview = () => {
+        navigate(`/practice/answer-voice/${questionId}`);
+    };
+
     const confirmSubmit = () => {
         setShowConfirm(false);
         submitAnswer({
@@ -89,26 +94,6 @@ const PracticeAnswerEdit = () => {
                 title="답변 확인"
                 onBack={() => navigate(`/practice/answer/${questionId}`)}
                 showNotifications={false}
-                rightContent={
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handleToggleEdit}
-                        className="rounded-full gap-2"
-                    >
-                        {isEditing ? (
-                            <>
-                                <Eye className="w-4 h-4" />
-                                완료
-                            </>
-                        ) : (
-                            <>
-                                <Edit3 className="w-4 h-4" />
-                                편집
-                            </>
-                        )}
-                    </Button>
-                }
             />
 
             <div className="p-6 max-w-lg mx-auto space-y-4">
@@ -118,7 +103,27 @@ const PracticeAnswerEdit = () => {
                 </Card>
 
                 <Card className="p-4">
-                    <p className="text-sm text-muted-foreground mb-3">나의 답변</p>
+                    <div className="mb-3 flex items-center justify-between gap-2">
+                        <p className="text-sm text-muted-foreground">나의 답변</p>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={handleToggleEdit}
+                            className="rounded-full gap-2"
+                        >
+                            {isEditing ? (
+                                <>
+                                    <Eye className="w-4 h-4" />
+                                    완료
+                                </>
+                            ) : (
+                                <>
+                                    <Edit3 className="w-4 h-4" />
+                                    편집
+                                </>
+                            )}
+                        </Button>
+                    </div>
 
                     {isEditing ? (
                         <>
@@ -150,13 +155,23 @@ const PracticeAnswerEdit = () => {
                     )}
                 </Card>
 
-                <Button
-                    onClick={handleSubmit}
-                    disabled={!answer.trim() || isSubmitting || (answer || '').length > MAX_ANSWER_LENGTH}
-                    className="w-full rounded-xl h-12"
-                >
-                    {isSubmitting ? TEXT_SUBMITTING : '답변 제출'}
-                </Button>
+                <div className="flex gap-2">
+                    <Button
+                        variant="outline"
+                        onClick={handleRetryInterview}
+                        disabled={isSubmitting}
+                        className="flex-1 rounded-xl h-12"
+                    >
+                        {TEXT_RETRY_INTERVIEW}
+                    </Button>
+                    <Button
+                        onClick={handleSubmit}
+                        disabled={!answer.trim() || isSubmitting || (answer || '').length > MAX_ANSWER_LENGTH}
+                        className="flex-1 rounded-xl h-12"
+                    >
+                        {isSubmitting ? TEXT_SUBMITTING : '답변 제출'}
+                    </Button>
+                </div>
             </div>
 
             <AlertDialog open={showConfirm} onOpenChange={setShowConfirm}>

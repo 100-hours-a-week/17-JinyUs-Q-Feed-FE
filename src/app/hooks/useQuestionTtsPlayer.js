@@ -25,6 +25,7 @@ export function useQuestionTtsPlayer({
 
     const [isLoading, setIsLoading] = useState(false);
     const [isPlaying, setIsPlaying] = useState(false);
+    const [remainingSeconds, setRemainingSeconds] = useState(null);
 
     const isAbortError = useCallback((error) => {
         const name = typeof error?.name === 'string' ? error.name : '';
@@ -40,6 +41,8 @@ export function useQuestionTtsPlayer({
 
         if (audioRef.current) {
             audioRef.current.onended = null;
+            audioRef.current.onloadedmetadata = null;
+            audioRef.current.ontimeupdate = null;
             audioRef.current.onpause = null;
             audioRef.current.pause();
             audioRef.current = null;
@@ -52,6 +55,24 @@ export function useQuestionTtsPlayer({
 
         setIsLoading(false);
         setIsPlaying(false);
+        setRemainingSeconds(null);
+    }, []);
+
+    const updateRemainingSeconds = useCallback((audioElement) => {
+        if (!audioElement) {
+            setRemainingSeconds(null);
+            return;
+        }
+
+        const duration = Number.isFinite(audioElement.duration) ? audioElement.duration : 0;
+        const currentTime = Number.isFinite(audioElement.currentTime) ? audioElement.currentTime : 0;
+
+        if (duration <= 0) {
+            setRemainingSeconds(null);
+            return;
+        }
+
+        setRemainingSeconds(Math.max(0, Math.ceil(duration - currentTime)));
     }, []);
 
     const playText = useCallback(async (text, { silent = false, allowFinishedText = false } = {}) => {
@@ -106,9 +127,20 @@ export function useQuestionTtsPlayer({
             const audio = new Audio(objectUrl);
             audio.preload = 'auto';
             audioRef.current = audio;
+            audio.onloadedmetadata = () => {
+                if (requestSequenceRef.current === requestSequence) {
+                    updateRemainingSeconds(audio);
+                }
+            };
+            audio.ontimeupdate = () => {
+                if (requestSequenceRef.current === requestSequence) {
+                    updateRemainingSeconds(audio);
+                }
+            };
             audio.onended = () => {
                 if (requestSequenceRef.current === requestSequence) {
                     setIsPlaying(false);
+                    setRemainingSeconds(0);
                     onPlaybackEnded?.({
                         text: normalizedText,
                         sessionId: normalizedSessionId,
@@ -133,6 +165,7 @@ export function useQuestionTtsPlayer({
                 return false;
             }
             setIsPlaying(true);
+            updateRemainingSeconds(audio);
             return true;
         } catch (error) {
             if (isAbortError(error)) {
@@ -167,6 +200,7 @@ export function useQuestionTtsPlayer({
         sessionId,
         stop,
         userId,
+        updateRemainingSeconds,
     ]);
 
     const play = useCallback(async ({ silent = false } = {}) => {
@@ -220,6 +254,7 @@ export function useQuestionTtsPlayer({
     return {
         isLoading,
         isPlaying,
+        remainingSeconds,
         play,
         playText,
         stop,
