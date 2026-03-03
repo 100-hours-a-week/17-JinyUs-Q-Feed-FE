@@ -9,6 +9,7 @@ import { useAnswerDetail } from '@/app/hooks/useAnswerDetail'
 import { useQuestionCategories } from '@/app/hooks/useQuestionCategories'
 import { useQuestionTypes } from '@/app/hooks/useQuestionTypes'
 import { getQuestionCategoryLabel, getQuestionTypeLabel } from '@/app/constants/questionCategoryMeta'
+import { sortMetricsByDisplayOrder } from '@/app/utils/metricOrder'
 
 const TEXT_PAGE_TITLE = '학습 기록 상세'
 const TEXT_HEADER_DESC = '제출한 답변과 AI 피드백을 확인해보세요'
@@ -109,7 +110,11 @@ const LearningRecordDetail = () => {
     : Array.isArray(aiFeedback?.radarChart)
       ? aiFeedback.radarChart
       : []
-  const radarData = metrics.map((metric) => ({
+  const sortedMetrics = sortMetricsByDisplayOrder(
+    metrics,
+    (metric) => metric?.subject ?? metric?.metricName ?? metric?.name ?? metric?.label
+  )
+  const radarData = sortedMetrics.map((metric) => ({
     ...metric,
     subject: metric?.subject ?? metric?.metricName ?? metric?.name ?? metric?.label ?? '평가',
     value: normalizeRadarValue(metric),
@@ -131,7 +136,7 @@ const LearningRecordDetail = () => {
     ? getQuestionTypeLabel(question.type, QUESTION_TYPE_LABELS)
     : null
   const questionCategory = question?.category ? (
-    <Badge variant="secondary" className="bg-rose-100 text-rose-700">
+    <Badge variant="secondary" className="bg-primary-100 text-primary-700">
       {getQuestionCategoryLabel(question.category, CATEGORY_LABELS)}
     </Badge>
   ) : null
@@ -142,7 +147,7 @@ const LearningRecordDetail = () => {
         <AppHeader title={TEXT_PAGE_TITLE} onBack={() => navigate('/profile')} showNotifications={false} />
         <div className="p-6 max-w-lg mx-auto">
           <Card className="p-6 flex items-center gap-3">
-            <Loader2 className="w-5 h-5 animate-spin text-pink-600" />
+            <Loader2 className="w-5 h-5 animate-spin text-primary-500" />
             <p className="text-sm text-muted-foreground">{TEXT_LOADING}</p>
           </Card>
         </div>
@@ -152,29 +157,29 @@ const LearningRecordDetail = () => {
 
   if (error || !hasAnswerDetail) {
     return (
-      <div className="min-h-screen bg-background">
-        <div className="bg-gradient-to-r from-pink-500 to-rose-500 text-white">
+      <div className="min-h-screen bg-gradient-to-b from-secondary-50 via-white to-secondary-50">
+        <div className="border-b border-primary-100/80 bg-gradient-to-r from-primary-50 via-white to-secondary-50 text-gray-900">
           <AppHeader
             title={TEXT_PAGE_TITLE}
             onBack={() => navigate('/profile')}
             showNotifications={false}
-            tone="dark"
+            tone="light"
             className="!static"
           />
           <div className="text-center pb-6 pt-1 px-6">
-            <p className="text-white/80 text-sm">{TEXT_HEADER_DESC}</p>
+            <p className="text-gray-600 text-sm">{TEXT_HEADER_DESC}</p>
           </div>
         </div>
 
-        <div className="p-6 max-w-lg mx-auto space-y-4 -mt-4">
-          <Card className="p-5 border-2 border-rose-200 bg-rose-50">
+        <div className="p-6 max-w-lg mx-auto space-y-4 -mt-3">
+          <Card className="p-5 rounded-2xl border border-amber-100 bg-amber-50/70 shadow-sm">
             <div className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-full bg-rose-100 flex items-center justify-center flex-shrink-0">
-                <AlertCircle className="w-5 h-5 text-rose-600" />
+              <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
+                <AlertCircle className="w-5 h-5 text-amber-600" />
               </div>
               <div className="flex-1">
-                <p className="text-sm text-rose-800">{error?.message || TEXT_NOT_FOUND}</p>
-                <p className="text-xs text-rose-700 mt-1">{TEXT_RETRY_HELP}</p>
+                <p className="text-sm text-amber-800">{error?.message || TEXT_NOT_FOUND}</p>
+                <p className="text-xs text-amber-700 mt-1">{TEXT_RETRY_HELP}</p>
               </div>
             </div>
           </Card>
@@ -193,28 +198,28 @@ const LearningRecordDetail = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="bg-gradient-to-r from-pink-500 to-rose-500 text-white">
+    <div className="min-h-screen bg-gradient-to-b from-secondary-50 via-white to-secondary-50">
+      <div className="border-b border-primary-100/80 bg-gradient-to-r from-primary-50 via-white to-secondary-50 text-gray-900">
         <AppHeader
           title={TEXT_PAGE_TITLE}
           onBack={() => navigate('/profile')}
           showNotifications={false}
-          tone="dark"
+          tone="light"
           className="!static"
         />
 
         <div className="text-center pb-6 pt-1 px-6">
-          <p className="text-white/80 text-sm">{TEXT_HEADER_DESC}</p>
+          <p className="text-gray-600 text-sm">{TEXT_HEADER_DESC}</p>
         </div>
       </div>
 
-      <div className="p-6 max-w-lg mx-auto space-y-4 -mt-4">
-        <Card className="p-5 bg-white shadow-lg">
+      <div className="p-6 max-w-lg mx-auto space-y-4 -mt-3">
+        <Card className="p-5 bg-white rounded-2xl border border-gray-100 shadow-sm">
           <div className="flex items-center justify-between mb-3">
             <p className="text-sm text-muted-foreground">{TEXT_QUESTION_LABEL}</p>
             <div className="flex items-center gap-2">
               {questionTypeLabel && (
-                <Badge variant="outline" className="text-pink-700 border-pink-200">
+                <Badge variant="outline" className="text-primary-700 border-primary-200 bg-white">
                   {questionTypeLabel}
                 </Badge>
               )}
@@ -225,7 +230,7 @@ const LearningRecordDetail = () => {
           <p className="text-xs text-muted-foreground text-right mt-3">{formatDateTime(detail?.createdAt)}</p>
         </Card>
 
-        <Card className="p-5">
+        <Card className="p-5 bg-white rounded-2xl border border-gray-100 shadow-sm">
           <p className="text-sm text-muted-foreground mb-2">{TEXT_MY_ANSWER_LABEL}</p>
           <div className="h-44 overflow-y-auto overscroll-contain pr-1">
             <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">
@@ -235,9 +240,9 @@ const LearningRecordDetail = () => {
         </Card>
 
         {hasRadarChart && (
-          <Card className="p-5 bg-white shadow-lg">
+          <Card className="p-5 bg-white rounded-2xl border border-gray-100 shadow-sm">
             <div className="flex items-center gap-2 mb-4">
-              <Sparkles className="w-5 h-5 text-pink-600" />
+              <Sparkles className="w-5 h-5 text-primary-500" />
               <h3>{TEXT_RADAR_TITLE}</h3>
             </div>
             <ResponsiveContainer width="100%" height={250}>
@@ -245,41 +250,41 @@ const LearningRecordDetail = () => {
                 <PolarGrid />
                 <PolarAngleAxis dataKey="subject" />
                 <PolarRadiusAxis angle={90} domain={[0, 100]} tick={false} axisLine={false} />
-                <Radar name="평가" dataKey="value" stroke="#ec4899" fill="#ec4899" fillOpacity={0.6} />
+                <Radar name="평가" dataKey="value" stroke="#ff8fa3" fill="#ffccd5" fillOpacity={0.8} />
               </RadarChart>
             </ResponsiveContainer>
           </Card>
         )}
 
         {hasRadarChart && (
-          <Card className="p-5 border-2 border-rose-200 bg-rose-50">
+          <Card className="p-5 rounded-2xl border border-emerald-100 bg-emerald-50/70 shadow-sm">
             <div className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-full bg-rose-100 flex items-center justify-center flex-shrink-0">
-                <ThumbsUp className="w-5 h-5 text-pink-600" />
+              <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0">
+                <ThumbsUp className="w-5 h-5 text-emerald-600" />
               </div>
               <div className="flex-1">
-                <h3 className="mb-2 text-rose-900">{TEXT_STRENGTHS_TITLE}</h3>
-                {renderFeedbackText(strengthsText, 'text-sm text-rose-800')}
+                <h3 className="mb-2 text-emerald-900">{TEXT_STRENGTHS_TITLE}</h3>
+                {renderFeedbackText(strengthsText, 'text-sm text-gray-700')}
               </div>
             </div>
           </Card>
         )}
 
-        <Card className="p-5 border-2 border-pink-200 bg-pink-50">
+        <Card className="p-5 rounded-2xl border border-amber-100 bg-amber-50/70 shadow-sm">
           <div className="flex items-start gap-3">
-            <div className="w-10 h-10 rounded-full bg-pink-100 flex items-center justify-center flex-shrink-0">
-              <AlertCircle className="w-5 h-5 text-pink-600" />
+            <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
+              <AlertCircle className="w-5 h-5 text-amber-600" />
             </div>
             <div className="flex-1">
-              <h3 className="mb-2 text-pink-900">{TEXT_IMPROVEMENTS_TITLE}</h3>
-              {renderFeedbackText(mergedImprovementsText, 'text-sm text-pink-800')}
+              <h3 className="mb-2 text-amber-900">{TEXT_IMPROVEMENTS_TITLE}</h3>
+              {renderFeedbackText(mergedImprovementsText, 'text-sm text-gray-700')}
             </div>
           </div>
         </Card>
 
         <Button
           onClick={() => navigate('/profile')}
-          className="w-full rounded-xl h-12 gap-2"
+          className="w-full rounded-xl h-12 gap-2 shadow-sm"
           variant="default"
         >
           <Home className="w-5 h-5" />

@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { AppHeader } from '@/app/components/AppHeader';
 import { Card } from '@/app/components/ui/card';
 import { Button } from '@/app/components/ui/button';
-import { AlertCircle, Home, ListChecks, Loader2, Sparkles, ThumbsUp } from 'lucide-react';
+import { AlertCircle, ChevronLeft, ChevronRight, Home, ListChecks, Loader2, Sparkles, ThumbsUp } from 'lucide-react';
 import {
   PolarAngleAxis,
   PolarGrid,
@@ -13,6 +13,8 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import { useAnswerDetail } from '@/app/hooks/useAnswerDetail';
+import { useQuestionCategories } from '@/app/hooks/useQuestionCategories';
+import { getQuestionCategoryLabel } from '@/app/constants/questionCategoryMeta';
 import { getFileReadPresignedUrl } from '@/api/fileApi';
 
 const TEXT_PAGE_TITLE = '실전 학습 기록 상세';
@@ -44,12 +46,15 @@ const TEXT_VIDEO_LABEL = '답변 영상';
 const TEXT_VIDEO_EXPIRES_LABEL = '영상 링크 만료 시 새로고침 해주세요.';
 const TEXT_VIDEO_MISSING_CARD = '영상이 없습니다.';
 const TEXT_VIDEO_LOADING = '영상 불러오는 중...';
+const TEXT_PREV_TOPIC = '이전 주제';
+const TEXT_NEXT_TOPIC = '다음 주제';
 
 const FEEDBACK_SPLIT_DELIMITER = '●';
 const FEEDBACK_BULLET = '•';
 const FEEDBACK_DASH = '-';
 const METRIC_SCORE_MAX = 5;
 const RADAR_DOMAIN_MAX = 100;
+const SWIPE_THRESHOLD_PX = 48;
 
 const toTrimmedString = (value) => {
   if (typeof value !== 'string') return '';
@@ -218,12 +223,16 @@ const RealLearningRecordDetail = () => {
   const navigate = useNavigate();
   const { answerId } = useParams();
   const { data, isLoading, error } = useAnswerDetail(answerId);
+  const { data: categoryData } = useQuestionCategories();
+  const CATEGORY_LABELS = useMemo(() => categoryData?.flat ?? {}, [categoryData]);
   const [resolvedVideoSources, setResolvedVideoSources] = useState({});
   const [videoLoadFailedMap, setVideoLoadFailedMap] = useState({});
   const [videoReadyMap, setVideoReadyMap] = useState({});
+  const [activeTurnIndex, setActiveTurnIndex] = useState(0);
   const videoReadUrlCacheRef = useRef(new Map());
   const inFlightVideoReadUrlRef = useRef(new Map());
   const refreshingTurnVideoRef = useRef(new Set());
+  const swipeStartXRef = useRef(null);
 
   const answerDetail = useMemo(() => {
     const resolved = data?.data ?? data;
@@ -282,6 +291,7 @@ const RealLearningRecordDetail = () => {
 
     return rows
       .map((item, idx) => {
+        const categoryKey = toTrimmedString(item?.category);
         const videoPlayUrl = toTrimmedString(
           item?.video_play_url ??
             item?.videoPlayUrl ??
@@ -296,7 +306,8 @@ const RealLearningRecordDetail = () => {
           turnType: toTrimmedString(item?.turn_type ?? item?.turnType),
           question: toTrimmedString(item?.question),
           answerText: toTrimmedString(item?.answer_text ?? item?.answerText),
-          category: toTrimmedString(item?.category),
+          category: categoryKey,
+          categoryLabel: getQuestionCategoryLabel(categoryKey, CATEGORY_LABELS),
           videoPlayUrl,
           videoPlayUrlExpired: isExpiredS3PresignedUrl(videoPlayUrl),
           videoExpiresAt: toTrimmedString(
@@ -309,7 +320,7 @@ const RealLearningRecordDetail = () => {
         };
       })
       .sort((a, b) => a.turnOrder - b.turnOrder);
-  }, [feedbackData]);
+  }, [feedbackData, CATEGORY_LABELS]);
 
   const getTurnVideoReadUrl = useCallback(async (fileId, { forceRefresh = false } = {}) => {
     const normalizedFileId = toFileId(fileId);
@@ -431,6 +442,42 @@ const RealLearningRecordDetail = () => {
     setVideoReadyMap({});
   }, [interviewHistory, resolvedVideoSources]);
 
+  useEffect(() => {
+    setActiveTurnIndex((prev) => {
+      if (interviewHistory.length === 0) return 0;
+      return Math.min(prev, interviewHistory.length - 1);
+    });
+  }, [interviewHistory.length]);
+
+  const handlePrevTurn = useCallback(() => {
+    setActiveTurnIndex((prev) => Math.max(prev - 1, 0));
+  }, []);
+
+  const handleNextTurn = useCallback(() => {
+    setActiveTurnIndex((prev) => Math.min(prev + 1, interviewHistory.length - 1));
+  }, [interviewHistory.length]);
+
+  const handleCarouselTouchStart = useCallback((event) => {
+    swipeStartXRef.current = event.changedTouches?.[0]?.clientX ?? null;
+  }, []);
+
+  const handleCarouselTouchEnd = useCallback((event) => {
+    const startX = swipeStartXRef.current;
+    const endX = event.changedTouches?.[0]?.clientX;
+    swipeStartXRef.current = null;
+
+    if (typeof startX !== 'number' || typeof endX !== 'number') return;
+
+    const deltaX = endX - startX;
+    if (Math.abs(deltaX) < SWIPE_THRESHOLD_PX) return;
+
+    if (deltaX < 0) {
+      handleNextTurn();
+      return;
+    }
+    handlePrevTurn();
+  }, [handleNextTurn, handlePrevTurn]);
+
   const questionText = toTrimmedString(
     answerDetail?.question?.content ?? answerDetail?.question?.title
   );
@@ -441,7 +488,7 @@ const RealLearningRecordDetail = () => {
         <AppHeader title={TEXT_PAGE_TITLE} onBack={() => navigate('/profile')} showNotifications={false} />
         <div className="p-6 max-w-lg mx-auto">
           <Card className="p-6 flex items-center gap-3">
-            <Loader2 className="w-5 h-5 animate-spin text-pink-600" />
+            <Loader2 className="w-5 h-5 animate-spin text-primary-500" />
             <p className="text-sm text-muted-foreground">{TEXT_LOADING}</p>
           </Card>
         </div>
@@ -451,29 +498,29 @@ const RealLearningRecordDetail = () => {
 
   if (error || !hasAnswerDetail) {
     return (
-      <div className="min-h-screen bg-background">
-        <div className="bg-gradient-to-r from-pink-500 to-rose-500 text-white">
+      <div className="min-h-screen bg-gradient-to-b from-secondary-50 via-white to-secondary-50">
+        <div className="border-b border-primary-100/80 bg-gradient-to-r from-primary-50 via-white to-secondary-50 text-gray-900">
           <AppHeader
             title={TEXT_PAGE_TITLE}
             onBack={() => navigate('/profile')}
             showNotifications={false}
-            tone="dark"
+            tone="light"
             className="!static"
           />
           <div className="text-center pb-6 pt-1 px-6">
-            <p className="text-white/80 text-sm">{TEXT_HEADER_DESC}</p>
+            <p className="text-gray-600 text-sm">{TEXT_HEADER_DESC}</p>
           </div>
         </div>
 
-        <div className="p-6 max-w-lg mx-auto space-y-4 -mt-4">
-          <Card className="p-5 border-2 border-rose-200 bg-rose-50">
+        <div className="p-6 max-w-lg mx-auto space-y-4 -mt-3">
+          <Card className="p-5 rounded-2xl border border-amber-100 bg-amber-50/70 shadow-sm">
             <div className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-full bg-rose-100 flex items-center justify-center flex-shrink-0">
-                <AlertCircle className="w-5 h-5 text-rose-600" />
+              <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
+                <AlertCircle className="w-5 h-5 text-amber-600" />
               </div>
               <div className="flex-1">
-                <p className="text-sm text-rose-800">{error?.message || TEXT_NOT_FOUND}</p>
-                <p className="text-xs text-rose-700 mt-1">{TEXT_RETRY_HELP}</p>
+                <p className="text-sm text-amber-800">{error?.message || TEXT_NOT_FOUND}</p>
+                <p className="text-xs text-amber-700 mt-1">{TEXT_RETRY_HELP}</p>
               </div>
             </div>
           </Card>
@@ -492,25 +539,25 @@ const RealLearningRecordDetail = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="bg-gradient-to-r from-pink-500 to-rose-500 text-white">
+    <div className="min-h-screen bg-gradient-to-b from-secondary-50 via-white to-secondary-50">
+      <div className="border-b border-primary-100/80 bg-gradient-to-r from-primary-50 via-white to-secondary-50 text-gray-900">
         <AppHeader
           title={TEXT_PAGE_TITLE}
           onBack={() => navigate('/profile')}
           showNotifications={false}
-          tone="dark"
+          tone="light"
           className="!static"
         />
 
         <div className="text-center pb-6 pt-1 px-6">
-          <p className="text-white/80 text-sm">{TEXT_HEADER_DESC}</p>
+          <p className="text-gray-600 text-sm">{TEXT_HEADER_DESC}</p>
         </div>
       </div>
 
-      <div className="p-6 max-w-lg mx-auto space-y-4 -mt-4">
-        <Card className="p-5 bg-white shadow-lg">
+      <div className="p-6 max-w-lg mx-auto space-y-4 -mt-3">
+        <Card className="p-5 bg-white rounded-2xl border border-gray-100 shadow-sm">
           <div className="flex items-center gap-2 mb-4">
-            <Sparkles className="w-5 h-5 text-pink-600" />
+            <Sparkles className="w-5 h-5 text-primary-500" />
             <h3>{TEXT_METRICS_TITLE}</h3>
           </div>
           {hasRadarData ? (
@@ -519,7 +566,13 @@ const RealLearningRecordDetail = () => {
                 <PolarGrid />
                 <PolarAngleAxis dataKey="subject" />
                 <PolarRadiusAxis angle={90} domain={[0, RADAR_DOMAIN_MAX]} tick={false} axisLine={false} />
-                <Radar name={TEXT_RADAR_LABEL} dataKey="value" stroke="#ec4899" fill="#ec4899" fillOpacity={0.6} />
+                <Radar
+                  name={TEXT_RADAR_LABEL}
+                  dataKey="value"
+                  stroke="#ff8fa3"
+                  fill="#ffccd5"
+                  fillOpacity={0.8}
+                />
               </RadarChart>
             </ResponsiveContainer>
           ) : (
@@ -528,99 +581,139 @@ const RealLearningRecordDetail = () => {
         </Card>
 
         {questionText && (
-          <Card className="p-5 bg-white shadow-sm">
+          <Card className="p-5 bg-white rounded-2xl border border-gray-100 shadow-sm">
             <p className="text-sm text-muted-foreground mb-2">{TEXT_QUESTION_LABEL}</p>
             <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">{questionText}</p>
           </Card>
         )}
 
-        <Card className="p-5 bg-white shadow-sm space-y-4">
+        <Card className="p-5 bg-white rounded-2xl border border-gray-100 shadow-sm space-y-4">
           <div className="flex items-center gap-2">
-            <Sparkles className="w-5 h-5 text-pink-600" />
+            <Sparkles className="w-5 h-5 text-primary-500" />
             <h3>{TEXT_INTERVIEW_VIDEO_TITLE}</h3>
           </div>
           {interviewHistory.length > 0 ? (
-            <div className="space-y-4">
-              {interviewHistory.map((turn, idx) => {
-                const turnKey = buildTurnVideoKey(turn.turnOrder, idx);
-                const resolvedVideoUrl = toTrimmedString(
-                  resolvedVideoSources[turnKey] ?? turn.videoPlayUrl
-                );
-                const hasVideoLoadFailed = Boolean(videoLoadFailedMap[turnKey]);
-                const canRenderVideoPlayer = Boolean(resolvedVideoUrl) && !hasVideoLoadFailed;
-                const displayTopicOrder = Math.max(turn.turnOrder + 1, 1);
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="text-xs text-muted-foreground">
+                  {activeTurnIndex + 1} / {interviewHistory.length}
+                </p>
+                {interviewHistory.length > 1 && (
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={handlePrevTurn}
+                      disabled={activeTurnIndex === 0}
+                      className="h-8 w-8 inline-flex items-center justify-center rounded-full border border-gray-200 bg-white text-gray-700 disabled:opacity-40 disabled:cursor-not-allowed"
+                      aria-label={TEXT_PREV_TOPIC}
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleNextTurn}
+                      disabled={activeTurnIndex >= interviewHistory.length - 1}
+                      className="h-8 w-8 inline-flex items-center justify-center rounded-full border border-gray-200 bg-white text-gray-700 disabled:opacity-40 disabled:cursor-not-allowed"
+                      aria-label={TEXT_NEXT_TOPIC}
+                    >
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
+              </div>
+              <div
+                className="overflow-hidden"
+                onTouchStart={handleCarouselTouchStart}
+                onTouchEnd={handleCarouselTouchEnd}
+              >
+                <div
+                  className="flex transition-transform duration-300 ease-out"
+                  style={{ transform: `translateX(-${activeTurnIndex * 100}%)` }}
+                >
+                  {interviewHistory.map((turn, idx) => {
+                    const turnKey = buildTurnVideoKey(turn.turnOrder, idx);
+                    const resolvedVideoUrl = toTrimmedString(
+                      resolvedVideoSources[turnKey] ?? turn.videoPlayUrl
+                    );
+                    const hasVideoLoadFailed = Boolean(videoLoadFailedMap[turnKey]);
+                    const canRenderVideoPlayer = Boolean(resolvedVideoUrl) && !hasVideoLoadFailed;
+                    const displayTopicOrder = Math.max(turn.turnOrder + 1, 1);
 
-                return (
-                  <div key={turnKey} className="rounded-xl border border-rose-100 bg-rose-50/50 p-4 space-y-3">
-                    <p className="text-sm font-semibold text-rose-700">
-                      {TEXT_TURN_LABEL} {displayTopicOrder}
-                      {turn.category ? ` · ${turn.category}` : ''}
-                    </p>
-                    {turn.question && (
-                      <div className="space-y-1">
-                        <p className="text-xs text-muted-foreground">{TEXT_QUESTION_LABEL}</p>
-                        <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">{turn.question}</p>
-                      </div>
-                    )}
-                    <div className="space-y-1">
-                      <p className="text-xs text-muted-foreground">{TEXT_VIDEO_LABEL}</p>
-                      {canRenderVideoPlayer ? (
-                        <div className="relative">
-                          <video
-                            controls
-                            preload="metadata"
-                            playsInline
-                            className="w-full aspect-video rounded-lg border border-gray-200 bg-black"
-                            src={resolvedVideoUrl}
-                            onError={() => {
-                              void handleTurnVideoLoadError(turn, idx);
-                            }}
-                            onLoadedData={() => {
-                              setVideoReadyMap((prev) => ({ ...prev, [turnKey]: true }));
-                              setVideoLoadFailedMap((prev) => {
-                                if (!prev[turnKey]) return prev;
-                                const next = { ...prev };
-                                delete next[turnKey];
-                                return next;
-                              });
-                            }}
-                          />
-                          {!videoReadyMap[turnKey] && (
-                            <div className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-lg bg-black/65">
-                              <p className="text-xs text-white/90">{TEXT_VIDEO_LOADING}</p>
+                    return (
+                      <div key={turnKey} className="w-full shrink-0 px-px">
+                        <div className="rounded-xl border border-primary-100 bg-primary-50/50 p-4 space-y-3">
+                          <p className="text-sm font-semibold text-primary-700">
+                            {TEXT_TURN_LABEL} {displayTopicOrder}
+                            {turn.categoryLabel ? ` · ${turn.categoryLabel}` : ''}
+                          </p>
+                          {turn.question && (
+                            <div className="space-y-1">
+                              <p className="text-xs text-muted-foreground">{TEXT_QUESTION_LABEL}</p>
+                              <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">{turn.question}</p>
+                            </div>
+                          )}
+                          <div className="space-y-1">
+                            <p className="text-xs text-muted-foreground">{TEXT_VIDEO_LABEL}</p>
+                            {canRenderVideoPlayer ? (
+                              <div className="relative">
+                                <video
+                                  controls
+                                  preload="metadata"
+                                  playsInline
+                                  className="w-full aspect-video rounded-lg border border-gray-200 bg-black"
+                                  src={resolvedVideoUrl}
+                                  onError={() => {
+                                    void handleTurnVideoLoadError(turn, idx);
+                                  }}
+                                  onLoadedData={() => {
+                                    setVideoReadyMap((prev) => ({ ...prev, [turnKey]: true }));
+                                    setVideoLoadFailedMap((prev) => {
+                                      if (!prev[turnKey]) return prev;
+                                      const next = { ...prev };
+                                      delete next[turnKey];
+                                      return next;
+                                    });
+                                  }}
+                                />
+                                {!videoReadyMap[turnKey] && (
+                                  <div className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-lg bg-black/65">
+                                    <p className="text-xs text-white/90">{TEXT_VIDEO_LOADING}</p>
+                                  </div>
+                                )}
+                              </div>
+                            ) : (
+                              <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 px-4 py-5 text-center">
+                                <p className="text-sm font-medium text-gray-600">{TEXT_VIDEO_MISSING_CARD}</p>
+                              </div>
+                            )}
+                            {canRenderVideoPlayer && (
+                              <p className="text-xs text-muted-foreground">
+                                {turn.videoExpiresAt
+                                  ? `${TEXT_VIDEO_EXPIRES_LABEL} (${turn.videoExpiresAt})`
+                                  : TEXT_VIDEO_EXPIRES_LABEL}
+                              </p>
+                            )}
+                          </div>
+                          {turn.answerText && (
+                            <div className="space-y-1">
+                              <p className="text-xs text-muted-foreground">{TEXT_MY_ANSWER_LABEL}</p>
+                              <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">{turn.answerText}</p>
                             </div>
                           )}
                         </div>
-                      ) : (
-                        <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 px-4 py-5 text-center">
-                          <p className="text-sm font-medium text-gray-600">{TEXT_VIDEO_MISSING_CARD}</p>
-                        </div>
-                      )}
-                      {canRenderVideoPlayer && (
-                        <p className="text-xs text-muted-foreground">
-                          {turn.videoExpiresAt
-                            ? `${TEXT_VIDEO_EXPIRES_LABEL} (${turn.videoExpiresAt})`
-                            : TEXT_VIDEO_EXPIRES_LABEL}
-                        </p>
-                      )}
-                    </div>
-                    {turn.answerText && (
-                      <div className="space-y-1">
-                        <p className="text-xs text-muted-foreground">{TEXT_MY_ANSWER_LABEL}</p>
-                        <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">{turn.answerText}</p>
                       </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
+                    );
+                  })}
+                </div>
+                </div>
+              </div>
           ) : (
             <p className="text-sm text-muted-foreground">{TEXT_INTERVIEW_VIDEO_EMPTY}</p>
           )}
         </Card>
 
         {hasKeywordSummary && (
-          <Card className="p-5 bg-white shadow-sm space-y-3">
+          <Card className="p-5 bg-white rounded-2xl border border-gray-100 shadow-sm space-y-3">
             <h3>{TEXT_COVERAGE}</h3>
             <p className="text-sm text-gray-700">
               {coveragePercent === null ? TEXT_FEEDBACK_EMPTY : `${coveragePercent}%`}
@@ -633,7 +726,7 @@ const RealLearningRecordDetail = () => {
                 </p>
               </div>
               <div>
-                <p className="text-xs text-rose-700 mb-1">{TEXT_MISSING}</p>
+                <p className="text-xs text-amber-700 mb-1">{TEXT_MISSING}</p>
                 <p className="text-sm text-gray-700">
                   {missingKeywords.length > 0 ? missingKeywords.join(', ') : TEXT_NONE}
                 </p>
@@ -643,18 +736,18 @@ const RealLearningRecordDetail = () => {
         )}
 
         {topicsFeedback.length > 0 && (
-          <Card className="p-5 bg-white shadow-sm space-y-3">
+          <Card className="p-5 bg-white rounded-2xl border border-gray-100 shadow-sm space-y-3">
             <div className="flex items-center gap-2">
-              <ListChecks className="w-5 h-5 text-pink-600" />
+              <ListChecks className="w-5 h-5 text-primary-500" />
               <h3>{TEXT_TOPIC_FEEDBACK_TITLE}</h3>
             </div>
             <div className="space-y-3">
               {topicsFeedback.map((topic, idx) => (
                 <div
                   key={`${topic?.topic_id ?? 'topic'}-${idx}`}
-                  className="rounded-xl border border-rose-100 bg-rose-50/60 p-4 space-y-3"
+                  className="rounded-xl border border-primary-100 bg-primary-50/60 p-4 space-y-3"
                 >
-                  <p className="text-sm text-rose-700 font-semibold">
+                  <p className="text-sm text-primary-700 font-semibold">
                     {TEXT_TOPIC_LABEL} {topic?.topic_id ?? idx + 1}
                   </p>
                   <p className="text-[15px] leading-relaxed text-gray-900">
@@ -666,7 +759,7 @@ const RealLearningRecordDetail = () => {
                     {renderFeedbackText(topic?.strengths, 'text-sm text-gray-700')}
                   </div>
                   <div>
-                    <p className="text-sm font-semibold text-pink-700 mb-1.5">{TEXT_TOPIC_IMPROVEMENTS}</p>
+                    <p className="text-sm font-semibold text-amber-700 mb-1.5">{TEXT_TOPIC_IMPROVEMENTS}</p>
                     {renderFeedbackText(topic?.improvements, 'text-sm text-gray-700')}
                   </div>
                 </div>
@@ -675,33 +768,33 @@ const RealLearningRecordDetail = () => {
           </Card>
         )}
 
-        <Card className="p-5 border-2 border-rose-200 bg-rose-50">
+        <Card className="p-5 rounded-2xl border border-emerald-100 bg-emerald-50/70 shadow-sm">
           <div className="flex items-start gap-3">
-            <div className="w-10 h-10 rounded-full bg-rose-100 flex items-center justify-center flex-shrink-0">
-              <ThumbsUp className="w-5 h-5 text-pink-600" />
+            <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0">
+              <ThumbsUp className="w-5 h-5 text-emerald-600" />
             </div>
             <div className="flex-1">
-              <h3 className="mb-2 text-rose-900">{TEXT_STRENGTHS_TITLE}</h3>
-              {renderFeedbackText(overallFeedback?.strengths, 'text-sm text-rose-800')}
+              <h3 className="mb-2 text-emerald-900">{TEXT_STRENGTHS_TITLE}</h3>
+              {renderFeedbackText(overallFeedback?.strengths, 'text-sm text-gray-700')}
             </div>
           </div>
         </Card>
 
-        <Card className="p-5 border-2 border-pink-200 bg-pink-50">
+        <Card className="p-5 rounded-2xl border border-amber-100 bg-amber-50/70 shadow-sm">
           <div className="flex items-start gap-3">
-            <div className="w-10 h-10 rounded-full bg-pink-100 flex items-center justify-center flex-shrink-0">
-              <AlertCircle className="w-5 h-5 text-pink-600" />
+            <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
+              <AlertCircle className="w-5 h-5 text-amber-600" />
             </div>
             <div className="flex-1">
-              <h3 className="mb-2 text-pink-900">{TEXT_IMPROVEMENTS_TITLE}</h3>
-              {renderFeedbackText(overallFeedback?.improvements, 'text-sm text-pink-800')}
+              <h3 className="mb-2 text-amber-900">{TEXT_IMPROVEMENTS_TITLE}</h3>
+              {renderFeedbackText(overallFeedback?.improvements, 'text-sm text-gray-700')}
             </div>
           </div>
         </Card>
 
         <Button
           onClick={() => navigate('/profile')}
-          className="w-full rounded-xl h-12 gap-2"
+          className="w-full rounded-xl h-12 gap-2 shadow-sm"
           variant="default"
         >
           <Home className="w-5 h-5" />
