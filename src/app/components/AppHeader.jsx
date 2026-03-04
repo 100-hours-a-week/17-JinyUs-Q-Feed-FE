@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import svgPaths from "@/imports/svg-h6m3rufpzr";
-import { Settings } from 'lucide-react';
+import { Settings, Bell } from 'lucide-react';
 
 export const AppHeader = ({
     title,
@@ -98,14 +98,10 @@ export const AppHeader = ({
                         {showNotifications && (
                             <button
                                 onClick={onNotification}
-                                className={`size-[32px] flex items-center justify-center rounded-full transition-colors cursor-pointer ${isDark ? 'hover:bg-white/10' : 'hover:bg-gray-100'}`}
+                                className={`relative size-[32px] flex items-center justify-center rounded-full transition-colors cursor-pointer ${isDark ? 'hover:bg-white/10' : 'hover:bg-gray-100'}`}
                                 aria-label="알림"
                             >
-                                <div className="size-[20px]">
-                                    <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 16 20">
-                                        <path d={svgPaths.p15aa46c0} fill="currentColor" id="icon" />
-                                    </svg>
-                                </div>
+                                <Bell className="w-5 h-5" />
                             </button>
                         )}
                     </>
