@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { Badge } from '@/app/components/ui/badge';
 import BottomNav from '@/app/components/BottomNav';
-import { Sparkles, TrendingUp, BookOpen, History, ArrowRight, Play } from 'lucide-react';
+import { Sparkles, TrendingUp, BookOpen, History, ArrowRight, Play, Bell } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useRecommendedQuestion } from '@/app/hooks/useRecommendedQuestion';
 import { useWeeklyStats } from '@/app/hooks/useWeeklyStats';
@@ -13,6 +13,7 @@ const TEXT_RECOMMENDATION_ERROR = '추천 질문을 불러오지 못했습니다
 const TEXT_RECOMMENDATION_EMPTY = '오늘의 추천 질문이 없습니다';
 const TEXT_RECOMMENDATION_EMPTY_HELP = '잠시 후 다시 확인하거나 연습 모드에서 직접 질문을 선택해 주세요.';
 const SHOW_REAL_INTERVIEW = import.meta.env.VITE_SHOW_REAL_INTERVIEW === 'true';
+const SHOW_NOTIFICATIONS = import.meta.env.VITE_SHOW_NOTIFICATIONS === 'true';
 
 // 시간대별 인사말
 const getGreeting = () => {
@@ -150,10 +151,23 @@ const Home = () => {
             <section className="greeting-section">
                 <div className="greeting-decoration" />
                 <div className="greeting-content">
-                    <h1 className="greeting-text">
-                        {getGreeting()}, {nickname}님
-                    </h1>
-                    <p className="greeting-sub">오늘도 한 걸음 더 성장해볼까요?</p>
+                    <div className="flex justify-between items-start">
+                        <div>
+                            <h1 className="greeting-text">
+                                {getGreeting()}, {nickname}님
+                            </h1>
+                            <p className="greeting-sub">오늘도 한 걸음 더 성장해볼까요?</p>
+                        </div>
+                        {SHOW_NOTIFICATIONS && (
+                            <button
+                                className="relative flex items-center justify-center w-9 h-9 rounded-full hover:bg-black/10 transition-colors text-gray-900 flex-shrink-0"
+                                aria-label="알림"
+                                onClick={() => navigate('/notifications')}
+                            >
+                                <Bell className="w-5 h-5" />
+                            </button>
+                        )}
+                    </div>
                 </div>
             </section>
 

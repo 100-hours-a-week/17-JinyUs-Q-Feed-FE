@@ -9,6 +9,7 @@ import { SESSION_STORAGE_KEYS } from '@/app/constants/storageKeys';
 import { INTERVIEW_TYPES, QUESTION_TYPES } from '@/app/constants/interviewTaxonomy';
 
 const SHOW_PORTFOLIO_INTERVIEW = import.meta.env.VITE_SHOW_PORTFOLIO_INTERVIEW === 'true';
+const SHOW_NOTIFICATIONS = import.meta.env.VITE_SHOW_NOTIFICATIONS === 'true';
 const REAL_SESSION_STORAGE_KEY = SESSION_STORAGE_KEYS.REAL_INTERVIEW_SESSION;
 const TEXT_SESSION_CREATE_FAILED = '면접 세션 생성에 실패했습니다.';
 const TEXT_SESSION_CREATING = '실전면접 준비 중';
@@ -127,7 +128,7 @@ const RealInterview = () => {
 
     return (
         <div className="relative flex flex-col h-screen bg-background overflow-hidden max-w-lg mx-auto border-x border-transparent">
-            <AppHeader title="실전 면접" onBack={() => navigate('/')} />
+            <AppHeader title="실전 면접" onBack={() => navigate('/')} showNotifications={SHOW_NOTIFICATIONS} />
 
             <div className="flex-1 flex flex-col p-4 gap-4 pb-24 min-h-0">
                 {menuItems.map((item, index) => {
