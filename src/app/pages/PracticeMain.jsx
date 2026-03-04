@@ -4,7 +4,7 @@ import { Card } from '@/app/components/ui/card';
 import { Input } from '@/app/components/ui/input';
 import { Badge } from '@/app/components/ui/badge';
 import BottomNav from '@/app/components/BottomNav';
-import { Search, Filter } from 'lucide-react';
+import { Search, Filter, Bell } from 'lucide-react';
 import debounce from 'lodash/debounce';
 import { usePracticeQuestion } from '@/context/practiceQuestionContext.jsx';
 import { useQuestionsInfinite } from '@/app/hooks/useQuestionsInfinite';
@@ -17,6 +17,7 @@ import {
 } from '@/app/constants/questionCategoryMeta';
 
 
+const SHOW_NOTIFICATIONS = import.meta.env.VITE_SHOW_NOTIFICATIONS === 'true';
 const INITIAL_SEARCH_QUERY = '';
 const ALL_FILTER_VALUE = 'ALL';
 const ALL_FILTER_LABEL = '전체';
@@ -134,14 +135,24 @@ const PracticeMain = () => {
             <div className="fixed top-0 left-1/2 -translate-x-1/2 w-full max-w-lg z-[100] bg-white border-b border-gray-100">
                 {/* Search */}
                 <div className="px-4 py-4">
-                    <div className="relative">
-                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-                        <Input
-                            placeholder="질문 검색..."
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            className="pl-10 rounded-lg bg-gray-50"
-                        />
+                    <div className="flex items-center gap-2">
+                        <div className="flex-1 relative">
+                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                            <Input
+                                placeholder="질문 검색..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="pl-10 rounded-lg bg-gray-50"
+                            />
+                        </div>
+                        {SHOW_NOTIFICATIONS && (
+                            <button
+                                className="relative flex-shrink-0 flex items-center justify-center w-9 h-9 rounded-full hover:bg-gray-100 transition-colors"
+                                aria-label="알림"
+                            >
+                                <Bell className="w-5 h-5 text-muted-foreground" />
+                            </button>
+                        )}
                     </div>
                 </div>
 

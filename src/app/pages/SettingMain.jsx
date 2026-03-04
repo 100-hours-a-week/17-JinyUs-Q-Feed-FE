@@ -51,11 +51,21 @@ const SettingMain = () => {
 
     const settingGroups = [
         ...(SHOW_NOTIFICATIONS ? [{
-            title: '알림',
+            title: '알림 설정',
             items: [
                 {
                     icon: Bell,
-                    label: '푸시 알림',
+                    label: 'AI 평가 완료 알림',
+                    action: (
+                        <Switch
+                            checked={notifications}
+                            onCheckedChange={setNotifications}
+                        />
+                    ),
+                },
+                {
+                    icon: Bell,
+                    label: '접속 유도 알림',
                     action: (
                         <Switch
                             checked={notifications}
@@ -97,7 +107,7 @@ const SettingMain = () => {
 
     return (
         <div className="min-h-screen bg-[#FAFAFA] pb-12">
-            <AppHeader title="설정" onBack={() => navigate('/profile')} showNotifications={false} />
+            <AppHeader title="설정" onBack={() => navigate('/profile')} showNotifications={SHOW_NOTIFICATIONS} />
 
             <div className="p-6 max-w-lg mx-auto space-y-6">
                 {settingGroups.map((group, groupIndex) => (
