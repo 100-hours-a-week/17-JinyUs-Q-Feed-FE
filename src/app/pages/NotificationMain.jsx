@@ -1,0 +1,191 @@
+import { useCallback, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Bell, MessageSquare, Star, Award, Info, Loader2 } from 'lucide-react';
+import { AppHeader } from '@/app/components/AppHeader';
+import { useNotificationsInfinite } from '@/app/hooks/useNotificationsInfinite';
+
+// notificationType 코드 → 아이콘 매핑
+const TYPE_ICON = {
+    FEEDBACK: <MessageSquare size={18} />,
+    ACHIEVEMENT: <Award size={18} />,
+    RECOMMENDATION: <Star size={18} />,
+    SYSTEM: <Info size={18} />,
+};
+
+const getTypeIcon = (type) => TYPE_ICON[type] ?? <Bell size={18} />;
+
+// createdAt → 상대 시간 포맷
+const formatRelativeTime = (isoString) => {
+    if (!isoString) return '';
+    const diff = Date.now() - new Date(isoString).getTime();
+    const minutes = Math.floor(diff / 60_000);
+    if (minutes < 1) return '방금 전';
+    if (minutes < 60) return `${minutes}분 전`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours}시간 전`;
+    const days = Math.floor(hours / 24);
+    if (days < 7) return `${days}일 전`;
+    return new Date(isoString).toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' });
+};
+
+const NotificationItem = ({ notification, onRead }) => {
+    const navigate = useNavigate();
+
+    const handleClick = () => {
+        if (!notification.read) onRead(notification.id);
+        if (notification.deeplink) navigate(notification.deeplink);
+    };
+
+    return (
+        <button
+            className={`w-full text-left flex items-start gap-3 px-4 py-4 transition-colors ${
+                notification.read ? 'bg-white' : 'bg-pink-50'
+            } hover:bg-gray-50 active:bg-gray-100`}
+            onClick={handleClick}
+        >
+            {/* 타입 아이콘 */}
+            <span
+                className={`flex-shrink-0 flex items-center justify-center w-9 h-9 rounded-full ${
+                    notification.read
+                        ? 'bg-gray-100 text-gray-500'
+                        : 'bg-pink-100 text-pink-500'
+                }`}
+            >
+                {getTypeIcon(notification.notificationType)}
+            </span>
+
+            {/* 내용 */}
+            <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between gap-2">
+                    <p className={`text-sm truncate ${notification.read ? 'font-normal text-gray-800' : 'font-semibold text-gray-900'}`}>
+                        {notification.title}
+                    </p>
+                    <span className="flex-shrink-0 text-xs text-gray-400">
+                        {formatRelativeTime(notification.createdAt)}
+                    </span>
+                </div>
+                {notification.body && (
+                    <p className="mt-0.5 text-xs text-gray-500 line-clamp-2">{notification.body}</p>
+                )}
+                {notification.notificationTypeDescription && (
+                    <span className="mt-1 inline-block text-xs text-pink-400">
+                        {notification.notificationTypeDescription}
+                    </span>
+                )}
+            </div>
+
+            {/* 읽지 않음 점 */}
+            {!notification.read && (
+                <span className="flex-shrink-0 mt-1.5 w-2 h-2 rounded-full bg-pink-500" />
+            )}
+        </button>
+    );
+};
+
+const NotificationMain = () => {
+    const {
+        notifications,
+        isLoading,
+        isFetchingNextPage,
+        hasNextPage,
+        fetchNextPage,
+        error,
+        readOne,
+        readAll,
+    } = useNotificationsInfinite();
+
+    const observerRef = useRef(null);
+
+    const observerCallback = useCallback(
+        (entries) => {
+            const [entry] = entries;
+            if (entry.isIntersecting && hasNextPage && !isFetchingNextPage) {
+                fetchNextPage();
+            }
+        },
+        [hasNextPage, isFetchingNextPage, fetchNextPage]
+    );
+
+    useEffect(() => {
+        const node = observerRef.current;
+        if (!node) return;
+        const observer = new IntersectionObserver(observerCallback, {
+            root: null,
+            rootMargin: '100px',
+            threshold: 0.1,
+        });
+        observer.observe(node);
+        return () => observer.disconnect();
+    }, [observerCallback]);
+
+    const hasUnread = notifications.some((n) => !n.read);
+
+    const headerRight = hasUnread ? (
+        <button
+            onClick={() => readAll()}
+            className="text-xs font-medium text-pink-500 hover:text-pink-600 px-2 py-1"
+        >
+            모두 읽기
+        </button>
+    ) : null;
+
+    return (
+        <div className="flex flex-col min-h-screen bg-gray-50 max-w-lg mx-auto">
+            <AppHeader
+                title="알림"
+                showBack
+                rightContent={headerRight}
+            />
+
+            <main className="flex-1">
+                {isLoading && (
+                    <div className="flex justify-center items-center py-20">
+                        <Loader2 className="w-6 h-6 animate-spin text-pink-400" />
+                    </div>
+                )}
+
+                {error && (
+                    <div className="flex flex-col items-center justify-center py-20 gap-2">
+                        <Bell className="w-10 h-10 text-gray-300" />
+                        <p className="text-sm text-gray-400">알림을 불러오지 못했습니다.</p>
+                    </div>
+                )}
+
+                {!isLoading && !error && notifications.length === 0 && (
+                    <div className="flex flex-col items-center justify-center py-20 gap-2">
+                        <Bell className="w-10 h-10 text-gray-300" />
+                        <p className="text-sm text-gray-400">새로운 알림이 없습니다.</p>
+                    </div>
+                )}
+
+                {notifications.length > 0 && (
+                    <div className="divide-y divide-gray-100 bg-white">
+                        {notifications.map((notification) => (
+                            <NotificationItem
+                                key={notification.id}
+                                notification={notification}
+                                onRead={readOne}
+                            />
+                        ))}
+                    </div>
+                )}
+
+                {isFetchingNextPage && (
+                    <div className="flex justify-center py-4">
+                        <Loader2 className="w-5 h-5 animate-spin text-pink-400" />
+                    </div>
+                )}
+
+                {!hasNextPage && notifications.length > 0 && (
+                    <p className="text-center text-xs text-gray-400 py-6">
+                        모든 알림을 불러왔습니다.
+                    </p>
+                )}
+
+                <div ref={observerRef} className="h-1" />
+            </main>
+        </div>
+    );
+};
+
+export default NotificationMain;
