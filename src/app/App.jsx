@@ -28,91 +28,101 @@ import RealInterviewSession from '@/app/pages/RealInterviewSession';
 import RealInterviewResultAI from '@/app/pages/RealInterviewResultAI';
 import OAuthCallback from '@/app/pages/OAuthCallback';
 import NotificationMain from '@/app/pages/NotificationMain';
+import PortfolioManagement from '@/app/pages/PortfolioManagement';
+import ProjectDetail from '@/app/pages/ProjectDetail';
+import ProjectAdd from '@/app/pages/ProjectAdd';
+import ProjectEdit from '@/app/pages/ProjectEdit';
 
 const SPLASH_SHOWN_KEY = 'qfeed_splash_shown';
 
 function AppRoutes() {
-    const { isAuthenticated, isLoading } = useAuth();
-    const location = useLocation();
+  const { isAuthenticated, isLoading } = useAuth();
+  const location = useLocation();
 
-    useEffect(() => {
-        sendPageView(location.pathname);
-    }, [location.pathname]);
+  useEffect(() => {
+    sendPageView(location.pathname);
+  }, [location.pathname]);
 
-    if (isLoading) return null;
+  if (isLoading) return null;
 
-    // 앱 실행 시(루트 또는 로그인 화면 진입 시) 스플래시를 한 번 보여준다.
-    const shouldShowSplash = (location.pathname === '/' || location.pathname === '/login')
-        && typeof sessionStorage !== 'undefined'
-        && !sessionStorage.getItem(SPLASH_SHOWN_KEY);
-    if (shouldShowSplash) {
-        return <Navigate to="/splash" replace />;
-    }
+  // 앱 실행 시(루트 또는 로그인 화면 진입 시) 스플래시를 한 번 보여준다.
+  const shouldShowSplash = (location.pathname === '/' || location.pathname === '/login')
+    && typeof sessionStorage !== 'undefined'
+    && !sessionStorage.getItem(SPLASH_SHOWN_KEY);
+  if (shouldShowSplash) {
+    return <Navigate to="/splash" replace />;
+  }
 
-    const SHOW_REAL_INTERVIEW = import.meta.env.VITE_SHOW_REAL_INTERVIEW === 'true';
+  const SHOW_REAL_INTERVIEW = import.meta.env.VITE_SHOW_REAL_INTERVIEW === 'true';
 
-    return (
-        <>
-            <Routes>
-                {/* Auth */}
-                <Route path="/splash" element={<Splash />} />
-                <Route path="/login" element={<AuthLogin />} />
-                <Route path="/oauth/redirect" element={<OAuthCallback />} />
+  return (
+    <>
+      <Routes>
+        {/* Auth */}
+        <Route path="/splash" element={<Splash />} />
+        <Route path="/login" element={<AuthLogin />} />
+        <Route path="/oauth/redirect" element={<OAuthCallback />} />
 
-                {/* Protected Routes */}
-                {isAuthenticated ? (
-                    <>
-                        <Route path="/" element={<Home />} />
+        {/* Protected Routes */}
+        {isAuthenticated ? (
+          <>
+            <Route path="/" element={<Home />} />
 
-                        {/* Practice Mode */}
-                        <Route path="/practice" element={<PracticeMain />} />
-                        <Route path="/practice/answer/:questionId" element={<PracticeAnswer />} />
-                        <Route path="/practice/answer-voice/:questionId" element={<PracticeAnswerVoice />} />
-                        <Route path="/practice/stt/:questionId" element={<PracticeSTT />} />
-                        <Route path="/practice/answer-edit/:questionId" element={<PracticeAnswerEdit />} />
-                        <Route path="/practice/answer-text/:questionId" element={<PracticeAnswerText />} />
-                        <Route path="/practice/result-keyword/:questionId" element={<PracticeResultKeyword />} />
-                        <Route path="/practice/result-ai/:questionId" element={<PracticeResultAI />} />
+            {/* Practice Mode */}
+            <Route path="/practice" element={<PracticeMain />} />
+            <Route path="/practice/answer/:questionId" element={<PracticeAnswer />} />
+            <Route path="/practice/answer-voice/:questionId" element={<PracticeAnswerVoice />} />
+            <Route path="/practice/stt/:questionId" element={<PracticeSTT />} />
+            <Route path="/practice/answer-edit/:questionId" element={<PracticeAnswerEdit />} />
+            <Route path="/practice/answer-text/:questionId" element={<PracticeAnswerText />} />
+            <Route path="/practice/result-keyword/:questionId" element={<PracticeResultKeyword />} />
+            <Route path="/practice/result-ai/:questionId" element={<PracticeResultAI />} />
 
-                        {/* Real Interview */}
-                        {(SHOW_REAL_INTERVIEW &&
-                            <>
-                                <Route path="/real-interview" element={<RealInterview />} />
-                                <Route path="/real-interview/session" element={<RealInterviewSession />} />
-                                <Route path="/real-interview/result-ai" element={<RealInterviewResultAI />} />
-                            </>
-                        )}
+            {/* Real Interview */}
+            {(SHOW_REAL_INTERVIEW &&
+              <>
+                <Route path="/real-interview" element={<RealInterview />} />
+                <Route path="/real-interview/session" element={<RealInterviewSession />} />
+                <Route path="/real-interview/result-ai" element={<RealInterviewResultAI />} />
+              </>
+            )}
 
-                        {/* Profile */}
-                        <Route path="/profile" element={<ProfileMain />} />
-                        <Route path="/profile/records/real/:answerId" element={<RealLearningRecordDetail />} />
-                        <Route path="/profile/records/:answerId" element={<LearningRecordDetail />} />
-                        <Route path="/settings" element={<SettingMain />} />
-                        <Route path="/notifications" element={<NotificationMain />} />
+            {/* Profile */}
+            <Route path="/profile" element={<ProfileMain />} />
+            <Route path="/profile/records/real/:answerId" element={<RealLearningRecordDetail />} />
+            <Route path="/profile/records/:answerId" element={<LearningRecordDetail />} />
+            <Route path="/settings" element={<SettingMain />} />
+            <Route path="/notifications" element={<NotificationMain />} />
 
-                        <Route path="*" element={<Navigate to="/" replace />} />
-                    </>
-                ) : (
-                    <Route path="*" element={<Navigate to="/login" replace />} />
-                )}
-            </Routes>
-            <Toaster />
-        </>
-    );
+            {/* Portfolio */}
+            <Route path="/portfolio" element={<PortfolioManagement />} />
+            <Route path="/portfolio/add" element={<ProjectAdd />} />
+            <Route path="/portfolio/:id" element={<ProjectDetail />} />
+            <Route path="/portfolio/edit/:id" element={<ProjectEdit />} />
+
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </>
+        ) : (
+          <Route path="*" element={<Navigate to="/login" replace />} />
+        )}
+      </Routes>
+      <Toaster />
+    </>
+  );
 }
 
 function App() {
-    return (
-        <QueryClientProvider client={queryClient}>
-            <BrowserRouter>
-                <AuthProvider>
-                    <PracticeQuestionProvider>
-                        <AppRoutes />
-                    </PracticeQuestionProvider>
-                </AuthProvider>
-            </BrowserRouter>
-        </QueryClientProvider>
-    );
+  return (
+    <QueryClientProvider client={queryClient}>
+      <BrowserRouter>
+        <AuthProvider>
+          <PracticeQuestionProvider>
+            <AppRoutes />
+          </PracticeQuestionProvider>
+        </AuthProvider>
+      </BrowserRouter>
+    </QueryClientProvider>
+  );
 }
 
 export default App;
