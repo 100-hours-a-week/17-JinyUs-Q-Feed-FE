@@ -15,7 +15,7 @@ import {
   getQuestionCategoryLabel,
   getQuestionTypeLabel,
 } from '@/app/constants/questionCategoryMeta';
-import { INTERVIEW_TYPES, INTERVIEW_TYPE_LABELS } from '@/app/constants/interviewTaxonomy';
+import { INTERVIEW_TYPES, INTERVIEW_TYPE_LABELS, QUESTION_TYPES } from '@/app/constants/interviewTaxonomy';
 
 const ANSWER_TYPE_LABELS = INTERVIEW_TYPE_LABELS;
 
@@ -183,24 +183,35 @@ const ProfileMain = () => {
   const { open: openFeedbackDialog, dialog: feedbackDialog } = useFeedbackFormDialog();
 
   const modeValue = modeFilter === ALL_FILTER_VALUE ? undefined : modeFilter;
+  const normalizedQuestionTypeFilter =
+    questionTypeFilter === QUESTION_TYPES.SYSTEM_DESIGN
+      ? ALL_FILTER_VALUE
+      : questionTypeFilter;
   const questionTypeValue =
-    questionTypeFilter === ALL_FILTER_VALUE ? undefined : questionTypeFilter;
-  const categoryValue = categoryFilter === ALL_FILTER_VALUE ? undefined : categoryFilter;
+    normalizedQuestionTypeFilter === ALL_FILTER_VALUE ? undefined : normalizedQuestionTypeFilter;
+  const categoryValue =
+    normalizedQuestionTypeFilter === ALL_FILTER_VALUE || categoryFilter === ALL_FILTER_VALUE
+      ? undefined
+      : categoryFilter;
 
   const questionTypeOptions = useMemo(() => {
-    const typeOptions = Object.keys(categoriesByType).map((typeKey) => ({
-      value: typeKey,
-      label: getQuestionTypeLabel(typeKey, questionTypeMap),
-    }));
+    const typeOptions = Object.keys(categoriesByType)
+      .filter((typeKey) => typeKey !== QUESTION_TYPES.SYSTEM_DESIGN)
+      .map((typeKey) => ({
+        value: typeKey,
+        label: getQuestionTypeLabel(typeKey, questionTypeMap),
+      }));
     return [{ value: ALL_FILTER_VALUE, label: '전체' }, ...typeOptions];
   }, [categoriesByType, questionTypeMap]);
 
   const categoryOptions = useMemo(() => {
-    if (questionTypeFilter === ALL_FILTER_VALUE) {
+    if (
+      normalizedQuestionTypeFilter === ALL_FILTER_VALUE
+    ) {
       return [{ value: ALL_FILTER_VALUE, label: '전체' }];
     }
 
-    const selectedTypeCategories = categoriesByType[questionTypeFilter];
+    const selectedTypeCategories = categoriesByType[normalizedQuestionTypeFilter];
     if (!selectedTypeCategories || typeof selectedTypeCategories !== 'object') {
       return [{ value: ALL_FILTER_VALUE, label: '전체' }];
     }
@@ -209,7 +220,7 @@ const ProfileMain = () => {
       { value: ALL_FILTER_VALUE, label: '전체' },
       ...Object.entries(selectedTypeCategories).map(([value, label]) => ({ value, label })),
     ];
-  }, [categoriesByType, questionTypeFilter]);
+  }, [categoriesByType, normalizedQuestionTypeFilter]);
 
   const requestScrollRestore = () => {
     scrollPositionRef.current = window.scrollY;
@@ -521,14 +532,14 @@ const ProfileMain = () => {
                   type="button"
                   className="filter-select-btn"
                   onClick={() => {
-                    if (questionTypeFilter === ALL_FILTER_VALUE) return;
+                    if (normalizedQuestionTypeFilter === ALL_FILTER_VALUE) return;
                     setIsModeOpen(false);
                     setIsTypeOpen(false);
                     setIsCategoryOpen((prev) => !prev);
                   }}
-                  disabled={questionTypeFilter === ALL_FILTER_VALUE}
+                  disabled={normalizedQuestionTypeFilter === ALL_FILTER_VALUE}
                 >
-                  {questionTypeFilter === ALL_FILTER_VALUE
+                  {normalizedQuestionTypeFilter === ALL_FILTER_VALUE
                     ? '타입 선택'
                     : (categoryOptions.find((option) => option.value === categoryFilter)?.label ?? '전체')}
                   <span className={`filter-arrow ${isCategoryOpen ? 'open' : ''}`}>▼</span>
