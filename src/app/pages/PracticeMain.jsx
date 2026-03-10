@@ -15,6 +15,7 @@ import {
     getQuestionCategoryColor,
     getQuestionTypeLabel,
 } from '@/app/constants/questionCategoryMeta';
+import { QUESTION_TYPES } from '@/app/constants/interviewTaxonomy';
 
 
 const SHOW_NOTIFICATIONS = import.meta.env.VITE_SHOW_NOTIFICATIONS === 'true';
@@ -60,14 +61,20 @@ const PracticeMain = () => {
     const { data: typeMap = {} } = useQuestionTypes();
     const categoryMap = categoryData?.flat ?? EMPTY_MAP;
     const categoriesByType = categoryData?.byType ?? EMPTY_MAP;
+    const normalizedSelectedType =
+        selectedType === QUESTION_TYPES.SYSTEM_DESIGN ? ALL_FILTER_VALUE : selectedType;
 
-    const typeOptions = Object.keys(categoriesByType).map((typeKey) => ({
-        value: typeKey,
-        label: getQuestionTypeLabel(typeKey, typeMap),
-    }));
+    const typeOptions = Object.keys(categoriesByType)
+        .filter((typeKey) => typeKey !== QUESTION_TYPES.SYSTEM_DESIGN)
+        .map((typeKey) => ({
+            value: typeKey,
+            label: getQuestionTypeLabel(typeKey, typeMap),
+        }));
 
     const selectedTypeCategories =
-        selectedType === ALL_FILTER_VALUE ? null : categoriesByType[selectedType];
+        normalizedSelectedType === ALL_FILTER_VALUE
+            ? null
+            : categoriesByType[normalizedSelectedType];
 
     const categoryOptions =
         selectedTypeCategories && typeof selectedTypeCategories === 'object'
@@ -86,8 +93,11 @@ const PracticeMain = () => {
         fetchNextPage,
     } = useQuestionsInfinite({
         query: debouncedQuery,
-        type: selectedType === ALL_FILTER_VALUE ? undefined : selectedType,
-        category: selectedCategory === ALL_FILTER_VALUE ? undefined : selectedCategory,
+        type: normalizedSelectedType === ALL_FILTER_VALUE ? undefined : normalizedSelectedType,
+        category:
+            normalizedSelectedType === ALL_FILTER_VALUE || selectedCategory === ALL_FILTER_VALUE
+                ? undefined
+                : selectedCategory,
     });
 
     const questions = useMemo(
@@ -127,7 +137,8 @@ const PracticeMain = () => {
         navigate(`/practice/answer/${question.id}`);
     };
 
-    const showCategoryRow = selectedType !== ALL_FILTER_VALUE && categoryOptions.length > 0;
+    const showCategoryRow =
+        normalizedSelectedType !== ALL_FILTER_VALUE && categoryOptions.length > 0;
 
     return (
         <div className="min-h-screen bg-[#FAFAFA] pb-20">
@@ -164,7 +175,7 @@ const PracticeMain = () => {
                             type="button"
                             onClick={() => handleTypeChange(ALL_FILTER_VALUE)}
                             className={`filter-chip ${
-                                selectedType === ALL_FILTER_VALUE ? 'active' : ''
+                                normalizedSelectedType === ALL_FILTER_VALUE ? 'active' : ''
                             }`}
                         >
                             {ALL_FILTER_LABEL}
@@ -175,7 +186,7 @@ const PracticeMain = () => {
                                 type="button"
                                 onClick={() => handleTypeChange(option.value)}
                                 className={`filter-chip ${
-                                    selectedType === option.value ? 'active' : ''
+                                    normalizedSelectedType === option.value ? 'active' : ''
                                 }`}
                             >
                                 {option.label}
@@ -183,7 +194,7 @@ const PracticeMain = () => {
                         ))}
                     </div>
                 </div>
-                {selectedType !== ALL_FILTER_VALUE && categoryOptions.length > 0 && (
+                {normalizedSelectedType !== ALL_FILTER_VALUE && categoryOptions.length > 0 && (
                     <div className="px-4 pb-4">
                         <div className="flex items-center gap-2 overflow-x-auto pb-2">
                             {categoryOptions.map((option) => (

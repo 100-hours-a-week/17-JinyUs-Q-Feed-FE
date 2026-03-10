@@ -106,13 +106,6 @@ const RealInterview = () => {
             gradient: 'from-primary-50 via-primary-100 to-secondary-100',
             onClick: () => handleStartRealInterview(QUESTION_TYPES.CS),
         },
-        {
-            title: '시스템 디자인',
-            description: '대규모 아키텍처 및 분산 시스템 설계 연습',
-            questionType: QUESTION_TYPES.SYSTEM_DESIGN,
-            gradient: 'from-secondary-50 via-primary-100 to-primary-50',
-            onClick: () => handleStartRealInterview(QUESTION_TYPES.SYSTEM_DESIGN),
-        },
         ...(SHOW_PORTFOLIO_INTERVIEW
             ? [
                 {
