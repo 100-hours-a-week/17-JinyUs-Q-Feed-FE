@@ -368,11 +368,11 @@ const ProfileMain = () => {
             <h2 className="profile-name">{nickname || '사용자'}</h2>
             <Button
               onClick={() => navigate('/portfolio')}
-              variant="secondary"
+              variant="outline"
               size="sm"
-              className="bg-white/20 text-white border-white/30 hover:bg-white/30 text-xs"
+              className="mt-2 border-primary-200 bg-primary-50 text-primary-700 shadow-sm hover:border-primary-300 hover:bg-primary-100 hover:text-primary-800 text-xs"
             >
-              포트폴리오 관리
+              내 포트폴리오 관리
             </Button>
           </div>
           <div className="profile-card-actions">
