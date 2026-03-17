@@ -251,6 +251,10 @@ function PortfolioProjectFields({
                   {architectureFileName}
                 </span>
                 <div className="flex gap-2">
+                  <Button variant="outline" size="sm" onClick={onFileRemove}>
+                    <X className="mr-1 h-4 w-4" />
+                    삭제
+                  </Button>
                   <label className="cursor-pointer">
                     <Button variant="outline" size="sm" asChild>
                       <span>
@@ -265,10 +269,6 @@ function PortfolioProjectFields({
                       className="hidden"
                     />
                   </label>
-                  <Button variant="outline" size="sm" onClick={onFileRemove}>
-                    <X className="mr-1 h-4 w-4" />
-                    삭제
-                  </Button>
                 </div>
               </div>
 
@@ -281,20 +281,22 @@ function PortfolioProjectFields({
               )}
             </>
           ) : (
-            <label className="cursor-pointer">
-              <Button variant="outline" size="sm" asChild>
-                <span>
-                  <Upload className="mr-1 h-4 w-4" />
-                  첨부하기
-                </span>
-              </Button>
-              <input
-                type="file"
-                accept=".jpg,.jpeg,.png,.gif"
-                onChange={onFileUpload}
-                className="hidden"
-              />
-            </label>
+            <div className="flex justify-end">
+              <label className="cursor-pointer">
+                <Button variant="outline" size="sm" asChild>
+                  <span>
+                    <Upload className="mr-1 h-4 w-4" />
+                    첨부하기
+                  </span>
+                </Button>
+                <input
+                  type="file"
+                  accept=".jpg,.jpeg,.png,.gif"
+                  onChange={onFileUpload}
+                  className="hidden"
+                />
+              </label>
+            </div>
           )}
         </Card>
       </section>
