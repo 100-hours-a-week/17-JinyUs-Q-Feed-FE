@@ -1,12 +1,9 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Card } from '@/app/components/ui/card';
-import { Button } from '@/app/components/ui/button';
-import { Input } from '@/app/components/ui/input';
-import { Textarea } from '@/app/components/ui/textarea';
-import { AppHeader } from '@/app/components/AppHeader';
-import BottomNav from '@/app/components/BottomNav';
-import { Upload, X } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { Button } from '@/app/components/ui/button'
+import { AppHeader } from '@/app/components/AppHeader'
+import BottomNav from '@/app/components/BottomNav'
+import PortfolioProjectFields from '@/app/components/PortfolioProjectFields'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -15,195 +12,285 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from '@/app/components/ui/alert-dialog';
-import { toast } from 'sonner';
+} from '@/app/components/ui/alert-dialog'
+import {
+  MAX_PORTFOLIO_PROJECTS,
+  buildPortfolioProjectPayload,
+  getSelectedTechStacks,
+  mergeTechStackLookup,
+  resolvePortfolioErrorMessage,
+  toPortfolioProjectPayload,
+  uploadPortfolioImage,
+  validatePortfolioImage,
+} from '@/app/utils/portfolio'
+import { usePortfolio, useReplacePortfolio, useTechStacks } from '@/app/hooks/usePortfolio'
+import { Loader2, RefreshCw } from 'lucide-react'
+import { toast } from 'sonner'
+
+const INITIAL_FORM_DATA = {
+  projectName: '',
+  content: '',
+  techStackIds: [],
+  architectureImageFileId: null,
+  architectureImageUrl: '',
+  architectureImageFile: null,
+}
 
 const ProjectAdd = () => {
-  const navigate = useNavigate();
-  const [showWarningDialog, setShowWarningDialog] = useState(false);
-  const [formData, setFormData] = useState({
-    name: '',
-    techStack: '',
-    architecture: null,
-    description: '',
-  });
+  const navigate = useNavigate()
+  const [showWarningDialog, setShowWarningDialog] = useState(false)
+  const [formData, setFormData] = useState(INITIAL_FORM_DATA)
+  const [techStackSearch, setTechStackSearch] = useState('')
+  const [techStackLookup, setTechStackLookup] = useState({})
+  const [imagePreviewUrl, setImagePreviewUrl] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const isFormValid =
-    formData.name.trim() &&
-    formData.techStack.trim() &&
-    formData.description.trim();
+  const {
+    data: portfolio,
+    isLoading: isPortfolioLoading,
+    isError: isPortfolioError,
+    error: portfolioError,
+    refetch: refetchPortfolio,
+  } = usePortfolio()
+  const {
+    techStacks = [],
+    isLoading: isTechStacksLoading,
+    isFetching: isTechStacksFetching,
+    isFetchingNextPage: isFetchingNextTechStacks,
+    error: techStacksError,
+    hasNextPage: hasNextTechStacks,
+    fetchNextPage: fetchNextTechStacks,
+    refetch: refetchTechStacks,
+    debouncedQuery: debouncedTechStackQuery,
+    hasQuery: hasTechStackQuery,
+  } = useTechStacks({ query: techStackSearch })
+  const replacePortfolioMutation = useReplacePortfolio()
 
-  const handleFileUpload = (e) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      // 파일 크기 체크 (5MB)
-      if (file.size > 5 * 1024 * 1024) {
-        toast.error('이미지는 5MB 이하만 가능합니다.');
-        return;
-      }
+  const projects = portfolio?.projects ?? []
+  const techStackSearchKeyword = techStackSearch.trim()
+  const isFormValid = Boolean(
+    formData.projectName.trim() &&
+      formData.content.trim() &&
+      formData.techStackIds.length > 0
+  )
 
-      // 파일 형식 체크
-      const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
-      if (!validTypes.includes(file.type)) {
-        toast.error('jpg, jpeg, png, gif 형식만 업로드 가능합니다.');
-        return;
-      }
-
-      setFormData({ ...formData, architecture: file });
+  useEffect(() => {
+    if (!formData.architectureImageFile) {
+      setImagePreviewUrl(formData.architectureImageUrl || '')
+      return undefined
     }
-  };
+
+    const nextPreviewUrl = URL.createObjectURL(formData.architectureImageFile)
+    setImagePreviewUrl(nextPreviewUrl)
+
+    return () => {
+      URL.revokeObjectURL(nextPreviewUrl)
+    }
+  }, [formData.architectureImageFile, formData.architectureImageUrl])
+
+  useEffect(() => {
+    setTechStackLookup((current) => mergeTechStackLookup(current, techStacks))
+  }, [techStacks])
+
+  const isLoading = isPortfolioLoading
+  const isError = isPortfolioError
+  const errorMessage = portfolioError?.message
+  const techStacksEmptyMessage = techStackSearchKeyword
+    ? '검색된 기술 스택이 없습니다.'
+    : '기술 스택 이름을 입력해 검색하세요.'
+
+  const canSubmit = isFormValid && projects.length < MAX_PORTFOLIO_PROJECTS
+
+  const retry = () => {
+    refetchPortfolio()
+    if (hasTechStackQuery) {
+      refetchTechStacks()
+    }
+  }
+
+  const selectedTechStacks = useMemo(
+    () => getSelectedTechStacks(formData.techStackIds, techStackLookup),
+    [formData.techStackIds, techStackLookup]
+  )
+
+  const handleFieldChange = (field, value) => {
+    setFormData((current) => ({
+      ...current,
+      [field]: value,
+    }))
+  }
+
+  const handleTechStackToggle = (techStackId) => {
+    setFormData((current) => {
+      const exists = current.techStackIds.includes(techStackId)
+      return {
+        ...current,
+        techStackIds: exists
+          ? current.techStackIds.filter((value) => value !== techStackId)
+          : [...current.techStackIds, techStackId],
+      }
+    })
+  }
+
+  const handleFileUpload = (event) => {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+
+    if (!file) return
+
+    const validationMessage = validatePortfolioImage(file)
+    if (validationMessage) {
+      toast.error(validationMessage)
+      return
+    }
+
+    setFormData((current) => ({
+      ...current,
+      architectureImageFileId: null,
+      architectureImageFile: file,
+      architectureImageUrl: '',
+    }))
+  }
 
   const handleRemoveFile = () => {
-    setFormData({ ...formData, architecture: null });
-  };
+    setFormData((current) => ({
+      ...current,
+      architectureImageFileId: null,
+      architectureImageFile: null,
+      architectureImageUrl: '',
+    }))
+  }
 
   const handleSubmit = () => {
-    if (isFormValid) {
-      setShowWarningDialog(true);
-    }
-  };
+    if (!canSubmit) return
 
-  const handleConfirm = () => {
-    toast.success('프로젝트가 추가되었습니다');
-    navigate('/portfolio');
-  };
+    if (projects.length >= MAX_PORTFOLIO_PROJECTS) {
+      toast.error('프로젝트는 3개까지 등록할 수 있습니다.')
+      return
+    }
+
+    setShowWarningDialog(true)
+  }
+
+  const handleConfirm = async () => {
+    setIsSubmitting(true)
+
+    try {
+      const uploadedArchitectureImage = formData.architectureImageFile
+        ? await uploadPortfolioImage(formData.architectureImageFile)
+        : null
+      const architectureImageFileId =
+        uploadedArchitectureImage?.fileId ?? formData.architectureImageFileId
+
+      const newProjectPayload = buildPortfolioProjectPayload({
+        projectName: formData.projectName,
+        content: formData.content,
+        architectureImageFileId,
+        techStackIds: selectedTechStacks.map((techStack) => techStack.techStackId),
+      })
+
+      const response = await replacePortfolioMutation.mutateAsync({
+        projects: [
+          ...projects.map(toPortfolioProjectPayload),
+          newProjectPayload,
+        ],
+      })
+
+      const responseProjects = response?.data?.projects ?? []
+      const savedProject = responseProjects[responseProjects.length - 1]
+
+      toast.success('프로젝트가 추가되었습니다.')
+      navigate(
+        savedProject?.projectId ? `/portfolio/${savedProject.projectId}` : '/portfolio',
+        { replace: true }
+      )
+    } catch (error) {
+      toast.error(resolvePortfolioErrorMessage(error, '프로젝트 추가에 실패했습니다.'))
+    } finally {
+      setIsSubmitting(false)
+      setShowWarningDialog(false)
+    }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background pb-20">
+        <AppHeader title="프로젝트 추가" onBack={() => navigate('/portfolio')} />
+        <div className="mx-auto max-w-lg p-6">
+          <div className="flex flex-col items-center justify-center rounded-2xl border border-[#F3F3F3] bg-white p-10 text-center shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
+            <Loader2 className="mb-3 h-5 w-5 animate-spin text-primary-500" />
+            <p className="text-sm text-muted-foreground">필수 데이터를 불러오는 중입니다.</p>
+          </div>
+        </div>
+        <BottomNav />
+      </div>
+    )
+  }
+
+  if (isError) {
+    return (
+      <div className="min-h-screen bg-background pb-20">
+        <AppHeader title="프로젝트 추가" onBack={() => navigate('/portfolio')} />
+        <div className="mx-auto max-w-lg p-6">
+          <div className="flex flex-col items-center justify-center rounded-2xl border border-[#F3F3F3] bg-white p-10 text-center shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
+            <p className="mb-4 text-sm text-muted-foreground">
+              {errorMessage || '데이터를 불러오지 못했습니다.'}
+            </p>
+            <Button variant="outline" onClick={retry}>
+              <RefreshCw className="mr-2 h-4 w-4" />
+              다시 시도
+            </Button>
+          </div>
+        </div>
+        <BottomNav />
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-background pb-20">
       <AppHeader title="프로젝트 추가" onBack={() => navigate('/portfolio')} />
 
-      <div className="p-6 max-w-lg mx-auto space-y-6">
-        {/* 프로젝트명 */}
-        <section>
-          <label className="text-sm text-muted-foreground mb-2 block">
-            프로젝트 이름 *
-          </label>
-          <Input
-            placeholder="프로젝트 이름을 작성해주세요."
-            value={formData.name}
-            onChange={(e) => {
-              const value = e.target.value;
-              if (value.length <= 30) {
-                setFormData({ ...formData, name: value });
-              }
-            }}
-            maxLength={30}
-          />
-          <p className="text-xs text-muted-foreground mt-1">
-            {formData.name.length}/30자
-          </p>
-        </section>
+      <div className="mx-auto max-w-lg space-y-6 p-6">
+        <PortfolioProjectFields
+          formData={formData}
+          imagePreviewUrl={imagePreviewUrl}
+          techStacks={techStacks}
+          selectedTechStacks={selectedTechStacks}
+          techStackSearch={techStackSearch}
+          isTechStacksLoading={hasTechStackQuery && isTechStacksLoading && techStacks.length === 0}
+          isTechStacksSearching={
+            techStackSearchKeyword !== debouncedTechStackQuery ||
+            (hasTechStackQuery && isTechStacksFetching)
+          }
+          techStacksErrorMessage={techStacksError?.message || ''}
+          emptyTechStacksMessage={techStacksEmptyMessage}
+          hasNextTechStacks={Boolean(hasNextTechStacks)}
+          isFetchingNextTechStacks={isFetchingNextTechStacks}
+          onFieldChange={handleFieldChange}
+          onTechStackSearchChange={setTechStackSearch}
+          onTechStackToggle={handleTechStackToggle}
+          onLoadMoreTechStacks={() => fetchNextTechStacks()}
+          onFileUpload={handleFileUpload}
+          onFileRemove={handleRemoveFile}
+        />
 
-        {/* 기술 스택 */}
-        <section>
-          <label className="text-sm text-muted-foreground mb-2 block">
-            기술 스택 *
-          </label>
-          <Input
-            placeholder="기술 스택을 작성해주세요(콤마로 구분)"
-            value={formData.techStack}
-            onChange={(e) => {
-              const value = e.target.value;
-              if (value.length <= 100) {
-                setFormData({ ...formData, techStack: value });
-              }
-            }}
-            maxLength={100}
-          />
-          <p className="text-xs text-muted-foreground mt-1">
-            {formData.techStack.length}/100자
-          </p>
-        </section>
-
-        {/* 시스템 아키텍처 이미지 */}
-        <section>
-          <label className="text-sm text-muted-foreground mb-2 block">
-            시스템 아키텍처
-          </label>
-          <Card className="p-4">
-            {formData.architecture ? (
-              <div className="flex items-center justify-between">
-                <span className="text-sm truncate flex-1">
-                  {formData.architecture.name}
-                </span>
-                <div className="flex gap-2 ml-2">
-                  <label className="cursor-pointer">
-                    <Button variant="outline" size="sm" asChild>
-                      <span>
-                        <Upload className="w-4 h-4 mr-1" />
-                        첨부하기
-                      </span>
-                    </Button>
-                    <input
-                      type="file"
-                      accept=".jpg,.jpeg,.png,.gif"
-                      onChange={handleFileUpload}
-                      className="hidden"
-                    />
-                  </label>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleRemoveFile}
-                  >
-                    <X className="w-4 h-4 mr-1" />
-                    삭제
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <label className="cursor-pointer">
-                <Button variant="outline" size="sm" asChild>
-                  <span>
-                    <Upload className="w-4 h-4 mr-1" />
-                    첨부하기
-                  </span>
-                </Button>
-                <input
-                  type="file"
-                  accept=".jpg,.jpeg,.png,.gif"
-                  onChange={handleFileUpload}
-                  className="hidden"
-                />
-              </label>
-            )}
-          </Card>
-        </section>
-
-        {/* 프로젝트 설명 */}
-        <section>
-          <label className="text-sm text-muted-foreground mb-2 block">
-            해결한 문제 / 성과 *
-          </label>
-          <Textarea
-            placeholder="프로젝트 간 겪은 문제와 해결 스토리를 적어주세요"
-            value={formData.description}
-            onChange={(e) => {
-              const value = e.target.value;
-              if (value.length <= 1000) {
-                setFormData({ ...formData, description: value });
-              }
-            }}
-            maxLength={1000}
-            rows={10}
-            className="resize-none"
-          />
-          <p className="text-xs text-muted-foreground mt-1">
-            {formData.description.length}/1000자
-          </p>
-        </section>
-
-        {/* 추가하기 버튼 */}
         <Button
           onClick={handleSubmit}
-          disabled={!isFormValid}
-          className="w-full bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 text-white disabled:opacity-50"
+          disabled={!canSubmit || isSubmitting || replacePortfolioMutation.isPending}
+          className="w-full bg-gradient-to-r from-primary-500 to-primary-600 text-white hover:from-primary-600 hover:to-primary-700 disabled:opacity-50"
         >
-          추가하기
+          {isSubmitting || replacePortfolioMutation.isPending ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              저장 중...
+            </>
+          ) : (
+            '추가하기'
+          )}
         </Button>
       </div>
 
-      {/* 제출 전 경고 모달 */}
       <AlertDialog open={showWarningDialog} onOpenChange={setShowWarningDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -213,8 +300,8 @@ const ProjectAdd = () => {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>취소</AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirm}>
-              제출하기
+            <AlertDialogAction onClick={handleConfirm} disabled={isSubmitting}>
+              {isSubmitting ? '제출 중...' : '제출하기'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -222,7 +309,7 @@ const ProjectAdd = () => {
 
       <BottomNav />
     </div>
-  );
-};
+  )
+}
 
-export default ProjectAdd;
+export default ProjectAdd
