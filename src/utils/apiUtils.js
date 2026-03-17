@@ -12,17 +12,48 @@ export async function parseJsonSafe(response) {
 }
 
 export async function extractErrorMessage(response, defaultMessage = DEFAULT_ERROR_MESSAGE) {
+  const { message } = await extractErrorDetails(response, defaultMessage)
+  return message
+}
+
+export async function extractErrorDetails(response, defaultMessage = DEFAULT_ERROR_MESSAGE) {
   try {
     const data = await parseJsonSafe(response)
-    if (!data) return defaultMessage
-    if (typeof data === 'string') return data
-    if (data.message) return data.message
-    if (data.error) return data.error
-    if (data.errorMessage) return data.errorMessage
-    return defaultMessage
+    if (!data) {
+      return {
+        message: defaultMessage,
+        code: null,
+        data: null,
+      }
+    }
+    if (typeof data === 'string') {
+      return {
+        message: data,
+        code: null,
+        data,
+      }
+    }
+    return {
+      message: data.message || data.error || data.errorMessage || defaultMessage,
+      code: data.errorCode || data.code || null,
+      data,
+    }
   } catch {
-    return defaultMessage
+    return {
+      message: defaultMessage,
+      code: null,
+      data: null,
+    }
   }
+}
+
+function createApiError(message, { code = null, status = null, data = null } = {}) {
+  const error = new Error(message)
+  error.name = 'ApiError'
+  if (code) error.code = code
+  if (status != null) error.status = status
+  if (data != null) error.data = data
+  return error
 }
 
 export async function handleResponse(response, fallbackRedirect, defaultErrorMessage = DEFAULT_ERROR_MESSAGE) {
@@ -36,7 +67,12 @@ export async function handleResponse(response, fallbackRedirect, defaultErrorMes
   }
 
   if (!response.ok) {
-    throw new Error(await extractErrorMessage(response, defaultErrorMessage))
+    const { message, code, data } = await extractErrorDetails(response, defaultErrorMessage)
+    throw createApiError(message, {
+      code,
+      status: response.status,
+      data,
+    })
   }
 
   return await parseJsonSafe(response)
