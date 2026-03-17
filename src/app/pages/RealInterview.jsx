@@ -4,6 +4,8 @@ import { Loader2 } from 'lucide-react';
 import BottomNav from '@/app/components/BottomNav';
 import { toast } from 'sonner';
 import { AppHeader } from '@/app/components/AppHeader';
+import { Button } from '@/app/components/ui/button';
+import { usePortfolio } from '@/app/hooks/usePortfolio';
 import { createInterviewSession } from '@/api/interviewApi';
 import { SESSION_STORAGE_KEYS } from '@/app/constants/storageKeys';
 import { INTERVIEW_TYPES, QUESTION_TYPES } from '@/app/constants/interviewTaxonomy';
@@ -13,6 +15,9 @@ const SHOW_NOTIFICATIONS = import.meta.env.VITE_SHOW_NOTIFICATIONS === 'true';
 const REAL_SESSION_STORAGE_KEY = SESSION_STORAGE_KEYS.REAL_INTERVIEW_SESSION;
 const TEXT_SESSION_CREATE_FAILED = '면접 세션 생성에 실패했습니다.';
 const TEXT_SESSION_CREATING = '실전면접 준비 중';
+const TEXT_PORTFOLIO_REQUIRED = '실전 면접은 포트폴리오 프로젝트를 1개 이상 등록한 뒤 시작할 수 있습니다.';
+const TEXT_PORTFOLIO_LOADING = '포트폴리오 프로젝트를 확인하는 중입니다.';
+const TEXT_PORTFOLIO_FETCH_FAILED = '포트폴리오 상태를 확인하지 못했습니다. 잠시 후 다시 시도해주세요.';
 
 const safeSetSessionItem = (key, value) => {
     try {
@@ -62,6 +67,17 @@ const saveRealInterviewSession = ({ questionType, sessionData }) => {
 const RealInterview = () => {
     const navigate = useNavigate();
     const [isCreatingSession, setIsCreatingSession] = useState(false);
+    const {
+        data: portfolio,
+        isLoading: isPortfolioLoading,
+        isError: isPortfolioError,
+        error: portfolioError,
+        refetch: refetchPortfolio,
+    } = usePortfolio();
+    const portfolioProjectCount = portfolio?.projects?.length ?? 0;
+    const isPortfolioStartBlocked =
+        isPortfolioLoading || isPortfolioError || portfolioProjectCount === 0;
+    const canStartRealInterview = !isCreatingSession && !isPortfolioStartBlocked;
 
     const handleComingSoon = (title) => {
         toast.info(`${title} 서비스는 현재 준비 중입니다.`, {
@@ -71,6 +87,18 @@ const RealInterview = () => {
 
     const handleStartRealInterview = async (questionType) => {
         if (isCreatingSession) return;
+        if (isPortfolioLoading) {
+            toast.info(TEXT_PORTFOLIO_LOADING);
+            return;
+        }
+        if (isPortfolioError) {
+            toast.error(portfolioError?.message || TEXT_PORTFOLIO_FETCH_FAILED);
+            return;
+        }
+        if (portfolioProjectCount === 0) {
+            toast.info(TEXT_PORTFOLIO_REQUIRED);
+            return;
+        }
 
         setIsCreatingSession(true);
         try {
@@ -124,12 +152,52 @@ const RealInterview = () => {
             <AppHeader title="실전 면접" onBack={() => navigate('/')} showNotifications={SHOW_NOTIFICATIONS} />
 
             <div className="flex-1 flex flex-col p-4 gap-4 pb-24 min-h-0">
+                <section className="rounded-2xl border border-primary-200/80 bg-white/85 p-4 shadow-[0_8px_22px_rgba(255,143,163,0.08)] backdrop-blur-sm">
+                    {isPortfolioLoading ? (
+                        <div className="flex items-center gap-2 text-sm text-gray-700">
+                            <Loader2 size={16} className="animate-spin text-primary-500" />
+                            <span>{TEXT_PORTFOLIO_LOADING}</span>
+                        </div>
+                    ) : isPortfolioError ? (
+                        <div className="flex flex-col gap-3">
+                            <p className="text-sm text-gray-700">
+                                {portfolioError?.message || TEXT_PORTFOLIO_FETCH_FAILED}
+                            </p>
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                onClick={() => refetchPortfolio()}
+                                className="w-fit border-primary-200 bg-primary-50 text-primary-700 hover:bg-primary-100"
+                            >
+                                다시 확인
+                            </Button>
+                        </div>
+                    ) : portfolioProjectCount === 0 ? (
+                        <div className="flex flex-col gap-3">
+                            <p className="text-sm text-gray-700">{TEXT_PORTFOLIO_REQUIRED}</p>
+                            <Button
+                                type="button"
+                                size="sm"
+                                onClick={() => navigate('/portfolio')}
+                                className="w-fit"
+                            >
+                                포트폴리오 관리
+                            </Button>
+                        </div>
+                    ) : (
+                        <p className="text-sm text-gray-700">
+                            현재 등록된 프로젝트 {portfolioProjectCount}개를 기반으로 실전 면접을 시작할 수 있습니다.
+                        </p>
+                    )}
+                </section>
+
                 {menuItems.map((item, index) => {
                     return (
                         <button
                             key={index}
                             onClick={item.onClick}
-                            disabled={isCreatingSession}
+                            disabled={!canStartRealInterview}
                             className={`flex-1 relative overflow-hidden rounded-2xl p-5 flex flex-col justify-center text-left transition-all active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed bg-gradient-to-br ${item.gradient} border border-primary-200/80 shadow-[0_8px_22px_rgba(255,143,163,0.14)] min-h-[100px]`}
                         >
                             <div className="relative z-10">
@@ -144,6 +212,12 @@ const RealInterview = () => {
                             {item.title === '개별 포트폴리오' && (
                                 <div className="absolute top-2 right-4 text-[10px] font-medium text-primary-700 bg-white/75 border border-primary-200 px-2 py-0.5 rounded-full backdrop-blur-sm">
                                     Coming Soon
+                                </div>
+                            )}
+
+                            {!isPortfolioLoading && !isPortfolioError && portfolioProjectCount === 0 && (
+                                <div className="absolute bottom-3 right-4 text-[10px] font-medium text-amber-700 bg-white/85 border border-amber-200 px-2 py-0.5 rounded-full backdrop-blur-sm">
+                                    프로젝트 등록 필요
                                 </div>
                             )}
                         </button>
