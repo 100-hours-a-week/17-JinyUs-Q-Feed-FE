@@ -107,7 +107,7 @@ const SettingMain = () => {
 
     return (
         <div className="min-h-screen bg-[#FAFAFA] pb-12">
-            <AppHeader title="설정" onBack={() => navigate('/profile')} showNotifications={SHOW_NOTIFICATIONS} />
+            <AppHeader title="설정" onBack={() => navigate('/profile')} showNotifications={SHOW_NOTIFICATIONS} onNotification={() => navigate('/notifications')} />
 
             <div className="p-6 max-w-lg mx-auto space-y-6">
                 {settingGroups.map((group, groupIndex) => (
