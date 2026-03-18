@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Bell, MessageSquare, Star, Award, Info, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 import { AppHeader } from '@/app/components/AppHeader';
 import { useNotificationsInfinite } from '@/app/hooks/useNotificationsInfinite';
+import { useUnreadNotification } from '@/context/UnreadNotificationContext';
 
 // notificationType 코드 → 아이콘 매핑
 const TYPE_ICON = {
@@ -32,8 +34,23 @@ const NotificationItem = ({ notification, onRead }) => {
     const navigate = useNavigate();
 
     const handleClick = () => {
-        if (!notification.read) onRead(notification.id);
-        if (notification.deeplink) navigate(notification.deeplink);
+        const { deeplink, read, id } = notification
+
+        if (deeplink) {
+            // 내부 경로만 허용 — '/'로 시작하지 않으면 차단
+            // http://, https://, javascript: 등 외부/위험 스킴 방지
+            if (!deeplink.startsWith('/')) {
+                toast.error('유효하지 않은 이동 경로')
+                return
+            }
+            // 읽음 처리(fire and forget) — 실패해도 이동 수행
+            if (!read) onRead(id)
+            navigate(deeplink)
+            return
+        }
+
+        // deeplink 없으면 읽음 처리만
+        if (!read) onRead(id)
     };
 
     return (
@@ -83,6 +100,7 @@ const NotificationItem = ({ notification, onRead }) => {
 };
 
 const NotificationMain = () => {
+    const { clearUnread } = useUnreadNotification()
     const {
         notifications,
         isLoading,
@@ -122,7 +140,7 @@ const NotificationMain = () => {
 
     const headerRight = hasUnread ? (
         <button
-            onClick={() => readAll()}
+            onClick={() => readAll(undefined, { onSuccess: clearUnread })}
             className="text-xs font-medium text-pink-500 hover:text-pink-600 px-2 py-1"
         >
             모두 읽기

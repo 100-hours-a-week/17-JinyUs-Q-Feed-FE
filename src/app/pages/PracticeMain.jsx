@@ -16,6 +16,7 @@ import {
     getQuestionTypeLabel,
 } from '@/app/constants/questionCategoryMeta';
 import { QUESTION_TYPES } from '@/app/constants/interviewTaxonomy';
+import { useUnreadNotification } from '@/context/UnreadNotificationContext';
 
 
 const SHOW_NOTIFICATIONS = import.meta.env.VITE_SHOW_NOTIFICATIONS === 'true';
@@ -32,6 +33,7 @@ const EMPTY_MAP = Object.freeze({});
 const PracticeMain = () => {
     const navigate = useNavigate();
     const { setSelectedQuestion } = usePracticeQuestion();
+    const { hasUnread } = useUnreadNotification();
     const [searchQuery, setSearchQuery] = useState(INITIAL_SEARCH_QUERY);
     const [debouncedQuery, setDebouncedQuery] = useState(INITIAL_SEARCH_QUERY);
     const [selectedType, setSelectedType] = useState(ALL_FILTER_VALUE);
@@ -159,10 +161,13 @@ const PracticeMain = () => {
                         {SHOW_NOTIFICATIONS && (
                             <button
                                 className="relative flex-shrink-0 flex items-center justify-center w-9 h-9 rounded-full hover:bg-gray-100 transition-colors"
-                                aria-label="알림"
+                                aria-label={hasUnread ? '알림, 미읽음 있음' : '알림'}
                                 onClick={() => navigate('/notifications')}
                             >
                                 <Bell className="w-5 h-5 text-muted-foreground" />
+                                {hasUnread && (
+                                    <span aria-hidden="true" className="absolute top-0.5 right-0.5 w-2 h-2 bg-red-500 rounded-full pointer-events-none" />
+                                )}
                             </button>
                         )}
                     </div>
