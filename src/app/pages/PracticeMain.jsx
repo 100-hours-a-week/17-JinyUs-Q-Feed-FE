@@ -160,6 +160,7 @@ const PracticeMain = () => {
                             <button
                                 className="relative flex-shrink-0 flex items-center justify-center w-9 h-9 rounded-full hover:bg-gray-100 transition-colors"
                                 aria-label="알림"
+                                onClick={() => navigate('/notifications')}
                             >
                                 <Bell className="w-5 h-5 text-muted-foreground" />
                             </button>
