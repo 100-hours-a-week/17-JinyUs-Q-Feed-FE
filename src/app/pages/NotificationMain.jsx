@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
+import debounce from 'lodash/debounce';
 import { useNavigate } from 'react-router-dom';
 import { Bell, MessageSquare, Star, Award, Info, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -114,14 +115,21 @@ const NotificationMain = () => {
 
     const observerRef = useRef(null);
 
+    const debouncedFetchNext = useMemo(
+        () => debounce(() => fetchNextPage(), 300),
+        [fetchNextPage]
+    );
+
+    useEffect(() => () => debouncedFetchNext.cancel(), [debouncedFetchNext]);
+
     const observerCallback = useCallback(
         (entries) => {
             const [entry] = entries;
             if (entry.isIntersecting && hasNextPage && !isFetchingNextPage) {
-                fetchNextPage();
+                debouncedFetchNext();
             }
         },
-        [hasNextPage, isFetchingNextPage, fetchNextPage]
+        [hasNextPage, isFetchingNextPage, debouncedFetchNext]
     );
 
     useEffect(() => {
