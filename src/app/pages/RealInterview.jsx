@@ -151,7 +151,7 @@ const RealInterview = () => {
 
     return (
         <div className="relative flex flex-col h-screen bg-background overflow-hidden max-w-lg mx-auto border-x border-transparent">
-            <AppHeader title="실전 면접" onBack={() => navigate('/')} showNotifications={SHOW_NOTIFICATIONS} />
+            <AppHeader title="실전 면접" onBack={() => navigate('/')} showNotifications={SHOW_NOTIFICATIONS} onNotification={() => navigate('/notifications')}/>
 
             <div className="flex-1 flex flex-col p-4 gap-4 pb-24 min-h-0">
                 <section className="rounded-2xl border border-primary-200/80 bg-white/85 p-4 shadow-[0_8px_22px_rgba(255,143,163,0.08)] backdrop-blur-sm">
