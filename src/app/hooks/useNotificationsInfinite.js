@@ -12,7 +12,12 @@ export function useNotificationsInfinite() {
     queryKey: NOTIFICATIONS_QUERY_KEY,
     queryFn: async ({ pageParam = null }) => {
       const response = await fetchNotifications({ cursor: pageParam, size: PAGE_SIZE })
-      const { notifications: records = [], pagination = {} } = response?.data ?? {}
+      const { content: records = [], last = true, size = PAGE_SIZE } = response?.data ?? {}
+      const pagination = {
+        hasNext: !last,
+        nextCursor: !last && records.length ? records[records.length - 1].id : undefined,
+        size,
+      }
       return { records, pagination }
     },
     initialPageParam: null,

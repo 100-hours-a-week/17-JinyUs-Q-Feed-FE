@@ -24,7 +24,7 @@ export async function fetchNotifications({ cursor = null, size = 20, signal } = 
  * @param {number|string} notificationId
  */
 export async function markNotificationRead(notificationId) {
-  const response = await api.patch(`/api/notifications/${notificationId}/read`, {})
+  const response = await api.patch(`/api/notifications/${notificationId}`, {})
   return handleResponse(response)
 }
 
