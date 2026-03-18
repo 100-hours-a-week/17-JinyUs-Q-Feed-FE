@@ -35,3 +35,21 @@ export async function markAllNotificationsRead() {
   const response = await api.patch('/api/notifications/read-all', {})
   return handleResponse(response)
 }
+
+/**
+ * 알림 수신 설정 조회
+ */
+export async function fetchNotificationPreferences() {
+  const response = await api.get('/api/notifications/preferences')
+  return handleResponse(response)
+}
+
+/**
+ * 알림 수신 설정 변경
+ * @param {string} type - 알림 타입 (예: 'ANSWER_FEEDBACK', 'REVISIT')
+ * @param {boolean} enabled
+ */
+export async function updateNotificationPreference(type, enabled) {
+  const response = await api.put(`/api/notifications/preferences/${type}`, { enabled })
+  return handleResponse(response)
+}
