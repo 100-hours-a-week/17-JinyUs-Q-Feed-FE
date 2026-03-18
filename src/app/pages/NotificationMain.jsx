@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import debounce from 'lodash/debounce';
 import { useNavigate } from 'react-router-dom';
-import { Bell, MessageSquare, Star, Award, Info, Loader2 } from 'lucide-react';
+import { Bell, BellRing, Clock, MessageSquare, Star, Award, Info, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { AppHeader } from '@/app/components/AppHeader';
+import { formatRelativeTime } from '@/app/utils/notificationTime';
 import { useNotificationsInfinite } from '@/app/hooks/useNotificationsInfinite';
 import { useUnreadNotification } from '@/context/UnreadNotificationContext';
 
@@ -13,23 +14,13 @@ const TYPE_ICON = {
     ACHIEVEMENT: <Award size={18} />,
     RECOMMENDATION: <Star size={18} />,
     SYSTEM: <Info size={18} />,
+    ANSWER_FEEDBACK: <MessageSquare size={18} />,
+    REVISIT: <BellRing size={18} />,
+    NOTICE: <Info size={18} />,
+    PROJECT_REMINDER: <Clock size={18} />,
 };
 
 const getTypeIcon = (type) => TYPE_ICON[type] ?? <Bell size={18} />;
-
-// createdAt → 상대 시간 포맷
-const formatRelativeTime = (isoString) => {
-    if (!isoString) return '';
-    const diff = Date.now() - new Date(isoString).getTime();
-    const minutes = Math.floor(diff / 60_000);
-    if (minutes < 1) return '방금 전';
-    if (minutes < 60) return `${minutes}분 전`;
-    const hours = Math.floor(minutes / 60);
-    if (hours < 24) return `${hours}시간 전`;
-    const days = Math.floor(hours / 24);
-    if (days < 7) return `${days}일 전`;
-    return new Date(isoString).toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' });
-};
 
 const NotificationItem = ({ notification, onRead }) => {
     const navigate = useNavigate();
