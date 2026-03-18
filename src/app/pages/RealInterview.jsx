@@ -15,7 +15,7 @@ const SHOW_NOTIFICATIONS = import.meta.env.VITE_SHOW_NOTIFICATIONS === 'true';
 const REAL_SESSION_STORAGE_KEY = SESSION_STORAGE_KEYS.REAL_INTERVIEW_SESSION;
 const TEXT_SESSION_CREATE_FAILED = '면접 세션 생성에 실패했습니다.';
 const TEXT_SESSION_CREATING = '실전면접 준비 중';
-const TEXT_PORTFOLIO_REQUIRED = '실전 면접은 포트폴리오 프로젝트를 1개 이상 등록한 뒤 시작할 수 있습니다.';
+const TEXT_PORTFOLIO_REQUIRED = '개별 포트폴리오 실전 면접은 포트폴리오 프로젝트를 1개 이상 등록한 뒤 시작할 수 있습니다.';
 const TEXT_PORTFOLIO_LOADING = '포트폴리오 프로젝트를 확인하는 중입니다.';
 const TEXT_PORTFOLIO_FETCH_FAILED = '포트폴리오 상태를 확인하지 못했습니다. 잠시 후 다시 시도해주세요.';
 
@@ -75,9 +75,9 @@ const RealInterview = () => {
         refetch: refetchPortfolio,
     } = usePortfolio();
     const portfolioProjectCount = portfolio?.projects?.length ?? 0;
-    const isPortfolioStartBlocked =
+    const isPortfolioInterviewBlocked =
         isPortfolioLoading || isPortfolioError || portfolioProjectCount === 0;
-    const canStartRealInterview = !isCreatingSession && !isPortfolioStartBlocked;
+    const canStartRealInterview = !isCreatingSession;
 
     const handleComingSoon = (title) => {
         toast.info(`${title} 서비스는 현재 준비 중입니다.`, {
@@ -87,17 +87,19 @@ const RealInterview = () => {
 
     const handleStartRealInterview = async (questionType) => {
         if (isCreatingSession) return;
-        if (isPortfolioLoading) {
-            toast.info(TEXT_PORTFOLIO_LOADING);
-            return;
-        }
-        if (isPortfolioError) {
-            toast.error(portfolioError?.message || TEXT_PORTFOLIO_FETCH_FAILED);
-            return;
-        }
-        if (portfolioProjectCount === 0) {
-            toast.info(TEXT_PORTFOLIO_REQUIRED);
-            return;
+        if (questionType === QUESTION_TYPES.PORTFOLIO) {
+            if (isPortfolioLoading) {
+                toast.info(TEXT_PORTFOLIO_LOADING);
+                return;
+            }
+            if (isPortfolioError) {
+                toast.error(portfolioError?.message || TEXT_PORTFOLIO_FETCH_FAILED);
+                return;
+            }
+            if (portfolioProjectCount === 0) {
+                toast.info(TEXT_PORTFOLIO_REQUIRED);
+                return;
+            }
         }
 
         setIsCreatingSession(true);
@@ -187,18 +189,43 @@ const RealInterview = () => {
                         </div>
                     ) : (
                         <p className="text-sm text-gray-700">
-                            현재 등록된 프로젝트 {portfolioProjectCount}개를 기반으로 실전 면접을 시작할 수 있습니다.
+                            현재 등록된 프로젝트 {portfolioProjectCount}개를 기반으로 개별 포트폴리오 실전 면접을 사용할 수 있습니다.
                         </p>
                     )}
                 </section>
 
                 {menuItems.map((item, index) => {
+                    const isPortfolioItemBlocked =
+                        item.questionType === QUESTION_TYPES.PORTFOLIO && isPortfolioInterviewBlocked;
+                    const handleItemClick = () => {
+                        if (isCreatingSession) return;
+                        if (isPortfolioItemBlocked) {
+                            if (isPortfolioLoading) {
+                                toast.info(TEXT_PORTFOLIO_LOADING);
+                                return;
+                            }
+                            if (isPortfolioError) {
+                                toast.error(portfolioError?.message || TEXT_PORTFOLIO_FETCH_FAILED);
+                                return;
+                            }
+                            if (portfolioProjectCount === 0) {
+                                toast.info(TEXT_PORTFOLIO_REQUIRED);
+                                return;
+                            }
+                        }
+
+                        item.onClick();
+                    };
+
                     return (
                         <button
                             key={index}
-                            onClick={item.onClick}
+                            onClick={handleItemClick}
                             disabled={!canStartRealInterview}
-                            className={`flex-1 relative overflow-hidden rounded-2xl p-5 flex flex-col justify-center text-left transition-all active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed bg-gradient-to-br ${item.gradient} border border-primary-200/80 shadow-[0_8px_22px_rgba(255,143,163,0.14)] min-h-[100px]`}
+                            aria-disabled={isPortfolioItemBlocked ? true : undefined}
+                            className={`flex-1 relative overflow-hidden rounded-2xl p-5 flex flex-col justify-center text-left transition-all disabled:opacity-70 disabled:cursor-not-allowed bg-gradient-to-br ${item.gradient} border border-primary-200/80 shadow-[0_8px_22px_rgba(255,143,163,0.14)] min-h-[100px] ${
+                                isPortfolioItemBlocked ? 'cursor-default opacity-70' : 'active:scale-[0.98]'
+                            }`}
                         >
                             <div className="relative z-10">
                                 <h2 className="text-xl font-bold mb-1 text-gray-900">{item.title}</h2>
@@ -215,7 +242,10 @@ const RealInterview = () => {
                                 </div>
                             )}
 
-                            {!isPortfolioLoading && !isPortfolioError && portfolioProjectCount === 0 && (
+                            {item.questionType === QUESTION_TYPES.PORTFOLIO &&
+                                !isPortfolioLoading &&
+                                !isPortfolioError &&
+                                portfolioProjectCount === 0 && (
                                 <div className="absolute bottom-3 right-4 text-[10px] font-medium text-amber-700 bg-white/85 border border-amber-200 px-2 py-0.5 rounded-full backdrop-blur-sm">
                                     프로젝트 등록 필요
                                 </div>
