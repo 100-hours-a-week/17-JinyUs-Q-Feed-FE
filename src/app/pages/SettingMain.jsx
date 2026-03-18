@@ -19,6 +19,7 @@ import { useState } from 'react';
 import { AppHeader } from '@/app/components/AppHeader';
 import { deleteAccount } from '@/api/userApi';
 import { useFeedbackFormDialog } from '@/app/hooks/useFeedbackFormDialog';
+import { useNotificationPreferences } from '@/app/hooks/useNotificationPreferences';
 
 const SettingMain = () => {
 
@@ -28,7 +29,7 @@ const SettingMain = () => {
     const { logout } = useAuth();
     const [showLogoutDialog, setShowLogoutDialog] = useState(false);
     const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-    const [notifications, setNotifications] = useState(true);
+    const { prefMap, isLoading: prefLoading, mutate: updatePref, pendingType } = useNotificationPreferences();
     const { open: openFeedbackDialog, dialog: feedbackDialog } = useFeedbackFormDialog();
 
     const handleLogout = async () => {
@@ -58,8 +59,9 @@ const SettingMain = () => {
                     label: 'AI 평가 완료 알림',
                     action: (
                         <Switch
-                            checked={notifications}
-                            onCheckedChange={setNotifications}
+                            checked={prefMap['ANSWER_FEEDBACK'] ?? false}
+                            onCheckedChange={(enabled) => updatePref({ type: 'ANSWER_FEEDBACK', enabled })}
+                            disabled={pendingType === 'ANSWER_FEEDBACK' || prefLoading}
                         />
                     ),
                 },
@@ -68,8 +70,9 @@ const SettingMain = () => {
                     label: '접속 유도 알림',
                     action: (
                         <Switch
-                            checked={notifications}
-                            onCheckedChange={setNotifications}
+                            checked={prefMap['REVISIT'] ?? false}
+                            onCheckedChange={(enabled) => updatePref({ type: 'REVISIT', enabled })}
+                            disabled={pendingType === 'REVISIT' || prefLoading}
                         />
                     ),
                 },
