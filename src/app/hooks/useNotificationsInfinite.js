@@ -3,7 +3,7 @@ import { fetchNotifications, markNotificationRead, markAllNotificationsRead } fr
 
 const PAGE_SIZE = 20
 
-export const NOTIFICATIONS_QUERY_KEY = ['notifications']
+export const NOTIFICATIONS_QUERY_KEY = ['notifications', 'cursor', PAGE_SIZE]
 
 export function useNotificationsInfinite() {
   const queryClient = useQueryClient()
@@ -11,8 +11,8 @@ export function useNotificationsInfinite() {
   const query = useInfiniteQuery({
     queryKey: NOTIFICATIONS_QUERY_KEY,
     queryFn: async ({ pageParam = null }) => {
-      const response = await fetchNotifications({ cursor: pageParam, limit: PAGE_SIZE })
-      const { records = [], pagination = {} } = response?.data ?? response ?? {}
+      const response = await fetchNotifications({ cursor: pageParam, size: PAGE_SIZE })
+      const { notifications: records = [], pagination = {} } = response?.data ?? {}
       return { records, pagination }
     },
     initialPageParam: null,
