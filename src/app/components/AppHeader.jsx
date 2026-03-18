@@ -2,6 +2,28 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import svgPaths from "@/imports/svg-h6m3rufpzr";
 import { Settings, Bell } from 'lucide-react';
+import { useUnreadNotification } from '@/context/UnreadNotificationContext';
+
+function BellButton({ onNotification, isDark }) {
+    const { hasUnread } = useUnreadNotification()
+    return (
+        <button
+            onClick={onNotification}
+            className={`relative size-[32px] flex items-center justify-center rounded-full transition-colors cursor-pointer ${
+                isDark ? 'hover:bg-white/10' : 'hover:bg-gray-100'
+            }`}
+            aria-label={hasUnread ? '알림, 미읽음 있음' : '알림'}
+        >
+            <Bell className="w-5 h-5" />
+            {hasUnread && (
+                <span
+                    aria-hidden="true"
+                    className="absolute top-0.5 right-0.5 w-2 h-2 bg-red-500 rounded-full pointer-events-none"
+                />
+            )}
+        </button>
+    )
+}
 
 export const AppHeader = ({
     title,
@@ -96,13 +118,7 @@ export const AppHeader = ({
                             </button>
                         )}
                         {showNotifications && (
-                            <button
-                                onClick={onNotification}
-                                className={`relative size-[32px] flex items-center justify-center rounded-full transition-colors cursor-pointer ${isDark ? 'hover:bg-white/10' : 'hover:bg-gray-100'}`}
-                                aria-label="알림"
-                            >
-                                <Bell className="w-5 h-5" />
-                            </button>
+                            <BellButton onNotification={onNotification} isDark={isDark} />
                         )}
                     </>
                 )}
