@@ -3,6 +3,15 @@ const DEFAULT_ERROR_MESSAGE = '요청 처리에 실패했습니다.'
 // 끝의 슬래시 제거 (base + '/api/...' 조합 시 // 가 되지 않도록)
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080').replace(/\/+$/, '')
 
+// 401 응답 시 호출할 핸들러 (AuthContext에서 등록)
+// refresh/exchange/logout 경로는 각 호출자가 직접 처리하므로 제외
+let unauthorizedHandler = null
+const AUTH_BYPASS_PATHS = ['/api/auth/tokens', '/api/auth/oauth/exchange', '/api/auth/logout']
+
+export function setUnauthorizedHandler(handler) {
+  unauthorizedHandler = handler
+}
+
 export async function parseJsonSafe(response) {
   const contentType = response.headers.get('Content-Type') || ''
   if (response.status === 204 || !contentType.includes('application/json')) {
@@ -106,6 +115,15 @@ export async function authFetch(url, options = {}) {
     credentials: 'include',
     ...(signal && { signal }),
   })
+
+  // 보호 API에서 401이면 전역 세션 무효화 트리거
+  // refresh/exchange/logout 경로는 호출자가 직접 처리하므로 건너뜀
+  if (response.status === 401) {
+    const isAuthBypass = AUTH_BYPASS_PATHS.some((path) => url.includes(path))
+    if (!isAuthBypass && unauthorizedHandler) {
+      unauthorizedHandler('api_401')
+    }
+  }
 
   if (parseResponse) {
     return handleResponse(response)
