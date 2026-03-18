@@ -1,19 +1,32 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '@/context/AuthContext'
-import { exchangeOAuthCode, refreshTokens } from '@/api/authApi'
+import { exchangeOAuthCode } from '@/api/authApi'
 import { toast } from 'sonner'
 
 const OAuthCallback = () => {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
-  const { login } = useAuth()
+  const { login, invalidateSession } = useAuth()
   const [error, setError] = useState(null)
   const processed = useRef(false)
+  // 언마운트 시 setTimeout 누수 방지
+  const redirectTimerRef = useRef(null)
+
+  // 에러 발생 시 2초 후 /login으로 이동. 언마운트되면 타이머를 정리해 stale navigation 방지.
+  useEffect(() => {
+    return () => {
+      if (redirectTimerRef.current) clearTimeout(redirectTimerRef.current)
+    }
+  }, [])
 
   useEffect(() => {
     if (processed.current) return
     processed.current = true
+
+    const scheduleLoginRedirect = () => {
+      redirectTimerRef.current = setTimeout(() => navigate('/login', { replace: true }), 2000)
+    }
 
     const handleCallback = async () => {
       const exchangeCode = searchParams.get('exchange_code')
@@ -22,9 +35,10 @@ const OAuthCallback = () => {
 
       if (errorParam) {
         const msg = errorMessage || '로그인에 실패했습니다.'
+        invalidateSession('oauth_error_param')
         setError(msg)
         toast.error(msg)
-        setTimeout(() => navigate('/login', { replace: true }), 2000)
+        scheduleLoginRedirect()
         return
       }
 
@@ -35,28 +49,23 @@ const OAuthCallback = () => {
           toast.success('로그인 성공!')
           navigate('/', { replace: true })
         } catch {
+          invalidateSession('oauth_exchange_failed')
           setError('인증 처리에 실패했습니다.')
           toast.error('인증 처리에 실패했습니다.')
-          setTimeout(() => navigate('/login', { replace: true }), 2000)
+          scheduleLoginRedirect()
         }
         return
       }
 
-      // exchange_code 없이 도달한 경우, HttpOnly 쿠키의 refresh token으로 시도
-      try {
-        const newToken = await refreshTokens()
-        login(newToken)
-        toast.success('로그인 성공!')
-        navigate('/', { replace: true })
-      } catch {
-        setError('인증 정보를 찾을 수 없습니다.')
-        toast.error('인증 정보를 찾을 수 없습니다.')
-        setTimeout(() => navigate('/login', { replace: true }), 2000)
-      }
+      // exchange_code 없이 도달한 경우 → 잘못된 접근, 깨끗한 상태로 재로그인 유도
+      invalidateSession('oauth_no_exchange_code')
+      setError('인증 정보를 찾을 수 없습니다.')
+      toast.error('인증 정보를 찾을 수 없습니다.')
+      scheduleLoginRedirect()
     }
 
     handleCallback()
-  }, [searchParams, login, navigate])
+  }, [searchParams, login, invalidateSession, navigate])
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-rose-50 via-white to-pink-50 flex items-center justify-center">
