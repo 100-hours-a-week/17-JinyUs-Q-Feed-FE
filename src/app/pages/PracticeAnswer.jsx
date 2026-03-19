@@ -51,9 +51,9 @@ const PracticeAnswer = () => {
             <div className="p-6 max-w-lg mx-auto space-y-6">
                 <Card className="p-6 bg-gradient-to-br from-rose-50 to-white">
                     <h2 className="text-lg mb-4">{question.title}</h2>
-                    <p className="text-sm text-muted-foreground mb-4">
-                        {question.description}
-                    </p>
+                    {/*<p className="text-sm text-muted-foreground mb-4">*/}
+                        {/*{question.description}*/}
+                    {/*</p>*/}
                 </Card>
 
                 <Card className="p-6">

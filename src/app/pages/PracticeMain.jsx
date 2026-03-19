@@ -267,7 +267,7 @@ const PracticeMain = () => {
 
                                 <h3 className="mb-2">{question.title}</h3>
                                 <p className="text-sm text-muted-foreground line-clamp-2 mb-3">
-                                    {question.description}
+                                    {/*{question.description}*/}
                                 </p>
                             </Card>
                             );
