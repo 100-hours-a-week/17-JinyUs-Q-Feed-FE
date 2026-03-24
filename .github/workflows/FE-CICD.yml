@@ -65,8 +65,8 @@ jobs:
         env:
           VITE_API_BASE_URL: ${{ steps.api-url.outputs.url }}
           VITE_SHOW_REAL_INTERVIEW: true
-          VITE_SHOW_PORTFOLIO_INTERVIEW: false
-          VITE_SHOW_NOTIFICATIONS: false
+          VITE_SHOW_PORTFOLIO_INTERVIEW: true
+          VITE_SHOW_NOTIFICATIONS: true
         run: npm run build
       
       # 7. package.json에서 버전 정보 추출

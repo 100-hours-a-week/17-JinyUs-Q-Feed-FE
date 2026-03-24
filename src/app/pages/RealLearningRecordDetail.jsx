@@ -3,7 +3,18 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { AppHeader } from '@/app/components/AppHeader';
 import { Card } from '@/app/components/ui/card';
 import { Button } from '@/app/components/ui/button';
-import { AlertCircle, ChevronLeft, ChevronRight, Home, ListChecks, Loader2, Sparkles, ThumbsUp } from 'lucide-react';
+import {
+  AlertCircle,
+  ChevronLeft,
+  ChevronRight,
+  Home,
+  ListChecks,
+  Loader2,
+  CircleHelp,
+  CircleQuestionMark,
+  Sparkles,
+  ThumbsUp,
+} from 'lucide-react';
 import {
   PolarAngleAxis,
   PolarGrid,
@@ -15,7 +26,8 @@ import {
 import { useAnswerDetail } from '@/app/hooks/useAnswerDetail';
 import { useQuestionCategories } from '@/app/hooks/useQuestionCategories';
 import { getQuestionCategoryLabel } from '@/app/constants/questionCategoryMeta';
-import { getFileReadPresignedUrl } from '@/api/fileApi';
+import { useTurnVideoSource } from '@/app/hooks/useTurnVideoSource';
+import TopicTurnVideoCard from '@/app/components/TopicTurnVideoCard';
 
 const TEXT_PAGE_TITLE = '실전 학습 기록 상세';
 const TEXT_HEADER_DESC = '실전 면접 결과와 AI 피드백을 확인해보세요';
@@ -24,8 +36,9 @@ const TEXT_NOT_FOUND = '실전 학습 기록을 찾을 수 없습니다';
 const TEXT_GO_PROFILE = '학습 기록으로 돌아가기';
 const TEXT_RETRY_HELP = '잠시 후 다시 시도해 주세요.';
 const TEXT_QUESTION_LABEL = '질문';
-const TEXT_MY_ANSWER_LABEL = '내 답변';
+const TEXT_FOLLOW_UP_QUESTION_LABEL = '꼬리질문';
 const TEXT_METRICS_TITLE = '종합 역량 점수';
+const TEXT_OVERALL_FEEDBACK_SECTION_TITLE = '전체 피드백';
 const TEXT_STRENGTHS_TITLE = '전체 강점';
 const TEXT_IMPROVEMENTS_TITLE = '전체 개선점';
 const TEXT_TOPIC_FEEDBACK_TITLE = '주제별 피드백';
@@ -39,15 +52,9 @@ const TEXT_MISSING = '누락 키워드';
 const TEXT_NONE = '없음';
 const TEXT_FEEDBACK_EMPTY = '피드백 정보가 없습니다.';
 const TEXT_RADAR_LABEL = '평가';
-const TEXT_INTERVIEW_VIDEO_TITLE = '질문별 답변 영상';
 const TEXT_INTERVIEW_VIDEO_EMPTY = '표시할 답변 영상이 없습니다.';
-const TEXT_TURN_LABEL = '주제';
-const TEXT_VIDEO_LABEL = '답변 영상';
-const TEXT_VIDEO_EXPIRES_LABEL = '영상 링크 만료 시 새로고침 해주세요.';
-const TEXT_VIDEO_MISSING_CARD = '영상이 없습니다.';
-const TEXT_VIDEO_LOADING = '영상 불러오는 중...';
-const TEXT_PREV_TOPIC = '이전 주제';
-const TEXT_NEXT_TOPIC = '다음 주제';
+const TEXT_PREV_TOPIC = '이전 질문';
+const TEXT_NEXT_TOPIC = '다음 질문';
 
 const FEEDBACK_SPLIT_DELIMITER = '●';
 const FEEDBACK_BULLET = '•';
@@ -55,6 +62,7 @@ const FEEDBACK_DASH = '-';
 const METRIC_SCORE_MAX = 5;
 const RADAR_DOMAIN_MAX = 100;
 const SWIPE_THRESHOLD_PX = 48;
+const TOPIC_TURN_SWIPE_DURATION_MS = 300;
 
 const toTrimmedString = (value) => {
   if (typeof value !== 'string') return '';
@@ -134,53 +142,17 @@ const toFileId = (value) => {
   return null;
 };
 
-const buildTurnVideoKey = (turnOrder, index) => `${turnOrder}-${index}`;
-
-const parseAmzDateMs = (value) => {
-  const normalized = toTrimmedString(value);
-  const match = normalized.match(
-    /^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z$/
-  );
-  if (!match) return null;
-
-  const [, year, month, day, hour, minute, second] = match;
-  const timestamp = Date.UTC(
-    Number.parseInt(year, 10),
-    Number.parseInt(month, 10) - 1,
-    Number.parseInt(day, 10),
-    Number.parseInt(hour, 10),
-    Number.parseInt(minute, 10),
-    Number.parseInt(second, 10)
-  );
-  return Number.isFinite(timestamp) ? timestamp : null;
-};
-
-const isExpiredS3PresignedUrl = (resourceUrl) => {
-  const normalizedUrl = toTrimmedString(resourceUrl);
-  if (!normalizedUrl) return true;
-
-  let parsedUrl;
-  try {
-    parsedUrl = new URL(normalizedUrl);
-  } catch {
-    return false;
+const toTopicId = (value) => {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return Math.trunc(value);
   }
-
-  const amzDateRaw =
-    parsedUrl.searchParams.get('X-Amz-Date') ??
-    parsedUrl.searchParams.get('x-amz-date');
-  const expiresRaw =
-    parsedUrl.searchParams.get('X-Amz-Expires') ??
-    parsedUrl.searchParams.get('x-amz-expires');
-
-  const issuedAtMs = parseAmzDateMs(amzDateRaw);
-  if (issuedAtMs === null) return false;
-
-  const expiresSeconds = Number.parseInt(toTrimmedString(expiresRaw), 10);
-  if (!Number.isFinite(expiresSeconds) || expiresSeconds < 0) return false;
-
-  return Date.now() >= issuedAtMs + expiresSeconds * 1000;
+  if (typeof value === 'string' && /^-?\d+$/.test(value.trim())) {
+    return Number.parseInt(value.trim(), 10);
+  }
+  return null;
 };
+
+const buildTurnVideoKey = (turnOrder, index) => `${turnOrder}-${index}`;
 
 const hasRealFeedbackShape = (candidate) => {
   if (!candidate || typeof candidate !== 'object') return false;
@@ -225,14 +197,10 @@ const RealLearningRecordDetail = () => {
   const { data, isLoading, error } = useAnswerDetail(answerId);
   const { data: categoryData } = useQuestionCategories();
   const CATEGORY_LABELS = useMemo(() => categoryData?.flat ?? {}, [categoryData]);
-  const [resolvedVideoSources, setResolvedVideoSources] = useState({});
-  const [videoLoadFailedMap, setVideoLoadFailedMap] = useState({});
-  const [videoReadyMap, setVideoReadyMap] = useState({});
-  const [activeTurnIndex, setActiveTurnIndex] = useState(0);
-  const videoReadUrlCacheRef = useRef(new Map());
-  const inFlightVideoReadUrlRef = useRef(new Map());
-  const refreshingTurnVideoRef = useRef(new Set());
-  const swipeStartXRef = useRef(null);
+  const [activeTurnIndexByTopic, setActiveTurnIndexByTopic] = useState({});
+  const [topicTurnMotionMap, setTopicTurnMotionMap] = useState({});
+  const swipeStartXRef = useRef({});
+  const topicTurnMotionTimeoutRef = useRef(new Map());
 
   const answerDetail = useMemo(() => {
     const resolved = data?.data ?? data;
@@ -289,7 +257,7 @@ const RealLearningRecordDetail = () => {
       ? feedbackData.interview_history
       : [];
 
-    return rows
+    const normalizedTurns = rows
       .map((item, idx) => {
         const categoryKey = toTrimmedString(item?.category);
         const videoPlayUrl = toTrimmedString(
@@ -308,8 +276,8 @@ const RealLearningRecordDetail = () => {
           answerText: toTrimmedString(item?.answer_text ?? item?.answerText),
           category: categoryKey,
           categoryLabel: getQuestionCategoryLabel(categoryKey, CATEGORY_LABELS),
+          topicId: toTopicId(item?.topic_id ?? item?.topicId),
           videoPlayUrl,
-          videoPlayUrlExpired: isExpiredS3PresignedUrl(videoPlayUrl),
           videoExpiresAt: toTrimmedString(
             item?.video_url_expires_at ??
               item?.videoUrlExpiresAt ??
@@ -320,151 +288,121 @@ const RealLearningRecordDetail = () => {
         };
       })
       .sort((a, b) => a.turnOrder - b.turnOrder);
+
+    return normalizedTurns.map((turn, idx) => ({
+      ...turn,
+      turnKey: buildTurnVideoKey(turn.turnOrder, idx),
+    }));
   }, [feedbackData, CATEGORY_LABELS]);
 
-  const getTurnVideoReadUrl = useCallback(async (fileId, { forceRefresh = false } = {}) => {
-    const normalizedFileId = toFileId(fileId);
-    if (!normalizedFileId) return '';
-    const fileIdKey = String(normalizedFileId);
+  const interviewHistoryByTopic = useMemo(() => {
+    return interviewHistory.reduce((acc, turn) => {
+      const topicKey = turn.topicId === null ? 'unknown' : String(turn.topicId);
+      if (!acc[topicKey]) {
+        acc[topicKey] = [];
+      }
+      acc[topicKey].push(turn);
+      return acc;
+    }, {});
+  }, [interviewHistory]);
 
-    if (forceRefresh) {
-      videoReadUrlCacheRef.current.delete(fileIdKey);
-      inFlightVideoReadUrlRef.current.delete(fileIdKey);
-    } else {
-      const cachedUrl = toTrimmedString(videoReadUrlCacheRef.current.get(fileIdKey));
-      if (cachedUrl) return cachedUrl;
-    }
+  const {
+    ensureTurnVideoUrl,
+    refreshTurnVideoUrl,
+    getTurnVideoUrl,
+  } = useTurnVideoSource(interviewHistory);
 
-    let readPromise = inFlightVideoReadUrlRef.current.get(fileIdKey);
-    if (!readPromise) {
-      readPromise = getFileReadPresignedUrl(normalizedFileId)
-        .then((readResult) => {
-          const readPayload = readResult?.data ?? readResult ?? {};
-          return toTrimmedString(readPayload.presignedUrl ?? readPayload.presigned_url);
-        })
-        .finally(() => {
-          inFlightVideoReadUrlRef.current.delete(fileIdKey);
-        });
-      inFlightVideoReadUrlRef.current.set(fileIdKey, readPromise);
+  const clearTopicTurnMotionTimeout = useCallback((topicKey) => {
+    const existingTimeoutId = topicTurnMotionTimeoutRef.current.get(topicKey);
+    if (typeof existingTimeoutId === 'number') {
+      window.clearTimeout(existingTimeoutId);
     }
-
-    const resolvedUrl = toTrimmedString(await readPromise);
-    if (resolvedUrl) {
-      videoReadUrlCacheRef.current.set(fileIdKey, resolvedUrl);
-    }
-    return resolvedUrl;
+    topicTurnMotionTimeoutRef.current.delete(topicKey);
   }, []);
 
-  const handleTurnVideoLoadError = useCallback(async (turn, turnIndex) => {
-    const turnKey = buildTurnVideoKey(turn?.turnOrder, turnIndex);
+  useEffect(() => {
+    const timeoutMap = topicTurnMotionTimeoutRef.current;
+    return () => {
+      timeoutMap.forEach((timeoutId) => {
+        if (typeof timeoutId === 'number') {
+          window.clearTimeout(timeoutId);
+        }
+      });
+      timeoutMap.clear();
+    };
+  }, []);
 
-    if (!turn?.videoFileId) {
-      setVideoLoadFailedMap((prev) => ({ ...prev, [turnKey]: true }));
-      return;
-    }
-    if (refreshingTurnVideoRef.current.has(turnKey)) {
-      return;
-    }
+  const getTopicTurnIndex = useCallback((topicKey, totalCount) => {
+    if (totalCount <= 0) return 0;
 
-    refreshingTurnVideoRef.current.add(turnKey);
-    try {
-      const refreshedUrl = await getTurnVideoReadUrl(turn.videoFileId, { forceRefresh: true });
-      if (!refreshedUrl) {
-        throw new Error('empty_video_url');
-      }
+    const rawIndex = activeTurnIndexByTopic?.[topicKey];
+    if (typeof rawIndex !== 'number' || !Number.isFinite(rawIndex)) return 0;
+    return Math.max(0, Math.min(Math.trunc(rawIndex), totalCount - 1));
+  }, [activeTurnIndexByTopic]);
 
-      setResolvedVideoSources((prev) => ({
+  const shiftTopicTurnIndex = useCallback((topicKey, totalCount, step) => {
+    if (!topicKey || totalCount <= 0) return;
+    setActiveTurnIndexByTopic((prev) => {
+      const current = typeof prev?.[topicKey] === 'number' ? prev[topicKey] : 0;
+      const normalized = Math.max(0, Math.min(Math.trunc(current), totalCount - 1));
+      const nextIndex = Math.max(0, Math.min(normalized + step, totalCount - 1));
+      if (nextIndex === normalized) return prev;
+      return {
         ...prev,
-        [turnKey]: refreshedUrl,
-      }));
-      setVideoLoadFailedMap((prev) => {
-        if (!prev[turnKey]) return prev;
+        [topicKey]: nextIndex,
+      };
+    });
+  }, []);
+
+  const triggerTopicTurnMotion = useCallback((topicKey, direction) => {
+    if (!topicKey || !direction) return;
+    setTopicTurnMotionMap((prev) => ({
+      ...prev,
+      [topicKey]: direction,
+    }));
+    clearTopicTurnMotionTimeout(topicKey);
+
+    const timeoutId = window.setTimeout(() => {
+      setTopicTurnMotionMap((prev) => {
+        if (!prev[topicKey]) return prev;
         const next = { ...prev };
-        delete next[turnKey];
+        delete next[topicKey];
         return next;
       });
-    } catch {
-      setVideoLoadFailedMap((prev) => ({ ...prev, [turnKey]: true }));
-    } finally {
-      refreshingTurnVideoRef.current.delete(turnKey);
-    }
-  }, [getTurnVideoReadUrl]);
+      topicTurnMotionTimeoutRef.current.delete(topicKey);
+    }, TOPIC_TURN_SWIPE_DURATION_MS);
 
-  useEffect(() => {
-    let cancelled = false;
+    topicTurnMotionTimeoutRef.current.set(topicKey, timeoutId);
+  }, [clearTopicTurnMotionTimeout]);
 
-    const loadTurnVideos = async () => {
-      const targets = interviewHistory
-        .map((turn, idx) => ({ turn, idx }))
-        .filter(
-          ({ turn }) =>
-            (!turn.videoPlayUrl || turn.videoPlayUrlExpired) &&
-            Boolean(turn.videoFileId)
-        );
+  const moveTopicTurnIndex = useCallback((topicKey, totalCount, step) => {
+    if (!topicKey || totalCount <= 0) return;
+    const currentIndex = getTopicTurnIndex(topicKey, totalCount);
+    const nextIndex = Math.max(0, Math.min(currentIndex + step, totalCount - 1));
+    if (nextIndex === currentIndex) return;
 
-      if (targets.length === 0) {
-        if (!cancelled) setResolvedVideoSources({});
-        return;
-      }
+    shiftTopicTurnIndex(topicKey, totalCount, step);
+    triggerTopicTurnMotion(topicKey, step > 0 ? 'next' : 'prev');
+  }, [getTopicTurnIndex, shiftTopicTurnIndex, triggerTopicTurnMotion]);
 
-      const nextVideoSources = {};
+  const handlePrevTurn = useCallback((topicKey, totalCount) => {
+    moveTopicTurnIndex(topicKey, totalCount, -1);
+  }, [moveTopicTurnIndex]);
 
-      for (let idx = 0; idx < targets.length; idx += 1) {
-        const turn = targets[idx]?.turn;
-        const originalIndex = targets[idx]?.idx ?? idx;
-        if (!turn) continue;
+  const handleNextTurn = useCallback((topicKey, totalCount) => {
+    moveTopicTurnIndex(topicKey, totalCount, 1);
+  }, [moveTopicTurnIndex]);
 
-        try {
-          const fallbackUrl = toTrimmedString(await getTurnVideoReadUrl(turn.videoFileId));
-          if (!fallbackUrl) continue;
-          nextVideoSources[buildTurnVideoKey(turn.turnOrder, originalIndex)] = fallbackUrl;
-        } catch {
-          // fallback URL 조회 실패 시 해당 턴은 텍스트만 표시
-        }
-      }
-
-      if (cancelled) return;
-      setResolvedVideoSources(nextVideoSources);
-    };
-
-    void loadTurnVideos();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [getTurnVideoReadUrl, interviewHistory]);
-
-  useEffect(() => {
-    setVideoLoadFailedMap({});
-  }, [interviewHistory, resolvedVideoSources]);
-
-  useEffect(() => {
-    setVideoReadyMap({});
-  }, [interviewHistory, resolvedVideoSources]);
-
-  useEffect(() => {
-    setActiveTurnIndex((prev) => {
-      if (interviewHistory.length === 0) return 0;
-      return Math.min(prev, interviewHistory.length - 1);
-    });
-  }, [interviewHistory.length]);
-
-  const handlePrevTurn = useCallback(() => {
-    setActiveTurnIndex((prev) => Math.max(prev - 1, 0));
+  const handleCarouselTouchStart = useCallback((topicKey, event) => {
+    if (!topicKey) return;
+    swipeStartXRef.current[topicKey] = event.changedTouches?.[0]?.clientX ?? null;
   }, []);
 
-  const handleNextTurn = useCallback(() => {
-    setActiveTurnIndex((prev) => Math.min(prev + 1, interviewHistory.length - 1));
-  }, [interviewHistory.length]);
-
-  const handleCarouselTouchStart = useCallback((event) => {
-    swipeStartXRef.current = event.changedTouches?.[0]?.clientX ?? null;
-  }, []);
-
-  const handleCarouselTouchEnd = useCallback((event) => {
-    const startX = swipeStartXRef.current;
+  const handleCarouselTouchEnd = useCallback((topicKey, totalCount, event) => {
+    if (!topicKey || totalCount <= 0) return;
+    const startX = swipeStartXRef.current[topicKey];
     const endX = event.changedTouches?.[0]?.clientX;
-    swipeStartXRef.current = null;
+    swipeStartXRef.current[topicKey] = null;
 
     if (typeof startX !== 'number' || typeof endX !== 'number') return;
 
@@ -472,10 +410,10 @@ const RealLearningRecordDetail = () => {
     if (Math.abs(deltaX) < SWIPE_THRESHOLD_PX) return;
 
     if (deltaX < 0) {
-      handleNextTurn();
+      handleNextTurn(topicKey, totalCount);
       return;
     }
-    handlePrevTurn();
+    handlePrevTurn(topicKey, totalCount);
   }, [handleNextTurn, handlePrevTurn]);
 
   const questionText = toTrimmedString(
@@ -555,7 +493,7 @@ const RealLearningRecordDetail = () => {
       </div>
 
       <div className="p-6 max-w-lg mx-auto space-y-4 -mt-3">
-        <Card className="p-5 bg-white rounded-2xl border border-gray-100 shadow-sm">
+        <Card className="p-5 bg-white rounded-2xl border border-gray-100 shadow-sm animate-feedback-reveal stagger-1">
           <div className="flex items-center gap-2 mb-4">
             <Sparkles className="w-5 h-5 text-primary-500" />
             <h3>{TEXT_METRICS_TITLE}</h3>
@@ -581,139 +519,14 @@ const RealLearningRecordDetail = () => {
         </Card>
 
         {questionText && (
-          <Card className="p-5 bg-white rounded-2xl border border-gray-100 shadow-sm">
+          <Card className="p-5 bg-white rounded-2xl border border-gray-100 shadow-sm animate-feedback-reveal stagger-2">
             <p className="text-sm text-muted-foreground mb-2">{TEXT_QUESTION_LABEL}</p>
             <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">{questionText}</p>
           </Card>
         )}
 
-        <Card className="p-5 bg-white rounded-2xl border border-gray-100 shadow-sm space-y-4">
-          <div className="flex items-center gap-2">
-            <Sparkles className="w-5 h-5 text-primary-500" />
-            <h3>{TEXT_INTERVIEW_VIDEO_TITLE}</h3>
-          </div>
-          {interviewHistory.length > 0 ? (
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <p className="text-xs text-muted-foreground">
-                  {activeTurnIndex + 1} / {interviewHistory.length}
-                </p>
-                {interviewHistory.length > 1 && (
-                  <div className="flex items-center gap-1.5">
-                    <button
-                      type="button"
-                      onClick={handlePrevTurn}
-                      disabled={activeTurnIndex === 0}
-                      className="h-8 w-8 inline-flex items-center justify-center rounded-full border border-gray-200 bg-white text-gray-700 disabled:opacity-40 disabled:cursor-not-allowed"
-                      aria-label={TEXT_PREV_TOPIC}
-                    >
-                      <ChevronLeft className="w-4 h-4" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleNextTurn}
-                      disabled={activeTurnIndex >= interviewHistory.length - 1}
-                      className="h-8 w-8 inline-flex items-center justify-center rounded-full border border-gray-200 bg-white text-gray-700 disabled:opacity-40 disabled:cursor-not-allowed"
-                      aria-label={TEXT_NEXT_TOPIC}
-                    >
-                      <ChevronRight className="w-4 h-4" />
-                    </button>
-                  </div>
-                )}
-              </div>
-              <div
-                className="overflow-hidden"
-                onTouchStart={handleCarouselTouchStart}
-                onTouchEnd={handleCarouselTouchEnd}
-              >
-                <div
-                  className="flex transition-transform duration-300 ease-out"
-                  style={{ transform: `translateX(-${activeTurnIndex * 100}%)` }}
-                >
-                  {interviewHistory.map((turn, idx) => {
-                    const turnKey = buildTurnVideoKey(turn.turnOrder, idx);
-                    const resolvedVideoUrl = toTrimmedString(
-                      resolvedVideoSources[turnKey] ?? turn.videoPlayUrl
-                    );
-                    const hasVideoLoadFailed = Boolean(videoLoadFailedMap[turnKey]);
-                    const canRenderVideoPlayer = Boolean(resolvedVideoUrl) && !hasVideoLoadFailed;
-                    const displayTopicOrder = Math.max(turn.turnOrder + 1, 1);
-
-                    return (
-                      <div key={turnKey} className="w-full shrink-0 px-px">
-                        <div className="rounded-xl border border-primary-100 bg-primary-50/50 p-4 space-y-3">
-                          <p className="text-sm font-semibold text-primary-700">
-                            {TEXT_TURN_LABEL} {displayTopicOrder}
-                            {turn.categoryLabel ? ` · ${turn.categoryLabel}` : ''}
-                          </p>
-                          {turn.question && (
-                            <div className="space-y-1">
-                              <p className="text-xs text-muted-foreground">{TEXT_QUESTION_LABEL}</p>
-                              <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">{turn.question}</p>
-                            </div>
-                          )}
-                          <div className="space-y-1">
-                            <p className="text-xs text-muted-foreground">{TEXT_VIDEO_LABEL}</p>
-                            {canRenderVideoPlayer ? (
-                              <div className="relative">
-                                <video
-                                  controls
-                                  preload="metadata"
-                                  playsInline
-                                  className="w-full aspect-video rounded-lg border border-gray-200 bg-black"
-                                  src={resolvedVideoUrl}
-                                  onError={() => {
-                                    void handleTurnVideoLoadError(turn, idx);
-                                  }}
-                                  onLoadedData={() => {
-                                    setVideoReadyMap((prev) => ({ ...prev, [turnKey]: true }));
-                                    setVideoLoadFailedMap((prev) => {
-                                      if (!prev[turnKey]) return prev;
-                                      const next = { ...prev };
-                                      delete next[turnKey];
-                                      return next;
-                                    });
-                                  }}
-                                />
-                                {!videoReadyMap[turnKey] && (
-                                  <div className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-lg bg-black/65">
-                                    <p className="text-xs text-white/90">{TEXT_VIDEO_LOADING}</p>
-                                  </div>
-                                )}
-                              </div>
-                            ) : (
-                              <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 px-4 py-5 text-center">
-                                <p className="text-sm font-medium text-gray-600">{TEXT_VIDEO_MISSING_CARD}</p>
-                              </div>
-                            )}
-                            {canRenderVideoPlayer && (
-                              <p className="text-xs text-muted-foreground">
-                                {turn.videoExpiresAt
-                                  ? `${TEXT_VIDEO_EXPIRES_LABEL} (${turn.videoExpiresAt})`
-                                  : TEXT_VIDEO_EXPIRES_LABEL}
-                              </p>
-                            )}
-                          </div>
-                          {turn.answerText && (
-                            <div className="space-y-1">
-                              <p className="text-xs text-muted-foreground">{TEXT_MY_ANSWER_LABEL}</p>
-                              <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">{turn.answerText}</p>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-                </div>
-              </div>
-          ) : (
-            <p className="text-sm text-muted-foreground">{TEXT_INTERVIEW_VIDEO_EMPTY}</p>
-          )}
-        </Card>
-
         {hasKeywordSummary && (
-          <Card className="p-5 bg-white rounded-2xl border border-gray-100 shadow-sm space-y-3">
+          <Card className="p-5 bg-white rounded-2xl border border-gray-100 shadow-sm space-y-3 animate-feedback-reveal stagger-3">
             <h3>{TEXT_COVERAGE}</h3>
             <p className="text-sm text-gray-700">
               {coveragePercent === null ? TEXT_FEEDBACK_EMPTY : `${coveragePercent}%`}
@@ -736,60 +549,163 @@ const RealLearningRecordDetail = () => {
         )}
 
         {topicsFeedback.length > 0 && (
-          <Card className="p-5 bg-white rounded-2xl border border-gray-100 shadow-sm space-y-3">
+          <Card className="p-5 bg-white rounded-2xl border border-gray-100 shadow-sm space-y-3 animate-feedback-reveal stagger-4">
             <div className="flex items-center gap-2">
               <ListChecks className="w-5 h-5 text-primary-500" />
               <h3>{TEXT_TOPIC_FEEDBACK_TITLE}</h3>
             </div>
             <div className="space-y-3">
-              {topicsFeedback.map((topic, idx) => (
-                <div
-                  key={`${topic?.topic_id ?? 'topic'}-${idx}`}
-                  className="rounded-xl border border-primary-100 bg-primary-50/60 p-4 space-y-3"
-                >
-                  <p className="text-sm text-primary-700 font-semibold">
-                    {TEXT_TOPIC_LABEL} {topic?.topic_id ?? idx + 1}
-                  </p>
-                  <p className="text-[15px] leading-relaxed text-gray-900">
-                    <span className="font-semibold">{TEXT_MAIN_QUESTION}: </span>
-                    {toTrimmedString(topic?.main_question) || TEXT_FEEDBACK_EMPTY}
-                  </p>
-                  <div>
-                    <p className="text-sm font-semibold text-emerald-700 mb-1.5">{TEXT_TOPIC_STRENGTHS}</p>
-                    {renderFeedbackText(topic?.strengths, 'text-sm text-gray-700')}
+              {topicsFeedback.map((topic, idx) => {
+                const topicId = toTopicId(topic?.topic_id ?? topic?.topicId);
+                const topicKey = topicId === null ? 'unknown' : String(topicId);
+                const topicTurns = interviewHistoryByTopic[topicKey] ?? [];
+                const activeTurnIndex = getTopicTurnIndex(topicKey, topicTurns.length);
+                const activeTurn = topicTurns[activeTurnIndex] ?? null;
+                const topicTurnMotionDirection = topicTurnMotionMap[topicKey] ?? '';
+                const topicTurnMotionClass = topicTurnMotionDirection === 'next'
+                  ? 'animate-topic-turn-swipe-next'
+                  : topicTurnMotionDirection === 'prev'
+                    ? 'animate-topic-turn-swipe-prev'
+                    : '';
+                const topicCategoryLabel = toTrimmedString(
+                  activeTurn?.categoryLabel ?? topicTurns[0]?.categoryLabel
+                );
+                const topicTitle = `${TEXT_TOPIC_LABEL} ${topic?.topic_id ?? idx + 1}`;
+                const topicTitleWithCategory = topicCategoryLabel
+                  ? `${topicTitle} : ${topicCategoryLabel}`
+                  : topicTitle;
+                const activeQuestion = toTrimmedString(activeTurn?.question);
+                const fallbackMainQuestion = toTrimmedString(topic?.main_question);
+                const topicQuestionText = activeQuestion || fallbackMainQuestion || TEXT_FEEDBACK_EMPTY;
+                const activeTurnType = toTrimmedString(activeTurn?.turnType).toLowerCase();
+                const isFollowUpQuestion = activeTurnType === 'follow_up';
+                const topicQuestionLabel = isFollowUpQuestion
+                  ? TEXT_FOLLOW_UP_QUESTION_LABEL
+                  : TEXT_QUESTION_LABEL;
+                const TopicQuestionIcon = isFollowUpQuestion ? CircleQuestionMark : CircleHelp;
+                const topicStaggerClass = `stagger-${(idx % 5) + 1}`;
+
+                return (
+                  <div
+                    key={`${topic?.topic_id ?? 'topic'}-${idx}`}
+                    className={`rounded-xl border border-primary-100 bg-primary-50/60 p-4 space-y-3 animate-feedback-reveal ${topicStaggerClass}`}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-sm text-primary-700 font-semibold">
+                        {topicTitleWithCategory}
+                      </p>
+                      {topicTurns.length > 0 && (
+                        <div className="flex items-center gap-1.5">
+                          <p className="text-xs text-muted-foreground">
+                            {activeTurnIndex + 1} / {topicTurns.length}
+                          </p>
+                          {topicTurns.length > 1 && (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => handlePrevTurn(topicKey, topicTurns.length)}
+                                disabled={activeTurnIndex === 0}
+                                className="h-7 w-7 inline-flex items-center justify-center rounded-full border border-gray-200 bg-white text-gray-700 disabled:opacity-40 disabled:cursor-not-allowed"
+                                aria-label={TEXT_PREV_TOPIC}
+                              >
+                                <ChevronLeft className="w-4 h-4" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleNextTurn(topicKey, topicTurns.length)}
+                                disabled={activeTurnIndex >= topicTurns.length - 1}
+                                className="h-7 w-7 inline-flex items-center justify-center rounded-full border border-gray-200 bg-white text-gray-700 disabled:opacity-40 disabled:cursor-not-allowed"
+                                aria-label={TEXT_NEXT_TOPIC}
+                              >
+                                <ChevronRight className="w-4 h-4" />
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    <div className={`space-y-3 ${topicTurnMotionClass}`}>
+                      <p className="text-[15px] leading-relaxed text-gray-900">
+                        <span
+                          className="inline-flex align-middle mr-1.5 text-primary-700"
+                          aria-label={topicQuestionLabel}
+                          title={topicQuestionLabel}
+                        >
+                          <TopicQuestionIcon className="w-4 h-4" />
+                        </span>
+                        {topicQuestionText}
+                      </p>
+                      {topicTurns.length > 0 ? (
+                        <div
+                          className="overflow-hidden"
+                          onTouchStart={(event) => handleCarouselTouchStart(topicKey, event)}
+                          onTouchEnd={(event) => handleCarouselTouchEnd(topicKey, topicTurns.length, event)}
+                        >
+                          {activeTurn && (
+                            <div key={activeTurn.turnKey} className="w-full px-px">
+                              <TopicTurnVideoCard
+                                turn={activeTurn}
+                                videoUrl={getTurnVideoUrl(activeTurn)}
+                                onEnsureVideoUrl={ensureTurnVideoUrl}
+                                onRefreshVideoUrl={refreshTurnVideoUrl}
+                              />
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <p className="text-sm text-muted-foreground">{TEXT_INTERVIEW_VIDEO_EMPTY}</p>
+                      )}
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-emerald-700 mb-1.5 inline-flex items-center gap-1.5">
+                        <ThumbsUp className="w-4 h-4 text-emerald-600" />
+                        {TEXT_TOPIC_STRENGTHS}
+                      </p>
+                      {renderFeedbackText(topic?.strengths, 'text-sm text-gray-700')}
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-amber-700 mb-1.5 inline-flex items-center gap-1.5">
+                        <AlertCircle className="w-4 h-4 text-amber-600" />
+                        {TEXT_TOPIC_IMPROVEMENTS}
+                      </p>
+                      {renderFeedbackText(topic?.improvements, 'text-sm text-gray-700')}
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-sm font-semibold text-amber-700 mb-1.5">{TEXT_TOPIC_IMPROVEMENTS}</p>
-                    {renderFeedbackText(topic?.improvements, 'text-sm text-gray-700')}
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </Card>
         )}
 
-        <Card className="p-5 rounded-2xl border border-emerald-100 bg-emerald-50/70 shadow-sm">
-          <div className="flex items-start gap-3">
-            <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0">
-              <ThumbsUp className="w-5 h-5 text-emerald-600" />
-            </div>
-            <div className="flex-1">
-              <h3 className="mb-2 text-emerald-900">{TEXT_STRENGTHS_TITLE}</h3>
-              {renderFeedbackText(overallFeedback?.strengths, 'text-sm text-gray-700')}
-            </div>
+        <Card className="p-5 bg-white rounded-2xl border border-gray-100 shadow-sm space-y-3 animate-feedback-reveal stagger-5">
+          <div className="flex items-center gap-2">
+            <ListChecks className="w-5 h-5 text-primary-500" />
+            <h3>{TEXT_OVERALL_FEEDBACK_SECTION_TITLE}</h3>
           </div>
-        </Card>
 
-        <Card className="p-5 rounded-2xl border border-amber-100 bg-amber-50/70 shadow-sm">
-          <div className="flex items-start gap-3">
-            <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
-              <AlertCircle className="w-5 h-5 text-amber-600" />
+          <Card className="p-5 rounded-2xl border border-emerald-100 bg-emerald-50/70 shadow-sm">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0">
+                <ThumbsUp className="w-5 h-5 text-emerald-600" />
+              </div>
+              <div className="flex-1">
+                <h3 className="mb-2 text-emerald-900">{TEXT_STRENGTHS_TITLE}</h3>
+                {renderFeedbackText(overallFeedback?.strengths, 'text-sm text-gray-700')}
+              </div>
             </div>
-            <div className="flex-1">
-              <h3 className="mb-2 text-amber-900">{TEXT_IMPROVEMENTS_TITLE}</h3>
-              {renderFeedbackText(overallFeedback?.improvements, 'text-sm text-gray-700')}
+          </Card>
+
+          <Card className="p-5 rounded-2xl border border-amber-100 bg-amber-50/70 shadow-sm">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
+                <AlertCircle className="w-5 h-5 text-amber-600" />
+              </div>
+              <div className="flex-1">
+                <h3 className="mb-2 text-amber-900">{TEXT_IMPROVEMENTS_TITLE}</h3>
+                {renderFeedbackText(overallFeedback?.improvements, 'text-sm text-gray-700')}
+              </div>
             </div>
-          </div>
+          </Card>
         </Card>
 
         <Button

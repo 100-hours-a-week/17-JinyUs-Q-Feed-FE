@@ -7,6 +7,7 @@ import { useRecommendedQuestion } from '@/app/hooks/useRecommendedQuestion';
 import { useWeeklyStats } from '@/app/hooks/useWeeklyStats';
 import { useQuestionCategories } from '@/app/hooks/useQuestionCategories';
 import { getQuestionCategoryLabel } from '@/app/constants/questionCategoryMeta';
+import { useUnreadNotification } from '@/context/UnreadNotificationContext';
 
 const TEXT_RECOMMENDATION_LOADING = '추천 질문을 불러오는 중...';
 const TEXT_RECOMMENDATION_ERROR = '추천 질문을 불러오지 못했습니다.';
@@ -111,6 +112,7 @@ const QuickAction = ({ icon, label, description, color = 'var(--primary-500)', o
 const Home = () => {
     const navigate = useNavigate();
     const { nickname } = useAuth();
+    const { hasUnread } = useUnreadNotification();
 
     const { data: weeklyStatsData } = useWeeklyStats();
     const { data: categoryData } = useQuestionCategories();
@@ -161,10 +163,13 @@ const Home = () => {
                         {SHOW_NOTIFICATIONS && (
                             <button
                                 className="relative flex items-center justify-center w-9 h-9 rounded-full hover:bg-black/10 transition-colors text-gray-900 flex-shrink-0"
-                                aria-label="알림"
+                                aria-label={hasUnread ? '알림, 미읽음 있음' : '알림'}
                                 onClick={() => navigate('/notifications')}
                             >
                                 <Bell className="w-5 h-5" />
+                                {hasUnread && (
+                                    <span aria-hidden="true" className="absolute top-0.5 right-0.5 w-2 h-2 bg-red-500 rounded-full pointer-events-none" />
+                                )}
                             </button>
                         )}
                     </div>

@@ -15,6 +15,8 @@ import {
     getQuestionCategoryColor,
     getQuestionTypeLabel,
 } from '@/app/constants/questionCategoryMeta';
+import { QUESTION_TYPES } from '@/app/constants/interviewTaxonomy';
+import { useUnreadNotification } from '@/context/UnreadNotificationContext';
 
 
 const SHOW_NOTIFICATIONS = import.meta.env.VITE_SHOW_NOTIFICATIONS === 'true';
@@ -31,6 +33,7 @@ const EMPTY_MAP = Object.freeze({});
 const PracticeMain = () => {
     const navigate = useNavigate();
     const { setSelectedQuestion } = usePracticeQuestion();
+    const { hasUnread } = useUnreadNotification();
     const [searchQuery, setSearchQuery] = useState(INITIAL_SEARCH_QUERY);
     const [debouncedQuery, setDebouncedQuery] = useState(INITIAL_SEARCH_QUERY);
     const [selectedType, setSelectedType] = useState(ALL_FILTER_VALUE);
@@ -60,14 +63,20 @@ const PracticeMain = () => {
     const { data: typeMap = {} } = useQuestionTypes();
     const categoryMap = categoryData?.flat ?? EMPTY_MAP;
     const categoriesByType = categoryData?.byType ?? EMPTY_MAP;
+    const normalizedSelectedType =
+        selectedType === QUESTION_TYPES.SYSTEM_DESIGN ? ALL_FILTER_VALUE : selectedType;
 
-    const typeOptions = Object.keys(categoriesByType).map((typeKey) => ({
-        value: typeKey,
-        label: getQuestionTypeLabel(typeKey, typeMap),
-    }));
+    const typeOptions = Object.keys(categoriesByType)
+        .filter((typeKey) => typeKey !== QUESTION_TYPES.SYSTEM_DESIGN)
+        .map((typeKey) => ({
+            value: typeKey,
+            label: getQuestionTypeLabel(typeKey, typeMap),
+        }));
 
     const selectedTypeCategories =
-        selectedType === ALL_FILTER_VALUE ? null : categoriesByType[selectedType];
+        normalizedSelectedType === ALL_FILTER_VALUE
+            ? null
+            : categoriesByType[normalizedSelectedType];
 
     const categoryOptions =
         selectedTypeCategories && typeof selectedTypeCategories === 'object'
@@ -86,8 +95,11 @@ const PracticeMain = () => {
         fetchNextPage,
     } = useQuestionsInfinite({
         query: debouncedQuery,
-        type: selectedType === ALL_FILTER_VALUE ? undefined : selectedType,
-        category: selectedCategory === ALL_FILTER_VALUE ? undefined : selectedCategory,
+        type: normalizedSelectedType === ALL_FILTER_VALUE ? undefined : normalizedSelectedType,
+        category:
+            normalizedSelectedType === ALL_FILTER_VALUE || selectedCategory === ALL_FILTER_VALUE
+                ? undefined
+                : selectedCategory,
     });
 
     const questions = useMemo(
@@ -127,7 +139,8 @@ const PracticeMain = () => {
         navigate(`/practice/answer/${question.id}`);
     };
 
-    const showCategoryRow = selectedType !== ALL_FILTER_VALUE && categoryOptions.length > 0;
+    const showCategoryRow =
+        normalizedSelectedType !== ALL_FILTER_VALUE && categoryOptions.length > 0;
 
     return (
         <div className="min-h-screen bg-[#FAFAFA] pb-20">
@@ -148,9 +161,13 @@ const PracticeMain = () => {
                         {SHOW_NOTIFICATIONS && (
                             <button
                                 className="relative flex-shrink-0 flex items-center justify-center w-9 h-9 rounded-full hover:bg-gray-100 transition-colors"
-                                aria-label="알림"
+                                aria-label={hasUnread ? '알림, 미읽음 있음' : '알림'}
+                                onClick={() => navigate('/notifications')}
                             >
                                 <Bell className="w-5 h-5 text-muted-foreground" />
+                                {hasUnread && (
+                                    <span aria-hidden="true" className="absolute top-0.5 right-0.5 w-2 h-2 bg-red-500 rounded-full pointer-events-none" />
+                                )}
                             </button>
                         )}
                     </div>
@@ -164,7 +181,7 @@ const PracticeMain = () => {
                             type="button"
                             onClick={() => handleTypeChange(ALL_FILTER_VALUE)}
                             className={`filter-chip ${
-                                selectedType === ALL_FILTER_VALUE ? 'active' : ''
+                                normalizedSelectedType === ALL_FILTER_VALUE ? 'active' : ''
                             }`}
                         >
                             {ALL_FILTER_LABEL}
@@ -175,7 +192,7 @@ const PracticeMain = () => {
                                 type="button"
                                 onClick={() => handleTypeChange(option.value)}
                                 className={`filter-chip ${
-                                    selectedType === option.value ? 'active' : ''
+                                    normalizedSelectedType === option.value ? 'active' : ''
                                 }`}
                             >
                                 {option.label}
@@ -183,7 +200,7 @@ const PracticeMain = () => {
                         ))}
                     </div>
                 </div>
-                {selectedType !== ALL_FILTER_VALUE && categoryOptions.length > 0 && (
+                {normalizedSelectedType !== ALL_FILTER_VALUE && categoryOptions.length > 0 && (
                     <div className="px-4 pb-4">
                         <div className="flex items-center gap-2 overflow-x-auto pb-2">
                             {categoryOptions.map((option) => (
@@ -250,7 +267,7 @@ const PracticeMain = () => {
 
                                 <h3 className="mb-2">{question.title}</h3>
                                 <p className="text-sm text-muted-foreground line-clamp-2 mb-3">
-                                    {question.description}
+                                    {/*{question.description}*/}
                                 </p>
                             </Card>
                             );

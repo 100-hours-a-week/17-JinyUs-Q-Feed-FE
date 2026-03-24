@@ -1,5 +1,14 @@
 import { authFetch, extractErrorMessage, API_BASE_URL } from '@/utils/apiUtils.js'
 
+// refresh 전용 에러 클래스: status 코드를 포함해 호출자가 401/기타를 구분할 수 있게 함
+export class RefreshTokenError extends Error {
+  constructor(message, status) {
+    super(message)
+    this.name = 'RefreshTokenError'
+    this.status = status
+  }
+}
+
 export function getOAuthAuthorizationUrl(provider = 'kakao') {
   return `${API_BASE_URL}/api/auth/oauth/authorization-url?provider=${provider}`
 }
@@ -34,12 +43,13 @@ export async function refreshTokens() {
   })
 
   if (!response.ok) {
-    throw new Error(await extractErrorMessage(response, '토큰 갱신에 실패했습니다.'))
+    const message = await extractErrorMessage(response, '토큰 갱신에 실패했습니다.')
+    throw new RefreshTokenError(message, response.status)
   }
 
   const authHeader = response.headers.get('Authorization')
   if (!authHeader?.startsWith('Bearer ')) {
-    throw new Error('토큰 갱신에 실패했습니다.')
+    throw new RefreshTokenError('토큰 갱신에 실패했습니다.', response.status)
   }
 
   return authHeader.slice(7)

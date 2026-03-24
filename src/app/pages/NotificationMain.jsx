@@ -1,8 +1,12 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
+import debounce from 'lodash/debounce';
 import { useNavigate } from 'react-router-dom';
-import { Bell, MessageSquare, Star, Award, Info, Loader2 } from 'lucide-react';
+import { Bell, BellRing, Clock, MessageSquare, Star, Award, Info, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 import { AppHeader } from '@/app/components/AppHeader';
+import { formatRelativeTime } from '@/app/utils/notificationTime';
 import { useNotificationsInfinite } from '@/app/hooks/useNotificationsInfinite';
+import { useUnreadNotification } from '@/context/UnreadNotificationContext';
 
 // notificationType 코드 → 아이콘 매핑
 const TYPE_ICON = {
@@ -10,30 +14,35 @@ const TYPE_ICON = {
     ACHIEVEMENT: <Award size={18} />,
     RECOMMENDATION: <Star size={18} />,
     SYSTEM: <Info size={18} />,
+    ANSWER_FEEDBACK: <MessageSquare size={18} />,
+    REVISIT: <BellRing size={18} />,
+    NOTICE: <Info size={18} />,
+    PROJECT_REMINDER: <Clock size={18} />,
 };
 
 const getTypeIcon = (type) => TYPE_ICON[type] ?? <Bell size={18} />;
-
-// createdAt → 상대 시간 포맷
-const formatRelativeTime = (isoString) => {
-    if (!isoString) return '';
-    const diff = Date.now() - new Date(isoString).getTime();
-    const minutes = Math.floor(diff / 60_000);
-    if (minutes < 1) return '방금 전';
-    if (minutes < 60) return `${minutes}분 전`;
-    const hours = Math.floor(minutes / 60);
-    if (hours < 24) return `${hours}시간 전`;
-    const days = Math.floor(hours / 24);
-    if (days < 7) return `${days}일 전`;
-    return new Date(isoString).toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' });
-};
 
 const NotificationItem = ({ notification, onRead }) => {
     const navigate = useNavigate();
 
     const handleClick = () => {
-        if (!notification.read) onRead(notification.id);
-        if (notification.deeplink) navigate(notification.deeplink);
+        const { deeplink, read, id } = notification
+
+        if (deeplink) {
+            // 내부 경로만 허용 — '/'로 시작하지 않으면 차단
+            // http://, https://, javascript: 등 외부/위험 스킴 방지
+            if (!deeplink.startsWith('/')) {
+                toast.error('유효하지 않은 이동 경로')
+                return
+            }
+            // 읽음 처리(fire and forget) — 실패해도 이동 수행
+            if (!read) onRead(id)
+            navigate(deeplink)
+            return
+        }
+
+        // deeplink 없으면 읽음 처리만
+        if (!read) onRead(id)
     };
 
     return (
@@ -83,6 +92,7 @@ const NotificationItem = ({ notification, onRead }) => {
 };
 
 const NotificationMain = () => {
+    const { clearUnread } = useUnreadNotification()
     const {
         notifications,
         isLoading,
@@ -96,14 +106,21 @@ const NotificationMain = () => {
 
     const observerRef = useRef(null);
 
+    const debouncedFetchNext = useMemo(
+        () => debounce(() => fetchNextPage(), 300),
+        [fetchNextPage]
+    );
+
+    useEffect(() => () => debouncedFetchNext.cancel(), [debouncedFetchNext]);
+
     const observerCallback = useCallback(
         (entries) => {
             const [entry] = entries;
             if (entry.isIntersecting && hasNextPage && !isFetchingNextPage) {
-                fetchNextPage();
+                debouncedFetchNext();
             }
         },
-        [hasNextPage, isFetchingNextPage, fetchNextPage]
+        [hasNextPage, isFetchingNextPage, debouncedFetchNext]
     );
 
     useEffect(() => {
@@ -122,7 +139,7 @@ const NotificationMain = () => {
 
     const headerRight = hasUnread ? (
         <button
-            onClick={() => readAll()}
+            onClick={() => readAll(undefined, { onSuccess: clearUnread })}
             className="text-xs font-medium text-pink-500 hover:text-pink-600 px-2 py-1"
         >
             모두 읽기
